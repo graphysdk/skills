@@ -11,6 +11,19 @@ The skill is model-invocable: Claude / GPT / Gemini / etc. will pick it up autom
 
 ---
 
+## Goal: ship a working graph in this session
+
+**Don't stop at "I've added the code."** The point of this skill is for the user to *see* a graph rendering in their browser before the conversation ends. So:
+
+1. Walk all the way through Steps 1–5 — auth, install, Pixi setup, component, render call.
+2. **Pick concrete data and a concrete chart type and render it.** If the user gave you a dataset, use it. If they didn't, use one of the examples below and tell them you're using sample data they can swap out later.
+3. After wiring everything up, **start their dev server (or the existing one) and open the page so they can see the graph**. If you can't open a browser, give them the exact URL to load and confirm what they should see (axes, bars, legend, etc.).
+4. If something blocks rendering — missing token, wrong React version, Pixi init error — solve it before moving on. Don't paper over errors with TODOs.
+
+Be proactive. The user came here to see a chart, not to read a long markdown file.
+
+---
+
 ## Prerequisites
 
 - React **19+**
@@ -51,25 +64,28 @@ Skip ahead to Step 2. Make sure your project's `.npmrc` maps the `@graphysdk` sc
 
 ## Step 2 — Install the packages
 
-Install the two SDK packages plus `pixi.js` as a peer dependency. Use whichever package manager your project uses — detect it by looking at the lockfile (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lockb`).
+> **Critical: use the `@alpha` tag.** The SDK packages are currently published on the alpha channel only. Without `@alpha` the install will resolve nothing or pin a non-functional version, and the integration will fail. Always pass `@alpha` for both `@graphysdk/viz-engine` and `@graphysdk/react-canvas-renderer`.
+
+Detect the customer's package manager from the lockfile (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lockb`) and run the matching command.
 
 ```bash
 # pnpm
-pnpm add @graphysdk/viz-engine @graphysdk/react-canvas-renderer pixi.js
+pnpm add @graphysdk/react-canvas-renderer@alpha @graphysdk/viz-engine@alpha pixi.js zustand
 
 # npm
-npm install @graphysdk/viz-engine @graphysdk/react-canvas-renderer pixi.js
+npm install @graphysdk/react-canvas-renderer@alpha @graphysdk/viz-engine@alpha pixi.js zustand
 
 # yarn
-yarn add @graphysdk/viz-engine @graphysdk/react-canvas-renderer pixi.js
+yarn add @graphysdk/react-canvas-renderer@alpha @graphysdk/viz-engine@alpha pixi.js zustand
 
 # bun
-bun add @graphysdk/viz-engine @graphysdk/react-canvas-renderer pixi.js
+bun add @graphysdk/react-canvas-renderer@alpha @graphysdk/viz-engine@alpha pixi.js zustand
 ```
 
 Peer-dep notes:
-- `pixi.js` ≥ 8 is required by the renderer.
-- `react` ≥ 19 is required.
+- `pixi.js` ≥ 8 — required, included above.
+- `zustand` ≥ 5.0.12 — required, included above. Customers easily miss this one because it's not the kind of dep you'd guess from the package name.
+- `react` ≥ 19 — required, but assumed already present in the customer's React app. If they're on React 18 or older, the integration won't work — tell them they need to upgrade.
 - No CSS imports needed — the renderer is pure Pixi/Canvas, not DOM.
 
 ---
@@ -207,7 +223,6 @@ const revenueGraph: GraphConfig = {
     showGridLines: true,
   },
   legend: { position: 'right' },
-  appearance: { paletteId: 'Ocean' },
 };
 
 // ...
@@ -266,7 +281,7 @@ The full type is the source of truth (it lives in `@graphysdk/viz-engine`'s expo
 | `type` | The graph type. See supported list below. |
 | `axes` | `x` / `y` / `y2` axis options (label, min, max, scaleType, isReversed, isHidden, tickDisplayMode), `hasDualYAxis`, `showGridLines`. |
 | `legend` | `position`: `'auto' \| 'top' \| 'right' \| 'none'`. |
-| `appearance` | `paletteId`, background, rounded corners, number formatting (`decimalPlaces`, `abbreviation`), tooltip toggle, animation toggle, text scale. |
+| `appearance` | Background, rounded corners, number formatting (`decimalPlaces`, `abbreviation`), tooltip toggle, animation toggle, text scale. **Do not set `paletteId` or `seriesStyles` — palettes and per-series colors are not yet supported.** The default palette renders out of the box. |
 | `options` | Type-specific tuning: `isSmoothLine`, `showPoints`, `missingValues`, `sortBars`, `pointSize`, `comboType`, `pieTotalPosition`. |
 | `headlineNumbers` | KPI badge: `show` (`'current' \| 'average' \| 'total' \| 'conversion' \| 'none'`), `compareWith` (`'previous' \| 'first' \| 'none'`), `size`. |
 | `dataLabels` | `showDataLabels`, `dataLabelFormat`, `showStackTotals`, `showCategoryLabels`. |
@@ -286,22 +301,26 @@ The full type is the source of truth (it lives in `@graphysdk/viz-engine`'s expo
 ## Common pitfalls
 
 - **`404 Not Found` on install** → npm auth isn't set up. Re-check Step 1: `NPM_TOKEN` env var, `.npmrc` scope mapping.
+- **Install resolves a wrong version (or empty install)** → you forgot `@alpha`. The SDK is published on the alpha tag only. Re-run install with `@graphysdk/react-canvas-renderer@alpha @graphysdk/viz-engine@alpha`.
+- **Runtime error mentioning `zustand` / `useStore`** → `zustand` peer dep is missing. Add it: `pnpm add zustand` (or equivalent).
 - **`Unsupported graph type` runtime error** → the `type` is one of `funnel`, `heatmap`, `waterfall`, `mekko`, `table`. These aren't implemented yet — pick a supported type from the list above.
+- **User asks for custom colors / a specific palette / branded styling** → not supported yet. Tell them honestly: per-series colors, `paletteId`, and `seriesStyles` aren't wired up in this version. The default palette renders out of the box; styling will land in a later release.
 - **Blank graph for a frame on first render** → expected. `<GraphRenderer>` returns `null` until `document.fonts.ready` resolves so tick labels and titles use real font metrics. Plan layout accordingly (it's typically <100ms).
 - **Blurry text under a zoomed parent `Container`** → pass `pixelRatio={parentZoom * window.devicePixelRatio}` to keep text textures crisp. Default is `window.devicePixelRatio` only.
 - **Pixi cleanup is your responsibility.** Graphy cleans up its own sub-tree on unmount, but the surrounding `Application` is yours to destroy.
 
 ---
 
-## Verification
+## Verification (do this, don't skip it)
 
-To confirm the integration works:
+You aren't done until the graph is on screen. Specifically:
 
-1. Drop one of the examples above into a fresh React 19 app (Vite is fine).
-2. Run the app's dev server (`pnpm dev` / `npm run dev` / etc.).
-3. Visually confirm a column or line graph renders in the browser, with axes, gridlines, legend, and palette colors.
+1. Make sure the dev server is running (`pnpm dev` / `npm run dev` / etc.) — start it if it isn't.
+2. Open the page that mounts `<GraphCanvas>`. Confirm a column or line graph renders with axes, gridlines, and legend in the default palette.
+3. If you can drive the browser, do so and report what you see. If you can't, ask the user to load the URL and tell you what's there.
+4. If nothing renders, debug it now: check the browser console for errors, verify `app.stage` is non-null when `<GraphRenderer>` mounts, and re-check `@alpha` was on the install command.
 
-If the graph appears, the integration is correct.
+A successful Graphy integration looks like a chart, not a passing typecheck.
 
 ---
 
