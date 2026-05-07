@@ -1,0 +1,22 @@
+{
+  "name": "sdk",
+  "owner": {
+    "name": "Graphy",
+    "email": "hello@graphy.dev"
+  },
+  "description": "Agent skills for integrating Graphy SDK packages",
+  "plugins": [
+    {
+      "name": "graphy",
+      "source": "./",
+      "description": "Render graphs in a React app using @graphysdk/viz-engine and @graphysdk/react-canvas-renderer. Activates on requests to add a graph, chart, or visualize data.",
+      "version": "0.0.1",
+      "homepage": "https://github.com/graphysdk/skills",
+      "repository": "https://github.com/graphysdk/skills",
+      "license": "MIT",
+      "keywords": ["graphy", "graphs", "charts", "data-viz", "react", "pixi"],
+      "strict": false,
+      "skills": "./plugin-skills"
+    }
+  ]
+}
