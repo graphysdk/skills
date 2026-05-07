@@ -130,7 +130,8 @@ export function usePixiApp(width: number, height: number) {
       .then(() => {
         if (cancelled) instance.destroy(true);
         else setApp(instance);
-      });
+      })
+      .catch(() => instance.destroy(true));
 
     return () => {
       cancelled = true;
@@ -148,12 +149,14 @@ You own the lifecycle of the `Application`. Graphy will only manage its own sub-
 
 ## Step 4 — Render a graph with `GraphConfig`
 
-A `GraphConfig` is a plain JSON-shaped object describing what to draw. The renderer compiles it internally — you don't need to call any compiler yourself.
+A `GraphConfig` is a plain JSON-shaped object describing what to draw. You feed it to **`<GraphProvider>`**, which owns and compiles the spec, and wrap **`<GraphRenderer>`** inside it. The renderer reads the compiled spec from context — it has no `spec` prop of its own.
 
-The component tree is intentionally tiny: one `<GraphRenderer>` wired up to your Pixi `Application`'s stage.
+> **The DOM `<canvas>` element and `<GraphProvider>` are siblings, not parent/child.** Pixi attaches to the `<canvas>` via the `Application`. `<GraphRenderer>` renders nothing to the DOM — it mounts Pixi display objects into `app.stage`. So your JSX has the canvas as a regular DOM element and the provider/renderer pair next to it (gated on the Pixi app being initialized).
+
+> **Next.js / RSC:** this component uses hooks and DOM refs, so it must be a Client Component. Add `"use client"` at the top of the file.
 
 ```tsx
-import { GraphRenderer, darkPixiTheme } from '@graphysdk/react-canvas-renderer';
+import { GraphProvider, GraphRenderer, darkPixiTheme } from '@graphysdk/react-canvas-renderer';
 import type { GraphConfig } from '@graphysdk/viz-engine';
 
 interface GraphCanvasProps {
@@ -169,32 +172,41 @@ export function GraphCanvas({ spec, width, height }: GraphCanvasProps) {
     <>
       <canvas ref={canvasRef} style={{ width, height }} />
       {app && (
-        <GraphRenderer
-          parent={app.stage}
-          spec={spec}
-          width={width}
-          height={height}
-          theme={darkPixiTheme}
-        />
+        <GraphProvider input={spec}>
+          <GraphRenderer
+            parent={app.stage}
+            width={width}
+            height={height}
+            theme={darkPixiTheme}
+          />
+        </GraphProvider>
       )}
     </>
   );
 }
 ```
 
-`<GraphRenderer>` props (the public API):
+`<GraphProvider>` props:
+
+| Prop | Type | Notes |
+|---|---|---|
+| `input` | `GraphConfig` (or `SpecInput`) | The graph definition. Auto-detected and compiled internally. |
+| `formattingLocale` | `Locale?` | Optional locale for number/date formatting. Provided via context to descendants. |
+| `onChange` | `(spec: Spec) => void` | Optional. Fires when a runtime `Command` mutates the spec (e.g. via `useGraphCommandDispatcher`). Use this to persist edits in your app state. |
+| `children` | `ReactNode` | Must contain a `<GraphRenderer>` (and optionally components that call `useCompiledSpec` / `useGraphCommandDispatcher`). |
+
+`<GraphRenderer>` props:
 
 | Prop | Type | Notes |
 |---|---|---|
 | `parent` | `pixi.Container` | Where the graph mounts. Usually `app.stage`. You own it. |
-| `spec` | `GraphConfig` (or `SpecInput`) | The graph definition. Auto-detected. |
 | `width` | `number` | Canvas width in CSS pixels. |
 | `height` | `number` | Canvas height in CSS pixels. |
 | `theme` | `PixiGraphTheme` | `darkPixiTheme` or `lightPixiTheme` from `@graphysdk/react-canvas-renderer`. |
 | `pixelRatio` | `number?` | Optional. Defaults to `window.devicePixelRatio`. Pass `parentZoom * devicePixelRatio` if your parent `Container` is scaled, to keep text crisp. |
 | `formattingLocale` | `Locale?` | Optional locale for number/date formatting. |
 
-> **Note:** `<GraphProvider>` is exported from the package but **not required** for plain rendering. It's only useful if you want to dispatch runtime commands (set legend position, etc.) from elsewhere in your React tree. Skip it for the basic case.
+> **`<GraphProvider>` is required.** Rendering `<GraphRenderer>` without a surrounding `<GraphProvider>` will throw at runtime (`useGraph* hooks must be used inside a <GraphProvider>`).
 
 ### Example A — Column graph: revenue vs. expenses
 
@@ -233,7 +245,7 @@ const revenueGraph: GraphConfig = {
 
 ## Step 5 — A second example, to show the API generalizes
 
-Same component tree, just a different `GraphConfig`. The renderer reacts to `spec` changes — swap one for the other and you're done.
+Same component tree, just a different `GraphConfig`. The provider re-compiles when its `input` changes — swap one config for the other and you're done.
 
 ### Example B — Line graph with a dual y-axis
 
@@ -308,6 +320,7 @@ The full type is the source of truth (it lives in `@graphysdk/viz-engine`'s expo
 - **Blank graph for a frame on first render** → expected. `<GraphRenderer>` returns `null` until `document.fonts.ready` resolves so tick labels and titles use real font metrics. Plan layout accordingly (it's typically <100ms).
 - **Blurry text under a zoomed parent `Container`** → pass `pixelRatio={parentZoom * window.devicePixelRatio}` to keep text textures crisp. Default is `window.devicePixelRatio` only.
 - **Pixi cleanup is your responsibility.** Graphy cleans up its own sub-tree on unmount, but the surrounding `Application` is yours to destroy.
+- **`useGraph* hooks must be used inside a <GraphProvider>` thrown at runtime** → `<GraphRenderer>` (or any component using `useCompiledSpec` / `useGraphCommandDispatcher`) is mounted without a surrounding `<GraphProvider input={spec}>`. Wrap it.
 
 ---
 
