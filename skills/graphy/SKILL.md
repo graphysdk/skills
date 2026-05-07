@@ -7,7 +7,7 @@ description: Render graphs in a React app using @graphysdk/viz-engine and @graph
 
 This skill walks through integrating **Graphy** (a renderer-agnostic graphing library) into an existing React app using the WebGL/Canvas renderer (Pixi.js under the hood). It uses the declarative `GraphConfig` API — the simplest way to author a graph.
 
-The skill is model-invocable: Claude / GPT / Gemini / etc. will pick it up automatically when you ask things like *"add a graph that shows monthly revenue"* or *"visualize this dataset"*. You can also invoke it explicitly with the slash trigger — `/graphy` if installed via the [`skills` CLI](https://github.com/vercel-labs/skills), or `/graphy:sdk` if installed via the Claude Code plugin marketplace.
+The skill is model-invocable: Claude / GPT / Gemini / etc. will pick it up automatically when you ask things like *"add a graph that shows monthly revenue"* or *"visualize this dataset"*. You can also invoke it explicitly with `/graphy` (works whether you installed via the Claude Code plugin marketplace or the [Vercel `skills` CLI](https://github.com/vercel-labs/skills)).
 
 ---
 

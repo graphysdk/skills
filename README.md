@@ -6,24 +6,36 @@ Agent skills for integrating [Graphy](https://graphy.dev) into your codebase. Us
 
 You can consume this repo two ways. Both work from the same source — pick whichever fits your tooling.
 
-### Option 1 — Claude Code plugin marketplace
+### Claude Code plugin marketplace
 
-Inside Claude Code:
+In Claude Code, send these to the agent:
 
 ```
 /plugin marketplace add graphysdk/skills
 /plugin install graphy@sdk
+/reload-plugins
+/graphy add a graphy chart
 ```
 
-Skills are namespaced under the plugin name, so invoke with `/graphy:sdk` (or let Claude auto-route based on your prompt).
+Replace the last line with whatever you want — *"visualize this dataset"*, *"add a chart of monthly sales"*, etc. Claude auto-routes based on the prompt.
 
-### Option 2 — Vercel Labs `skills` CLI (cross-agent)
+### Vercel Labs `skills` CLI (cross-agent)
+
+In your terminal:
 
 ```bash
 npx skills add graphysdk/skills
 ```
 
-The [`skills` CLI](https://github.com/vercel-labs/skills) supports 50+ agents (Claude Code, Cursor, OpenCode, Cline, etc.). It clones the repo, scans [`skills/`](./skills/), and copies each skill into your project's `.<agent>/skills/` directory. Skills installed this way are invoked by their `name` (e.g. `/graphy`). Pass `--global` to install into `~/<agent>/skills/`.
+Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make sure your target agent is checked in the picker. Skills install into your project's `.<agent>/skills/` directory; pass `--global` for `~/<agent>/skills/`.
+
+Then restart your agent session and send to the agent:
+
+```
+/graphy add a graphy chart
+```
+
+Or just prompt as you normally would (e.g. *"add a graphy chart"*) — auto-routing kicks in based on the prompt.
 
 ## Available skills
 
@@ -38,7 +50,7 @@ All skills live under [`skills/`](./skills/) — one directory per skill, each c
 Each skill is a directory with a `SKILL.md` file containing YAML frontmatter (`name`, `description`) and a Markdown body. Once installed, the agent will:
 
 - **Auto-invoke** the skill when your prompt matches its `description` (e.g. *"add a graph that shows monthly revenue"* triggers the `graphy` skill).
-- **Respond to explicit invocation** via the slash trigger (e.g. `/graphy` for skills installed via the CLI, or `/graphy:sdk` for skills installed via the plugin marketplace).
+- **Respond to explicit invocation** via the `/graphy` slash trigger (works for both install methods).
 
 The agent reads the `SKILL.md` body as its instructions for the task — there's no runtime, just structured prose.
 
