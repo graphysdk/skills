@@ -115,6 +115,7 @@ export function usePixiApp(width: number, height: number) {
   useEffect(() => {
     if (!canvasRef.current) return;
     let cancelled = false;
+    let initialized = false;
     const instance = new Application();
 
     instance
@@ -128,14 +129,22 @@ export function usePixiApp(width: number, height: number) {
         backgroundAlpha: 0,
       })
       .then(() => {
+        initialized = true;
         if (cancelled) instance.destroy(true);
         else setApp(instance);
       })
-      .catch(() => instance.destroy(true));
+      .catch((err) => {
+        console.error('Pixi init failed', err);
+        if (initialized) instance.destroy(true);
+      });
 
     return () => {
       cancelled = true;
-      instance.destroy(true);
+      // Only destroy if init() already resolved — destroying a Pixi v8 app
+      // mid-init throws (e.g. `this._cancelResize is not a function` from
+      // ResizePlugin, which hasn't hooked yet). The post-init `if (cancelled)`
+      // branch above handles that case.
+      if (initialized) instance.destroy(true);
     };
   }, [width, height]);
 
@@ -144,6 +153,8 @@ export function usePixiApp(width: number, height: number) {
 ```
 
 You own the lifecycle of the `Application`. Graphy will only manage its own sub-tree under whichever `Container` you pass as `parent`.
+
+> **React `StrictMode` warning.** In dev, `StrictMode` mount-cleanup-mount means **two** `Application` instances get created against the **same** `<canvas>` DOM node. Even with the cleanup guard above, when the first instance is finally destroyed (after its deferred `init()` resolves) it tears down canvas/GPU state that the second instance is now using — leaving the page frozen with no errors. If your tree is wrapped in `<StrictMode>` and the canvas hangs, drop StrictMode for the route that owns the Pixi app, or move `Application` creation outside React (e.g. a module-level singleton) so it can't double-mount.
 
 ---
 
@@ -320,6 +331,8 @@ The full type is the source of truth (it lives in `@graphysdk/viz-engine`'s expo
 - **Blank graph for a frame on first render** → expected. `<GraphRenderer>` returns `null` until `document.fonts.ready` resolves so tick labels and titles use real font metrics. Plan layout accordingly (it's typically <100ms).
 - **Blurry text under a zoomed parent `Container`** → pass `pixelRatio={parentZoom * window.devicePixelRatio}` to keep text textures crisp. Default is `window.devicePixelRatio` only.
 - **Pixi cleanup is your responsibility.** Graphy cleans up its own sub-tree on unmount, but the surrounding `Application` is yours to destroy.
+- **`TypeError: this._cancelResize is not a function` on cleanup** → you called `instance.destroy()` before `instance.init()` resolved. Pixi v8 plugins (ResizePlugin, etc.) install their hooks during `init()`; destroying earlier blows up. Use the `initialized` flag pattern in Step 3.
+- **Page renders the surrounding UI but the Pixi canvas is frozen / unresponsive** → likely two `Application`s bound to the same `<canvas>` due to React `StrictMode`'s double-mount. See the StrictMode warning at the end of Step 3.
 - **`useGraph* hooks must be used inside a <GraphProvider>` thrown at runtime** → `<GraphRenderer>` (or any component using `useCompiledSpec` / `useGraphCommandDispatcher`) is mounted without a surrounding `<GraphProvider input={spec}>`. Wrap it.
 
 ---
