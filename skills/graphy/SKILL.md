@@ -100,51 +100,77 @@ Graphy mounts its rendered output as a Pixi sub-tree under a **parent `Container
 
 Don't assume. The right choice depends on the app's architecture (board/canvas tools usually want option 1; a one-off graph in a dashboard usually wants option 2).
 
-### If you need a fresh Pixi `Application`
+### Step 3a — StrictMode preflight (do this BEFORE writing the hook)
 
-The minimal setup looks like this:
+> **Read this even if you're tempted to skip ahead. Most fresh integrations fail here.** `npm create vite` and `npx create-next-app` both ship with `<StrictMode>` enabled, and StrictMode's deliberate double-mount is incompatible with binding two Pixi `Application`s to the same `<canvas>`. **The symptom is a hard freeze with no console error**, which is impossible to debug from the outside.
+
+Open the app entrypoint (`src/main.tsx`, `src/index.tsx`, `app/layout.tsx`, etc.) and grep for `StrictMode`. If it wraps the tree that contains your graph, **pick one** before continuing:
+
+- **(a) Remove `<StrictMode>`** for the demo / single-page case. Simplest, recommended when there's no other React code that depends on StrictMode behavior.
+- **(b) Move `<StrictMode>` inward** so it wraps siblings of the canvas, not the canvas itself.
+- **(c) Use the canvas-keyed singleton hook in Step 3b.** Survives double-mount.
+
+Don't skip this. The `initialized` flag in the hook below is **necessary but not sufficient** to survive StrictMode — it prevents the `_cancelResize` crash, but two `Application`s on one `<canvas>` will still freeze the page.
+
+### Step 3b — If you need a fresh Pixi `Application`
+
+The hook below is StrictMode-safe: it keys live `Application` instances by their `<canvas>` element, so a double-mount reuses the in-flight init promise instead of creating a second instance. Reference-counting handles the cleanup-then-remount sequence cleanly.
 
 ```tsx
 import { useEffect, useRef, useState } from 'react';
 import { Application } from 'pixi.js';
+
+// Module-level registry: one Application per <canvas>, with a refcount so
+// StrictMode's mount → cleanup → mount sequence reuses the same instance
+// instead of racing two of them against the same canvas.
+type Entry = { app: Application | null; init: Promise<Application>; refs: number };
+const registry = new WeakMap<HTMLCanvasElement, Entry>();
 
 export function usePixiApp(width: number, height: number) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [app, setApp] = useState<Application | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    let cancelled = false;
-    let initialized = false;
-    const instance = new Application();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    instance
-      .init({
-        canvas: canvasRef.current,
-        width,
-        height,
-        antialias: true,
-        autoDensity: true,
-        resolution: window.devicePixelRatio || 1,
-        backgroundAlpha: 0,
-      })
-      .then(() => {
-        initialized = true;
-        if (cancelled) instance.destroy(true);
-        else setApp(instance);
-      })
-      .catch((err) => {
-        console.error('Pixi init failed', err);
-        if (initialized) instance.destroy(true);
-      });
+    let entry = registry.get(canvas);
+    if (!entry) {
+      const instance = new Application();
+      const init = instance
+        .init({
+          canvas,
+          width,
+          height,
+          antialias: true,
+          autoDensity: true,
+          resolution: window.devicePixelRatio || 1,
+          backgroundAlpha: 0,
+        })
+        .then(() => instance);
+      entry = { app: null, init, refs: 0 };
+      registry.set(canvas, entry);
+      init.then((i) => { entry!.app = i; }).catch((err) => console.error('Pixi init failed', err));
+    }
+    entry.refs += 1;
+
+    let cancelled = false;
+    entry.init.then((i) => { if (!cancelled) setApp(i); }).catch(() => {});
 
     return () => {
       cancelled = true;
-      // Only destroy if init() already resolved — destroying a Pixi v8 app
-      // mid-init throws (e.g. `this._cancelResize is not a function` from
-      // ResizePlugin, which hasn't hooked yet). The post-init `if (cancelled)`
-      // branch above handles that case.
-      if (initialized) instance.destroy(true);
+      const e = registry.get(canvas);
+      if (!e) return;
+      e.refs -= 1;
+      if (e.refs > 0) return;
+      registry.delete(canvas);
+      // Only destroy after init() resolves — destroying a Pixi v8 app mid-init
+      // throws (`this._cancelResize is not a function` from ResizePlugin,
+      // which hasn't hooked yet). { removeView: false } keeps the <canvas>
+      // alive so React's reconciler can reuse it on remount.
+      e.init
+        .then((i) => i.destroy({ removeView: false }, { children: true }))
+        .catch(() => {});
     };
   }, [width, height]);
 
@@ -154,7 +180,7 @@ export function usePixiApp(width: number, height: number) {
 
 You own the lifecycle of the `Application`. Graphy will only manage its own sub-tree under whichever `Container` you pass as `parent`.
 
-> **React `StrictMode` warning.** In dev, `StrictMode` mount-cleanup-mount means **two** `Application` instances get created against the **same** `<canvas>` DOM node. Even with the cleanup guard above, when the first instance is finally destroyed (after its deferred `init()` resolves) it tears down canvas/GPU state that the second instance is now using — leaving the page frozen with no errors. If your tree is wrapped in `<StrictMode>` and the canvas hangs, drop StrictMode for the route that owns the Pixi app, or move `Application` creation outside React (e.g. a module-level singleton) so it can't double-mount.
+> **Why `destroy({ removeView: false })`?** Passing `true` (or omitting it) tells Pixi to remove the `<canvas>` from the DOM. In a React tree where the canvas is rendered by JSX, that fights the reconciler on remount. Keep `removeView: false` so React owns the element's lifecycle.
 
 ---
 
@@ -332,7 +358,8 @@ The full type is the source of truth (it lives in `@graphysdk/viz-engine`'s expo
 - **Blurry text under a zoomed parent `Container`** → pass `pixelRatio={parentZoom * window.devicePixelRatio}` to keep text textures crisp. Default is `window.devicePixelRatio` only.
 - **Pixi cleanup is your responsibility.** Graphy cleans up its own sub-tree on unmount, but the surrounding `Application` is yours to destroy.
 - **`TypeError: this._cancelResize is not a function` on cleanup** → you called `instance.destroy()` before `instance.init()` resolved. Pixi v8 plugins (ResizePlugin, etc.) install their hooks during `init()`; destroying earlier blows up. Use the `initialized` flag pattern in Step 3.
-- **Page renders the surrounding UI but the Pixi canvas is frozen / unresponsive** → likely two `Application`s bound to the same `<canvas>` due to React `StrictMode`'s double-mount. See the StrictMode warning at the end of Step 3.
+- **Page loads, surrounding UI renders, graph area stays blank, then the tab locks up / spins / becomes unresponsive — and there are NO console errors.** This is the StrictMode double-mount freeze. **The `initialized` flag alone does NOT fix it** — it prevents the `_cancelResize` crash but two `Application`s still get bound to the same `<canvas>` and fight over GPU state. Fix at the entrypoint per Step 3a (remove `<StrictMode>`, move it inward, or use the canvas-keyed singleton hook in Step 3b). If you've already added the `initialized` flag and the page still freezes, **stop debugging the hook** — the cause is upstream.
+- **Canvas disappears on remount / React warnings about an unmounted DOM node** → you called `destroy(true)` (or `destroy()` with no options), which removes the `<canvas>` from the DOM. Use `destroy({ removeView: false }, { children: true })` so React keeps owning the element.
 - **`useGraph* hooks must be used inside a <GraphProvider>` thrown at runtime** → `<GraphRenderer>` (or any component using `useCompiledSpec` / `useGraphCommandDispatcher`) is mounted without a surrounding `<GraphProvider input={spec}>`. Wrap it.
 
 ---
@@ -343,8 +370,9 @@ You aren't done until the graph is on screen. Specifically:
 
 1. Make sure the dev server is running (`pnpm dev` / `npm run dev` / etc.) — start it if it isn't.
 2. Open the page that mounts `<GraphCanvas>`. Confirm a column or line graph renders with axes, gridlines, and legend in the default palette.
-3. If you can drive the browser, do so and report what you see. If you can't, ask the user to load the URL and tell you what's there.
-4. If nothing renders, debug it now: check the browser console for errors, verify `app.stage` is non-null when `<GraphRenderer>` mounts, and re-check `@alpha` was on the install command.
+3. **Wait ~3 seconds and try to interact with the page** (scroll, click a button). If the page locks up or the tab becomes unresponsive, it's the StrictMode freeze — go back to Step 3a. A successful integration not only renders but stays interactive.
+4. If you can drive the browser, do so and report what you see. If you can't, ask the user to load the URL, confirm the chart is visible, *and* confirm the page is still responsive.
+5. If nothing renders, debug it now: check the browser console for errors, verify `app.stage` is non-null when `<GraphRenderer>` mounts, and re-check `@alpha` was on the install command. If the console is empty but the page is frozen, the cause is StrictMode — not the hook, not the spec.
 
 A successful Graphy integration looks like a chart, not a passing typecheck.
 
