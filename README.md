@@ -12,7 +12,7 @@ In Claude Code, send these to the agent:
 
 ```
 /plugin marketplace add graphysdk/skills
-/plugin install graphy@sdk
+/plugin install graphy@graphysdk
 /reload-plugins
 ```
 

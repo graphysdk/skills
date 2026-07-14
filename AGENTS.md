@@ -7,7 +7,7 @@ Guidance for AI coding agents working in this repo.
 A collection of agent skills for integrating [Graphy](https://graphy.dev). Distributed through two channels — both back the same canonical `SKILL.md` files:
 
 - **Vercel Labs `skills` CLI** — `npx skills add graphysdk/skills`. Cross-agent (Claude Code, Cursor, OpenCode, Cline, etc.). Installs each skill into the customer's `.<agent>/skills/` directory.
-- **Claude Code plugin marketplace** — `/plugin marketplace add graphysdk/skills` then `/plugin install <plugin>@sdk`. Claude-Code-specific. Skills are namespaced under their plugin (e.g. `/graphy:install`).
+- **Claude Code plugin marketplace** — `/plugin marketplace add graphysdk/skills` then `/plugin install <plugin>@graphysdk`. Claude-Code-specific. Skills are namespaced under their plugin (e.g. `/graphy:install`).
 
 You are writing for an agent on a different machine, with a different codebase. Don't reference this repo or the Graphy monorepo from inside a skill — refer only to public npm packages.
 
