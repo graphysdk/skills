@@ -9,12 +9,12 @@
     {
       "name": "graphy",
       "source": "./",
-      "description": "Render graphs in a React app using @graphysdk/viz-engine and @graphysdk/react-canvas-renderer. Activates on requests to add a graph, chart, or visualize data.",
-      "version": "0.0.2",
+      "description": "Install the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-renderer) in a React codebase and render a first graph. Activates on requests to install or set up Graphy, or when a Graphy install fails.",
+      "version": "0.0.3",
       "homepage": "https://github.com/graphysdk/skills",
       "repository": "https://github.com/graphysdk/skills",
       "license": "MIT",
-      "keywords": ["graphy", "graphs", "charts", "data-viz", "react", "pixi"],
+      "keywords": ["graphy", "graphs", "charts", "data-viz", "react", "svg"],
       "strict": false,
       "skills": "./plugin-skills"
     }
