@@ -5,85 +5,55 @@ description: Install the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-re
 
 # Install the Graphy SDK
 
-The Graphy SDK is two npm packages that work together:
+Two packages: **`@graphysdk/viz-engine`** (the graph engine — compiles a declarative spec plus data into a render-ready form, no React dependency) and **`@graphysdk/react-renderer`** (React components that paint the compiled graph to SVG). Install both.
 
-- **`@graphysdk/viz-engine`** — the graph engine. You describe a graph as a declarative spec; it compiles the spec plus your data into a render-ready form. No React dependency.
-- **`@graphysdk/react-renderer`** — React components that paint the compiled graph to SVG. Depends on viz-engine.
-
-You install both. The end goal of this skill is a bar graph rendering on the user's screen.
-
-## Goal: a rendered graph, not just installed packages
-
-Don't stop at "packages installed." Walk all the way through: auth, install, the example component, and then run the dev server so the user can see the graph. If something blocks rendering — a missing token, wrong React version, a CSS build error — solve it using the troubleshooting section before moving on.
+Don't stop at "packages installed" — the goal is a bar graph rendering on the user's screen. If something blocks rendering, solve it with the troubleshooting section before moving on.
 
 ## Prerequisites
 
-Check these before installing — they are the most common reasons an install fails:
-
-- **React 19.** `@graphysdk/react-renderer` has a peer dependency on `react@^19.0.0`. React 18 or older will not work.
+- **React 19** — the renderer's peer dependency is `react@^19.0.0`; React 18 will not work.
 - **Node >= 20.**
-- **A bundler that handles CSS imports from `node_modules`.** The renderer's JavaScript imports its own stylesheet (`import './index.css'`). Vite, Next.js, and webpack with `css-loader` all handle this out of the box.
-- **An npm auth token.** Both packages are currently private on npm, so installs fail with 404/403 until auth is set up (next section).
+- **A bundler that handles CSS imports from `node_modules`** (Vite, Next.js, webpack + `css-loader` all do) — the renderer's JavaScript imports its own stylesheet.
+- **An npm auth token** — both packages are private; installs fail with 404/403 without one.
 
 ## Step 1: npm auth
 
-Both packages are private, so the npm registry needs an auth token even just to download them.
-
-Create an `.npmrc` in the repository root (or in the home directory for user-level auth):
+Create an `.npmrc` in the repository root (or home directory):
 
 ```ini
 //registry.npmjs.org/:_authToken=${NPM_TOKEN}
 @graphysdk:registry=https://registry.npmjs.org/
 ```
 
-Then make sure `NPM_TOKEN` is set in the environment where installs run:
+Set `NPM_TOKEN` wherever installs run (locally and in CI). The token needs read access to `@graphysdk` packages — the Graphy team provides one. Never commit a literal token; keep the `${NPM_TOKEN}` form.
 
-```bash
-export NPM_TOKEN=npm_xxxxxxxxxxxx
+Yarn Berry (v2+) ignores `.npmrc` — use `.yarnrc.yml` instead:
+
+```yaml
+npmScopes:
+  graphysdk:
+    npmRegistryServer: 'https://registry.npmjs.org'
+    npmAuthToken: '${NPM_TOKEN}'
 ```
 
-Notes:
-
-- The token must belong to an npm account with read access to the `@graphysdk` packages. The user gets one from the Graphy team.
-- If the `.npmrc` is committed, keep the `${NPM_TOKEN}` variable form — never commit a literal token.
-- CI needs the same variable set (for example as a repository secret).
-- **Yarn Berry (v2+) ignores `.npmrc`.** Put the equivalent in `.yarnrc.yml` instead:
-
-  ```yaml
-  npmScopes:
-    graphysdk:
-      npmRegistryServer: 'https://registry.npmjs.org'
-      npmAuthToken: '${NPM_TOKEN}'
-  ```
-
-Verify auth works before installing:
+Verify before installing — this should print a version; a 404/403 means the token is missing, not exported, or lacks access:
 
 ```bash
 npm view @graphysdk/viz-engine@alpha version
 ```
 
-If this prints a version, auth is good. A 404 or 403 means the token is missing, not exported, or lacks access.
-
 ## Step 2: install
 
-The packages are currently published under the `alpha` dist-tag (this is temporary — once stable releases exist, drop the `@alpha` suffix).
+The packages are published under the `alpha` dist-tag for now (drop `@alpha` once stable releases exist):
 
 ```bash
-# pnpm
 pnpm add @graphysdk/viz-engine@alpha @graphysdk/react-renderer@alpha
-
-# npm
-npm install @graphysdk/viz-engine@alpha @graphysdk/react-renderer@alpha
-
-# yarn
-yarn add @graphysdk/viz-engine@alpha @graphysdk/react-renderer@alpha
+# or: npm install / yarn add
 ```
 
 ## Step 3: render a first graph
 
-Two components do the work: `<GraphProvider>` holds the spec and data, `<GraphRenderer>` paints the graph.
-
-Drop this into any page or route:
+`<GraphProvider>` holds the spec and data; `<GraphRenderer>` paints the graph. Drop this into any page:
 
 ```tsx
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
@@ -115,33 +85,19 @@ export const FirstGraph = () => (
 );
 ```
 
-Run the dev server and open the page. You should see a bar graph with four labeled bars, axes, and gridlines.
+Run the dev server and open the page: you should see a bar graph with four labeled bars, axes, gridlines, and styling (not unstyled black-on-white text).
 
-The example uses fixed sizing so it renders no matter how the page is laid out. The default is `sizing={{ mode: 'responsive' }}`, which fills the parent element — that only works if the parent has a real width and height, so switch to responsive once the graph lives in a sized container.
-
-## Verify checklist
-
-- `npm view @graphysdk/viz-engine@alpha version` prints a version (auth works)
-- Both packages appear in `package.json` with an alpha version
-- The app builds with no module-resolution or CSS-import errors
-- The bar graph renders with visible bars, axis labels, and styling (not unstyled black-on-white text)
+The example uses fixed sizing so it renders regardless of page layout. The default `sizing={{ mode: 'responsive' }}` fills the parent element — switch to it once the graph lives in a container with real width and height.
 
 ## Troubleshooting
 
-**404 / 403 during install.** Auth problem. Check that `.npmrc` exists with both lines from Step 1 (`.yarnrc.yml` for Yarn Berry), `NPM_TOKEN` is exported in the shell running the install, and the token has read access to `@graphysdk` packages. In CI, check the secret is actually passed to the install step.
-
-**`ERESOLVE` / peer dependency error on react.** The project is on React 18 or older. The renderer requires React 19 — upgrade React, there is no compatibility fallback.
-
-**Unmet peer `@tiptap/*` warnings or errors.** The renderer declares its `@tiptap/*` packages (v3) as peer dependencies. npm 7+ and pnpm install peers automatically, so most setups need nothing. Yarn does not — install the packages it lists as unmet, all at `^3.0.0`.
-
-**Build error like "Unexpected token" pointing at a `.css` file.** The bundler doesn't process CSS imports from `node_modules`. Vite and Next.js work out of the box; for custom webpack, add `css-loader`. The stylesheet is also exported directly as `@graphysdk/react-renderer/styles.css` if you'd rather wire it up yourself.
-
-**Graph renders but looks unstyled.** The stylesheet didn't load. Same cause as above — make sure the CSS import isn't stripped by the build, or import `@graphysdk/react-renderer/styles.css` manually once at the app's entry point.
-
-**Graph area is blank / zero height.** Responsive sizing inside a parent with no height. Give the parent element an explicit height, or use `sizing={{ mode: 'fixed', width, height }}` like the example.
-
-**TypeScript can't find the module or its types.** Both packages ship ESM + CJS with bundled `.d.ts` files. Use `"moduleResolution": "bundler"` (or `"node16"`/`"nodenext"`) in `tsconfig.json` — the legacy `"node"` resolution can miss the `exports` map.
+- **404 / 403 during install** — auth. Check the `.npmrc` from Step 1 exists (`.yarnrc.yml` for Yarn Berry), `NPM_TOKEN` is exported in the installing shell, and the token has read access. In CI, check the secret reaches the install step.
+- **`ERESOLVE` / peer error on react** — the project is on React 18 or older. Upgrade to React 19; there is no fallback.
+- **Unmet peer `@tiptap/*`** — the renderer declares tiptap v3 packages as peers. npm 7+ and pnpm auto-install them; yarn doesn't — install the listed packages at `^3.0.0`.
+- **Build error pointing at a `.css` file, or graph renders unstyled** — the bundler isn't processing CSS imports from `node_modules`. Add `css-loader` (custom webpack), or import `@graphysdk/react-renderer/styles.css` once at the app entry point.
+- **Graph area blank / zero height** — responsive sizing inside a parent with no height. Size the parent, or use fixed sizing like the example.
+- **TypeScript can't find the module or its types** — use `"moduleResolution": "bundler"` (or `"node16"`/`"nodenext"`); the legacy `"node"` resolution can miss the `exports` map.
 
 ## Next steps
 
-Once the first graph renders, the install is done. The full API — graph types (line, area, scatter, pie, combo), multi-series data, stacking and grouping, highlights, annotations, theming, and sizing modes — is documented in the packages' TypeScript types: hover any exported symbol or open `dist/index.d.ts` in either package; the JSDoc is included.
+The full API (graph types, multi-series data, stacking, highlights, annotations, theming, sizing) is documented in each package's bundled TypeScript types — hover any exported symbol or open `dist/index.d.ts`.
