@@ -14,8 +14,13 @@
   "homepage": "https://github.com/graphysdk/skills#readme",
   "private": "true",
   "dependencies": {
-    "@graphysdk/react-renderer": "0.0.1-alpha.20260721093629",
-    "@graphysdk/viz-engine": "0.0.1-alpha.20260721093629",
-    "typescript": "^5.9.3"
+    "@graphysdk/react-renderer": "catalog:",
+    "@graphysdk/viz-engine": "catalog:",
+    "typescript": "catalog:"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
