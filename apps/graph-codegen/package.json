@@ -1,0 +1,37 @@
+{
+  "name": "graph-codegen",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/build-vendor.mjs",
+    "dev": "concurrently -k -n server,web -c blue,green \"pnpm dev:server\" \"pnpm dev:web\"",
+    "dev:server": "tsx watch server/src/start.ts",
+    "dev:web": "vite --config web/vite.config.ts --port 5190",
+    "build:vendor": "node scripts/build-vendor.mjs",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.214",
+    "@graphysdk/data-import-utils": "catalog:",
+    "@graphysdk/react-renderer": "catalog:",
+    "@graphysdk/viz-engine": "catalog:",
+    "@hono/node-server": "^1.19.14",
+    "dotenv": "^16.4.7",
+    "esbuild": "^0.28.1",
+    "hono": "^4.12.21",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.3",
+    "tsx": "^4.19.2",
+    "typescript": "catalog:",
+    "vite": "^6.4.3"
+  }
+}
