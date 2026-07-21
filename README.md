@@ -1,14 +1,21 @@
 # @graphysdk/skills
 
-Agent skills for integrating [Graphy](https://graphy.dev) into your codebase. Use them with Claude Code, Cursor, OpenCode, Cline, Codex or any other coding agent that supports the [Agent Skills format](https://agentskills.io) — so the assistant knows how to wire up Graphy correctly the first time.
+Agent skills for building with [Graphy](https://graphy.dev). Install them into Claude Code, Cursor, OpenCode, Cline, Codex, or any other coding agent that supports the [Agent Skills format](https://agentskills.io), and your assistant knows how to set up the Graphy SDK and author graphs with it correctly the first time.
+
+## Skills
+
+| Skill | What it does |
+|---|---|
+| [`graphy-sdk-install`](./skills/graphy-sdk-install/SKILL.md) | Install the Graphy SDK (`@graphysdk/viz-engine` + `@graphysdk/react-renderer`) and render a first graph. Covers private-registry auth, installing the alpha versions, prerequisites (React 19, bundler CSS support), and troubleshooting. |
+| [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Author graphs with the Graphy viz stack: grammar-of-graphics spec building (geoms, scales, transforms, coords), theming, plugins, storytelling (highlights, annotations). Includes recipes for common graph types and themes, a full type reference, and a headless spec validator. |
 
 ## Install
 
-You can consume this repo two ways. Both work from the same source — pick whichever fits your tooling.
+Two channels, same source — pick whichever fits your tooling.
 
 ### Claude Code plugin marketplace
 
-In Claude Code, send these to the agent:
+In Claude Code:
 
 ```
 /plugin marketplace add graphysdk/skills
@@ -16,7 +23,7 @@ In Claude Code, send these to the agent:
 /reload-plugins
 ```
 
-Then prompt as you normally would (e.g. *"install the Graphy SDK"*, *"set up Graphy in this project"*) — Claude auto-routes based on the prompt. You can also invoke the skill explicitly with `/graphy:install`.
+Then prompt as you normally would (*"set up Graphy in this project"*, *"build a stacked bar graph of revenue by region"*) — Claude routes to the right skill. Explicit triggers: `/graphy:install`, `/graphy:charts`.
 
 ### Vercel Labs `skills` CLI (cross-agent)
 
@@ -26,36 +33,16 @@ In your terminal:
 npx skills add graphysdk/skills
 ```
 
-Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make sure your target agent is checked in the picker. Skills install into your project's `.<agent>/skills/` directory; pass `--global` for `~/<agent>/skills/`.
+Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make sure your target agent is checked in the picker. Skills install into your project's `.<agent>/skills/` directory; pass `--global` for `~/<agent>/skills/`. Restart your agent session, then prompt as usual. Explicit triggers: `/graphy-sdk-install`, `/graphy-charts`.
 
-Then restart your agent session and prompt as you normally would, or invoke explicitly with `/graphy-sdk-install`.
+## Repo layout
 
-## Available skills
-
-| Skill | What it does |
-|---|---|
-| [`graphy-sdk-install`](./skills/graphy-sdk-install/SKILL.md) | Install the Graphy SDK (`@graphysdk/viz-engine` + `@graphysdk/react-renderer`) and render a first graph. Covers private-registry auth, installing the alpha versions, prerequisites (React 19, bundler CSS support), and troubleshooting. |
-
-All skills live under [`skills/`](./skills/) — one directory per skill, each containing its `SKILL.md` (plus any optional supporting files). The `skills` CLI auto-discovers everything in there.
-
-## How skills work
-
-Each skill is a directory with a `SKILL.md` file containing YAML frontmatter (`name`, `description`) and a Markdown body. Once installed, the agent will:
-
-- **Auto-invoke** the skill when your prompt matches its `description` (e.g. *"add Graphy to this app"* triggers `graphy-sdk-install`).
-- **Respond to explicit invocation** via the slash trigger (`/graphy:install` for the Claude Code plugin, `/graphy-sdk-install` for the Vercel CLI).
-
-The agent reads the `SKILL.md` body as its instructions for the task — there's no runtime, just structured prose.
-
-## Contributing
-
-To add or update a skill:
-
-1. Add a directory under [`skills/`](./skills/) named after the skill (matching the `name` field in its frontmatter).
-2. Write a `SKILL.md` with frontmatter (`name`, `description`) and a body.
-3. If the skill should be available through the Claude Code plugin too, add a symlink under [`plugin-skills/`](./plugin-skills/) (see [AGENTS.md](./AGENTS.md)).
-4. Add a row to the table above.
-5. Open a PR.
+```
+skills/<skill-name>/           # canonical skills — what both channels ship
+plugin-skills/                 # symlinks that expose skills to the Claude Code plugin
+.claude-plugin/marketplace.json # plugin marketplace manifest
+package.json                   # deps for the skills' helper scripts (pnpm)
+```
 
 ## License
 
