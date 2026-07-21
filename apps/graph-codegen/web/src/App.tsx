@@ -54,6 +54,12 @@ const PIN_THRESHOLD = 48;
 /** Automatic render-error fix turns allowed per user prompt (each is a billed agent turn). */
 const MAX_RUNTIME_FIX_ATTEMPTS = 3;
 
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
+
+function isCsvFile(file: File): boolean {
+  return file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv');
+}
+
 export default function App() {
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -69,6 +75,8 @@ export default function App() {
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const sessionIdRef = useRef<string | undefined>(undefined);
   const createdAtRef = useRef<number | undefined>(undefined);
   const unsavedTurnRef = useRef(false);
@@ -371,10 +379,62 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, [tryRuntimeFix]);
 
+  // Drag & drop anywhere in the app stages files into the same slots as the
+  // attach buttons: the first CSV fills the dataset slot, the first supported
+  // image the image slot. dragenter/dragleave fire for every child crossed, so
+  // a depth counter decides when the pointer actually left the window.
+  const handleDragEnter = useCallback((event: React.DragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragActive(false);
+  }, []);
+
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setDragActive(false);
+      const dropped = Array.from(event.dataTransfer.files);
+      const csv = dropped.find(isCsvFile);
+      const image = dropped.find((file) => IMAGE_TYPES.has(file.type));
+      if (csv) setCsvFile(csv);
+      if (image) setImageFile(image);
+      if (!csv && !image && dropped.length > 0) {
+        appendEntry({ kind: 'error', text: 'Unsupported file type — drop a .csv or an image (PNG/JPEG/WebP/GIF/SVG).' });
+      }
+    },
+    [appendEntry]
+  );
+
   const lastStatus = running ? entries.findLast((entry) => entry.kind === 'status')?.text : undefined;
 
   return (
-    <div className="layout">
+    <div
+      className="layout"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {dragActive && (
+        <div className="drop-overlay">
+          <div className="drop-overlay-card">Drop a CSV dataset or an image</div>
+        </div>
+      )}
       <section className="chat">
         <header className="chat-header">
           <span className="chat-title">graph-codegen</span>

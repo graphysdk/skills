@@ -525,3 +525,27 @@ body,
 .diag-fail {
   border-color: rgba(197, 52, 52, 0.35);
 }
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(94, 106, 210, 0.08);
+  border: 2px dashed var(--accent);
+  /* Never intercept the drag — the layout underneath owns all drag events. */
+  pointer-events: none;
+}
+
+.drop-overlay-card {
+  padding: 14px 22px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(40, 42, 48, 0.12);
+}
