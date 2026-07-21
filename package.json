@@ -1,0 +1,21 @@
+{
+  "name": "@graphysdk/skills",
+  "version": "1.0.0",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/graphysdk/skills.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/graphysdk/skills/issues"
+  },
+  "homepage": "https://github.com/graphysdk/skills#readme",
+  "private": "true",
+  "dependencies": {
+    "@graphysdk/react-renderer": "0.0.1-alpha.20260721093629",
+    "@graphysdk/viz-engine": "0.0.1-alpha.20260721093629",
+    "typescript": "^5.9.3"
+  }
+}
