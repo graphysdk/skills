@@ -145,3 +145,4 @@ export const LollipopChart = () => (
 - Add tunables as typed params: extend the `Geom<Params>` type parameter and `defaultParams` (e.g. dot radius), then read them from `layer.params` in the renderer.
 - Extra visual channels go in `aesthetics` (e.g. `size`, `alpha`) and are read with the matching accessor (`getSize`, `getAlpha`) — never bake per-observation styling into render constants.
 - `positionRoles` is the geometry contract: keep `min`/`max` pairs for interval marks; a plain point mark declares only `point` roles and skips the baseline injection in `compile`.
+- Plugin paint sits outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks. Expose every colour you would otherwise hard-code as a geom param. See `reference/styling.md`.

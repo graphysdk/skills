@@ -9,12 +9,19 @@
     {
       "name": "graphy",
       "source": "./",
-      "description": "Install the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-renderer) in a React codebase and build graphs with it. Activates on requests to install or set up Graphy or when authoring Graphy graphs.",
-      "version": "0.0.4",
+      "description": "Build graphs with the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-renderer), and install or set it up in a React codebase. Activates on requests to author Graphy graphs or to install, configure or fix a Graphy install.",
+      "version": "0.1.0",
       "homepage": "https://github.com/graphysdk/skills",
       "repository": "https://github.com/graphysdk/skills",
       "license": "MIT",
-      "keywords": ["graphy", "graphs", "charts", "data-viz", "react", "svg"],
+      "keywords": [
+        "graphy",
+        "graphs",
+        "charts",
+        "data-viz",
+        "react",
+        "svg"
+      ],
       "strict": false,
       "skills": "./plugin-skills"
     }

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AvailableModel, GraphCodegenEvent, OutputMode } from './api';
-import { AVAILABLE_MODELS, encodeImageAttachment, OUTPUT_MODES, rebundleSession, streamChatTurn } from './api';
+import {
+  AVAILABLE_MODELS,
+  DEFAULT_MODEL,
+  encodeImageAttachment,
+  OUTPUT_MODES,
+  rebundleSession,
+  streamChatTurn,
+} from './api';
 import type { ChatEntry, ConversationSummary, DiagnosticEntry } from './storage';
 import { deleteConversation, listConversations, loadConversation, saveConversation } from './storage';
 
@@ -40,7 +47,7 @@ const TITLE_MAX_LENGTH = 80;
 
 function loadStoredModel(): AvailableModel {
   const stored = localStorage.getItem(MODEL_STORAGE_KEY) as AvailableModel | null;
-  return stored !== null && AVAILABLE_MODELS.includes(stored) ? stored : AVAILABLE_MODELS[0];
+  return stored !== null && AVAILABLE_MODELS.includes(stored) ? stored : DEFAULT_MODEL;
 }
 
 function loadStoredOutputMode(): OutputMode {

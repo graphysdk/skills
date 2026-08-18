@@ -22,7 +22,7 @@ Later entries win: renderers are applied in array order onto the built-in regist
 
 ## Tier 1 — render-only paint override
 
-Replace how a built-in geom is painted without touching its compile half. Positions, stacking, scales, axes, tooltip, and hover indexing all keep working — you only redraw the marks.
+Replace how a built-in geom is painted without touching its compile half. Positions, stacking, scales, axes, tooltip, and hover indexing all keep working — you only redraw the marks. The paint is yours in full, including the parts the style cascade resolves for the built-in renderer (see Paint and the style cascade).
 
 ```tsx
 import { defineGeomRenderer, GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
@@ -53,10 +53,10 @@ Registry key is the `(geom, coord)` pair — one contract per coordinate system 
 | Field | Required | Purpose |
 |---|---|---|
 | `coord` | yes | `'cartesian'` or `'polar'`. The coord system this contract paints under; handlers receive the matching `CoordSystem` |
-| `render` | yes | The paint: `(input) => ReactNode`, or `{ fn, options: { overlay: true } }` for overlay hosting (see Hover wiring). Input: `{ layer, coordSystem, isAnimated, formattingLocale }` |
+| `render` | yes | The paint: `(input) => ReactNode`, or `{ fn, options: { overlay: true } }` for overlay hosting (see Hover wiring). Input (`GeomRenderInput`): `{ layer, coordSystem, shouldAnimateTransitions, formattingLocale, intro? }` |
 | `renderHover` | yes | Paint for the hovered observation. Input adds `primary`, `group`, `related` (`HoverHit[]`), and `panelRect`. Return `null` for no hover paint |
 | `renderHoverCompanions` | yes | Companion marks for hover-related observations (e.g. dots on sibling lines). Usually `() => null` |
-| `renderHighlight` | no | Repaint of the highlight-matched subset; omit to fall back to `render`. Override when the plain render would misgroup an isolated subset (a bar repainting a lone mid-stack segment) |
+| `renderHighlight` | no | Repaint of the highlight-matched subset; omit to fall back to `render`. Input (`HighlightRenderInput`) is `GeomRenderInput` plus `panelRect` (the panel's layout rect, for painting in absolute panel pixels) and `sourceLayer` (the full layer `layer` was filtered from — context the subset cannot see, like a stack's silhouette). Override when the plain render would misgroup an isolated subset (a bar repainting a lone mid-stack segment) |
 | `swatchShape` | no | Legend/tooltip/headline mark: `'square' \| 'line' \| 'circle' \| 'area' \| 'slice'` |
 | `guideMode` | no | Hover guide this layer draws when hovered: `'band'` (category rectangle — bars), `'crosshair'` (rule at the value — line/area), omit/`null` for none (scatter) |
 | `hitTest` | no | Factory `(input) => RenderHitTester` for `'render-hit-test'` geoms with precomputed geometry (tier 2 only; see Hover wiring) |
@@ -69,12 +69,15 @@ Render handlers receive **no pixel sizes**. All compiled positions are normalize
 ```tsx
 import { UnitSpaceSvg } from '@graphysdk/react-renderer';
 
+// Children use raw [0,1] coordinates, top-left origin.
 render: ({ layer }) => (
-  <UnitSpaceSvg>{/* children use raw [0,1] coordinates, top-left origin */}</UnitSpaceSvg>
+  <UnitSpaceSvg>
+    <circle cx={0.5} cy={0.5} r={0.02} vectorEffect="non-scaling-stroke" />
+  </UnitSpaceSvg>
 );
 ```
 
-`UnitSpaceSvg` is `viewBox="0 0 1 1"` + `preserveAspectRatio="none"` + `width/height="100%"`. Use `vectorEffect="non-scaling-stroke"` on paths so stroke widths survive the non-uniform stretch. Alternative for percentage positioning: `toPercent(value)` produces `"42.5%"` strings. Helpers `toViewBoxX` (identity) and `toViewBoxY` (`1 - y`; data y grows up, SVG y grows down) convert scaled positions to top-left-origin unit coords. All three are exported by `@graphysdk/viz-engine`.
+`UnitSpaceSvg` is `viewBox="0 0 1 1"` + `preserveAspectRatio="none"` + `width/height="100%"` + `pointerEvents="none"` (set before `{...rest}`, so a geom that wants its own pointer handling without going overlay-hosted overrides it). Use `vectorEffect="non-scaling-stroke"` on paths so stroke widths survive the non-uniform stretch. Alternative for percentage positioning: `toPercent(value)` produces `"42.5%"` strings. Helpers `toViewBoxX` (identity) and `toViewBoxY` (`1 - y`; data y grows up, SVG y grows down) convert scaled positions to top-left-origin unit coords. All three are exported by `@graphysdk/viz-engine`.
 
 ### Reading compiled observations — value readers only
 
@@ -93,6 +96,68 @@ Never index into an observation's columns by name — read every value through t
 | `getBarRectBounds(mainAxis, observation)` | Convenience: a bar's full `Rect` in `[0,1]`, flip-aware |
 
 Layer params arrive at `layer.params` (typed loosely; cast to your geom's param shape).
+
+### Paint and the style cascade
+
+Every stylable property resolves through a three-tier cascade, first answer winning:
+
+1. **Override** — the last matching `styles.overrides` entry declaring the property. Beats the encoding.
+2. **Data** — the derived visual variable the encoding produced.
+3. **Default** — the last matching `styles.defaults` entry. The built-in stylesheet sits at the front, so user defaults win over it and an unstyled spec resolves to the house look.
+
+The visual readers (`getColor`, `getAlpha`, `getSize`, `getStrokeWidth`, `getLineType`) expose **tier 2 only**, so a plugin geom reading `getColor(observation) ?? MY_FALLBACK` sees just the encoding. Consequences:
+
+- A user's `style.geom({ color: … }, { where: … })` **override** never reaches the plugin's marks.
+- With `color` unmapped, the kind-agnostic built-in default (`style.geom({ color: token('geomColor'), alpha: 1 })`, compiled onto every layer including custom geoms) is skipped and the plugin's own hard-coded constant wins — so a custom geom's unmapped colour will not match the built-in layers beside it, and hard-coded label/stroke hex diverges from the chart under `colorScheme="dark"`.
+- Layer **dimming** does not reach a custom geom either. The wrapper `<g>` applies the dimmed opacity/saturation from `layer.highlight.composition.isDimmed`, and `layer.highlight` is populated by a lookup keyed on the **built-in geom name** (`createEmptyHighlight`), so a custom geom's layer carries `null` there and never dims. `Geom.highlightStrategy` is declarable but not yet read by that lookup. A custom geom that should recede while another layer is highlighted has to paint that itself.
+
+A plugin **can** read the full cascade, with one thing to supply itself. The engine half is public —
+`createStyleResolver`, `GeomStyleReaders`, `StyleProperty`, and `layer.styles` on every `CompiledLayer`:
+
+```tsx
+import { createStyleResolver } from '@graphysdk/viz-engine';
+
+const readers = createStyleResolver({ colorScheme }).geomReaders(layer);
+const fill = readers.get('color', observation);
+```
+
+`geomReaders(layer)` reads that layer's compiled stylesheet, so this resolves overrides, the authored
+defaults and the built-in defaults — everything the value readers skip.
+
+The catch is `colorScheme`. `createStyleResolver` takes it as an option and falls back to `'light'`,
+and there is no exported hook that carries the chart's active scheme into a renderer
+(`useStyleReaders` and `useGraphContext` are internal to `@graphysdk/react-renderer`). So a plugin
+that wants correct dark-mode paint must have the scheme threaded in by its author — through a geom
+param or the plugin's own React context — and a plugin that ignores it paints light colours on a dark
+chart. Exposing every colour you would otherwise hard-code as a geom param remains the simplest path
+when you don't need the cascade. See `reference/styling.md`.
+
+### Entrance animations
+
+`input.intro` is a `LayerIntroPlan | null` — the engine's plan for how this layer should enter on first mount (and on a coord change). The plan is **offered, never imposed**: nothing gates the paint, and a geom that ignores it simply appears at once.
+
+- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan, `'buckets'` under cartesian → a `wipe` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom always receives `null` — it never animates in, by design.
+- `LayerIntroPlan` is discriminated on `type`: `{ type: 'grow', durationSeconds, baseline, growAxis, delayByKey }` or `{ type: 'wipe', durationSeconds, axis }`, with all timings already in seconds.
+- Chart chrome (data labels) is delayed by a fixed intro delay whenever any intro plays, regardless of what the geoms do — a geom that ignores its plan still appears before the chrome.
+- The layer's row count counts toward the chart-wide `maxAnimatedGeoms` budget (`countLayerGeoms`), so a large custom layer can suppress the whole chart's intro.
+- The engine side is exported (`LayerIntroPlan`, `buildLayerIntroPlan`, `countLayerGeoms`); the react-renderer helpers the built-ins use (`useLayerAnimation`, `useGeomTransition`, `resolveGrowIntroTransition`) are **not**, so a plugin implements the entrance from the plan by hand.
+
+`shouldAnimateTransitions` is the separate, ongoing flag on the same input: whether *data changes* should tween.
+
+### Authoring diagnostics
+
+Plugin mistakes surface as `VizDiagnostic` entries rather than throws. Most are warnings, and several are the only signal that an otherwise-silent plugin is broken:
+
+| Code | Severity | Fires when |
+|---|---|---|
+| `MISSING_GEOM_RENDERER` | error | A compile definition is in `plugins` with no render half registered for its `type` |
+| `MISSING_GEOM_RENDERER` | warning | A compiled layer's `(geom, coord)` pair resolves to no renderer under the chart's coord system — the layer paints nothing |
+| `DUPLICATE_REGISTERED_TYPE` | warning | Two render-only overrides register the same `(geom, coord)`; the last in the array wins |
+| `MISSING_RENDER_HIT_TEST` | warning | A `'render-hit-test'` layer whose renderer declares neither a `hitTest` factory nor an overlay render — the layer has no hover. Also fires for the `useGeomHitTest` hook form, which registers at runtime and so is invisible to the check |
+| `RENDER_HIT_TEST_IDENTITY` | warning | A `'render-hit-test'` geom left on the default `identityKey: 'x-group'`, or keyed on `{ variable }` naming a column its `compile()` never emits — either way the hover lookup is empty and every hit resolves to nothing |
+| `CONFLICTING_RENDER_HIT_TEST` | warning | A renderer declares both a `hitTest` factory and an overlay render; only the overlay is used |
+| `MISSING_ANCHOR_CAPABILITY` | warning | A `'render-hit-test'` geom implements no `resolveAnchorPosition`, so annotations cannot anchor to its observations and the editor overlay paints no creation trigger on them |
+| `OVERLAY_REQUIRES_RENDER_HIT_TEST` | warning | A renderer is overlay-hosted but its layer's `spatialKind` is not `'render-hit-test'`, so `pushHover` resolves against no index |
 
 ## Tier 2 — fully custom geom
 
@@ -148,7 +213,9 @@ Key declarations:
 | `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` (contract must supply `getOverlayAnchor`) \| `'observation-rerender'` \| `null` (opt out) |
 | `defaultPosition`, `defaultInteractive` | `'identity'`, `true` | Layer-resolution defaults |
 | `grid`, `legend`, `dataLabels`, `tooltip`, `summaries` | `{}` / `[]` | Guide policies the pipeline reads |
-| `validateMapping`, `resolveAnchorPosition`, … | optional | Opt-in behaviour hooks |
+| `dataLabelCoordTypes` | `[]` | Coords the built-in placement pipeline can place this geom's data labels under |
+| `resolveAnchorPosition` | optional | `(observation, context: AnchorContext) => AnchorPosition \| null` — where an annotation on that observation sits, in normalized `[0,1]` panel space. `AnchorContext` carries `{ coordSystem, position, purpose, align? }`. A geom without it is skipped by the annotation stage; on a `'render-hit-test'` geom the omission also raises `MISSING_ANCHOR_CAPABILITY` |
+| `validateMapping`, `resolveBandFraction`, `resolveAnchorBox`, `resolveDefaultLabelSource`, `resolveDataLabelDefaults` | optional | Further opt-in behaviour hooks |
 
 ### Custom stats and transforms
 

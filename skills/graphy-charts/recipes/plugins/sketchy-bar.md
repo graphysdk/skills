@@ -194,6 +194,7 @@ Stacked bars need no plugin changes — `geom.bar({ position: 'stack' })` plus a
 
 ## Adapting
 
-- `DEFAULT_INK` is only the no-color-scale fallback; mapped colors come from the spec's color scale as usual via `getColor`.
+- `DEFAULT_INK` is the no-color-scale fallback; mapped colors come from the spec's color scale via `getColor`, which reads the encoding.
+- A render-only override owns the whole paint, including the properties the style cascade resolves for the built-in bar (`borderRadius`, `borderWidth`, `borderColor`): a user's `styles` entries reach the built-in renderer, not this one. Expose the equivalents as constants or params here. See `reference/styling.md`.
 - Tune the hand-drawn look via `roughness`, `bowing`, `fillStyle` (e.g. `'cross-hatch'`, `'zigzag'`) and the `BASE_STYLE`/`HOVER_STYLE` weights.
 - The same pattern overrides any built-in geom name (`'point'`, `'line'`, `'area'`, `'rule'`) — pass a different name to `defineGeomRenderer` and read the geometry with that geom's accessors. A later `plugins` entry wins on a shared `(geom, coord)` key.

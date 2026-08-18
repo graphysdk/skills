@@ -1,8 +1,10 @@
 # Financial Times
 
-Technique: config + theme tokens only (no plugins).
+Technique: spec `config()` + a stylesheet + theme tokens (no slots, no plugins).
 
 The FT house look: charts sit on the signature salmon paper (`#FFF1E5`) with warm sand-toned rules for gridlines and panel edges, claret/wine-red data with a paler tint for forecasts, and Oxford blue as the counterpart series. Titles are 18px sentence-case headlines where key words take the series colour, so the headline doubles as the legend. Only horizontal structure: solid top rule, heavier 1.5px bottom rule, y gridlines on, no side borders.
+
+`config()` sets what the frame contains, a stylesheet paints it, and `themeOverrides` dresses the legend and headline chrome around it (`reference/styling.md`).
 
 ## Constants
 
@@ -17,7 +19,7 @@ export const FT_COLORS = {
   steelLight: '#C3DDF0', // pale blue for secondary stacked segments
   black: '#33302E', // primary text — headline lead-in, subtitle, axis titles
   slate: '#66605C', // secondary text — axis tick labels
-  rule: '#E4D5C5', // warm rule shared by gridlines and panel borders on the salmon paper
+  rule: '#E4D5C5', // warm rule shared by gridlines, tick marks and panel borders on the salmon paper
 } as const;
 
 export const FT_FONT_FAMILY = {
@@ -30,7 +32,7 @@ export const FT_CLARET_RAMP = ['#990F3D', '#BE4B75', '#D486A3', '#E5B0C4', '#F2D
 
 ## Theme
 
-This style keeps the engine's default font sizing and only swaps colours and families — no measured `FontTokenOverride` entries needed.
+This style keeps the engine's default font sizing and swaps only colours and families, so the theme needs no measured `FontTokenOverride` entry at all — `fontFamilyDefault` reaches every text target the stylesheet leaves unnamed.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -38,7 +40,6 @@ import type { ThemeOverrides } from '@graphysdk/react-renderer';
 export const financialTimesTheme: ThemeOverrides = {
   textPrimary: FT_COLORS.black,
   textSecondary: FT_COLORS.slate,
-  gridLineColor: FT_COLORS.rule,
   legendBackground: 'transparent',
   legendBorderColor: 'transparent',
   fontFamilyDefault: FT_FONT_FAMILY.body,
@@ -46,32 +47,46 @@ export const financialTimesTheme: ThemeOverrides = {
 };
 ```
 
+## Shared frame stylesheet
+
+The whole FT frame is seven entries: the paper, the solid grid, the warm tick marks, and a panel ruled top and bottom only.
+
+```ts
+import { style, styles } from '@graphysdk/viz-engine';
+
+const financialTimesChromeStyles = styles({
+  defaults: [
+    style.graph({ background: FT_COLORS.paper }),
+    style.gridLine({ lineType: 'solid' }),
+    style.tickLine({ color: FT_COLORS.rule }),
+    // The bare builder rules all four edges; the edge partitions then differ.
+    style.panelBorder({ lineType: 'solid' }),
+    style.panelBorder.bottom({ strokeWidth: 1.5 }),
+    style.panelBorder.left({ strokeWidth: 0 }),
+    style.panelBorder.right({ strokeWidth: 0 }),
+  ],
+});
+```
+
+`strokeWidth: 0` is how an edge stays off the plate: it paints nothing and reserves no space. Within one list, order is specificity — the edge entries sit after the bare `panelBorder` entry, so they win where they overlap it.
+
 ## Shared config builder
 
 ```ts
 import { config } from '@graphysdk/viz-engine';
 import type { RichTextContent } from '@graphysdk/viz-engine';
 
-// Shared frame: FT Pink paper and headline spacing. Legends are opt-in per chart.
+// Shared frame: headline spacing and which guides are on. Legends are opt-in per chart.
 const createFinancialTimesConfig = (options: { legendPosition?: 'none' | 'top' | 'right' } = {}) =>
   config({
     legend: { position: options.legendPosition ?? 'none' },
-    appearance: { background: { type: 'solid', color: FT_COLORS.paper } },
     layout: {
       padding: 32,
       gaps: { header: options.legendPosition === 'top' ? 24 : 64, topLegend: 32 },
     },
-    panel: {
-      border: {
-        top: { isVisible: true, lineStyle: 'solid' },
-        bottom: { isVisible: true, lineStyle: 'solid', lineWidth: 1.5 },
-        left: { isVisible: false },
-        right: { isVisible: false },
-      },
-    },
     axes: {
       x: { position: 'bottom', grid: { isVisible: false } },
-      y: { position: 'left', grid: { isVisible: true, lineStyle: 'solid' } },
+      y: { position: 'left', grid: { isVisible: true } },
     },
   });
 
@@ -97,14 +112,15 @@ const createFinancialTimesTitle = (segments: Array<{ text: string; color?: strin
 });
 ```
 
+`axes.y.grid.isVisible` decides that a grid is drawn; `style.gridLine` decides what it looks like.
+
 ## Example: bar chart with a paler forecast tint
 
-The last quarter is a forecast, painted in the paler claret tint via a discrete colour scale keyed on the `type` column. One observation per quarter, so `geom.bar` uses identity positioning.
+The last quarter is a forecast, painted in the paler claret tint via a discrete colour scale keyed on the `type` column. One observation per quarter, so `geom.bar` uses identity positioning. FT bars are square-cornered: on a geom, `borderRadius` takes a token, and square is `'none'`.
 
 ```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
+import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const cpmData = {
   columns: [{ key: 'quarter' }, { key: 'cpm' }, { key: 'type' }],
@@ -120,11 +136,13 @@ const cpmData = {
 const cpmSpec = pipe(
   createSpec(),
   mapping({ x: 'quarter', y: 'cpm', color: 'type' }),
-  geom.bar({ position: 'identity', params: { borderRadius: 0 } }),
+  geom.bar({ position: 'identity' }),
+  styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] }),
   scale.x(),
   scale.y.continuous({ domainMin: 0, domainMax: 10 }),
   scale.color.discrete({ domain: ['actual', 'forecast'], range: [FT_COLORS.claretBar, FT_COLORS.forecastBar] }),
   createFinancialTimesConfig(),
+  financialTimesChromeStyles,
   config({
     content: {
       title: createFinancialTimesTitle([{ text: 'CPM' }, { text: ' set to climb past €6', color: FT_COLORS.claret }]),
@@ -137,21 +155,22 @@ const cpmSpec = pipe(
 
 export function FinancialTimesCpmChart() {
   return (
-    <GraphProvider data={cpmData} input={cpmSpec} theme="light" themeOverrides={financialTimesTheme}>
+    <GraphProvider data={cpmData} input={cpmSpec} colorScheme="light" themeOverrides={financialTimesTheme}>
       <GraphRenderer sizing={{ mode: 'responsive' }} />
     </GraphProvider>
   );
 }
 ```
 
+The bar entry sits in `defaults`, so it shapes the corners without touching the fill the colour scale assigns.
+
 ## Example: line race with colour-keyed headline and direct labels
 
-The headline names each series in its line colour, so no boxed legend is needed; direct labels sit at the line endpoints.
+The headline names each series in its line colour, so no boxed legend is needed; direct labels sit at the line endpoints. FT lines are 2.5px and unfilled — a line draws a gradient wash only where `fillAlpha` is declared, so leaving it out gives the bare stroke.
 
 ```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
+import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const productValueData = {
   columns: [{ key: 'month' }, { key: 'product' }, { key: 'value' }],
@@ -174,11 +193,13 @@ const productValueData = {
 const productRaceSpec = pipe(
   createSpec(),
   mapping({ x: 'month', y: 'value', color: 'product' }),
-  geom.line({ params: { lineWidth: 2.5, showFill: false } }),
+  geom.line(),
+  styles({ defaults: [style.geom.line({ strokeWidth: 2.5 })] }),
   scale.x(),
   scale.y.continuous({ domainMin: 100 }),
   scale.color.discrete({ domain: ['Product A', 'Product B'], range: [FT_COLORS.oxford, FT_COLORS.claret] }),
   createFinancialTimesConfig(),
+  financialTimesChromeStyles,
   config({
     legend: { position: 'right', display: 'direct' },
     content: {
@@ -196,7 +217,7 @@ const productRaceSpec = pipe(
 
 export function FinancialTimesProductRace() {
   return (
-    <GraphProvider data={productValueData} input={productRaceSpec} theme="light" themeOverrides={financialTimesTheme}>
+    <GraphProvider data={productValueData} input={productRaceSpec} colorScheme="light" themeOverrides={financialTimesTheme}>
       <GraphRenderer sizing={{ mode: 'responsive' }} />
     </GraphProvider>
   );
@@ -216,7 +237,9 @@ Figtree (stand-in for FT Metric) carries all chart text; Source Serif 4 (stand-i
 
 ## Other charts in this style
 
-- Stacked bars: `geom.bar({ position: 'stack', params: { borderRadius: 0, borderColor: '#000', borderWidth: 1 } })`; segments in `[FT_COLORS.steel, FT_COLORS.steelLight]`; `createFinancialTimesConfig({ legendPosition: 'top' })`.
-- Donut: `geom.bar({ position: 'fill', params: { borderRadius: 0, borderColor: FT_COLORS.paper, borderWidth: 2 } })` + `coord.polar({ theta: 'y', innerRadius: 0.3 })`; colours from `FT_CLARET_RAMP`, percentage + category data labels outside; add `config({ layout: { gaps: { header: 24 } } })`.
-- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1, borderRadius: 0, borderColor: FT_COLORS.paper, borderWidth: 1 } })` + `coord.polar({ theta: 'x' })`; emphasised months in `claretBar`, the rest in `forecastBar` — the same emphasis split the bar chart uses for actual vs forecast.
-- Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9, borderRadius: 0 } })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `claretBar`, remainder in `rule`; add `config({ layout: { gaps: { header: 24 } } })`.
+Each pipes `createFinancialTimesConfig()` + `financialTimesChromeStyles`, then its own geom stylesheet.
+
+- Stacked bars: `geom.bar({ position: 'stack' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: '#000', borderWidth: 1 })] })`; segments in `[FT_COLORS.steel, FT_COLORS.steelLight]`; `createFinancialTimesConfig({ legendPosition: 'top' })`.
+- Donut: `geom.bar({ position: 'fill' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: FT_COLORS.paper, borderWidth: 2 })] })` + `coord.polar({ theta: 'y', innerRadius: 0.3 })`; colours from `FT_CLARET_RAMP`, percentage + category data labels outside; add `config({ layout: { gaps: { header: 24 } } })`.
+- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: FT_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; emphasised months in `claretBar`, the rest in `forecastBar` — the same emphasis split the bar chart uses for actual vs forecast.
+- Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `claretBar`, remainder in `rule`; add `config({ layout: { gaps: { header: 24 } } })`.

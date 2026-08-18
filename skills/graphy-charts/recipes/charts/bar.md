@@ -10,13 +10,13 @@
 | Horizontal | append `coord.flip()` |
 | Single bar | one row, `geom.bar({ position: 'identity' })` |
 | Count stat | `mapping({ x: 'category' })` only (no `y`), `geom.bar({ stat: 'count' })` |
+| Pill bars | `styles({ defaults: [style.geom.bar({ borderRadius: 'full' })] })` |
 
 ## Base: simple bar
 
 ```tsx
 import { createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const data = {
   columns: [{ key: 'category' }, { key: 'revenue' }],
@@ -105,20 +105,35 @@ scale.y(),
 config({ axes: { y: { label: 'Count' } } })
 ```
 
-## Bar params
+## Geometry and paint
 
-`geom.bar({ params: { ... } })` — all optional:
+`params` carries the band geometry; the stylesheet carries the paint (`reference/styling.md`).
 
-| Param | Type | Default | Notes |
-|---|---|---|---|
-| `width` | number in `(0, 1]` | `0.7` | fraction of the category band |
-| `borderRadius` | number \| `'auto'` \| `'full'` | `'auto'` | pixels; `'full'` = pill; stacks round only the outer corners |
-| `borderColor` | string | unset | border drawn only when set |
-| `borderWidth` | number | `1` | only takes effect with `borderColor` |
+| Surface | Key | Type | Default | Notes |
+|---|---|---|---|---|
+| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` | fraction of the category band |
+| `style.geom.bar` | `borderRadius` | `'none' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl' \| 'full'` | `'sm'` | `'full'` = pill; a stack rounds the outer corners of the whole column |
+| `style.geom.bar` | `borderColor` | color | unset | the border draws once this resolves |
+| `style.geom.bar` | `borderWidth` | number | `1` | takes effect alongside `borderColor` |
 
 ```ts
-geom.bar({ params: { width: 0.5, borderRadius: 'full', borderColor: '#1e293b', borderWidth: 2 } })
+geom.bar({ params: { width: 0.5 } }),
+styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: '#1e293b', borderWidth: 2 })] }),
 ```
+
+`style.geom.bar` also takes the shared `color`, `alpha` and `saturation`, and scopes to one layer or
+one data subset via `{ layer }` / `{ where }`.
+
+## Intro animation
+
+On mount bars grow out of the zero baseline, staggered in visual order along the main axis; the
+segments of one stack share a delay so the column rises as one. The renderer's `animation` prop tunes it:
+
+```tsx
+<GraphRenderer animation={{ intro: { stagger: false, durationScale: 0.5 } }} />
+```
+
+`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
 
 ## Gotchas
 
@@ -127,3 +142,4 @@ geom.bar({ params: { width: 0.5, borderRadius: 'full', borderColor: '#1e293b', b
 - Wide data must go through `transform.reshape` before mapping `color` to the series; a long-form series column maps directly.
 - With negative values use `position: 'identity'` so bars hang below the zero baseline instead of being position-adjusted.
 - `stat: 'count'` supplies y itself — do not also map `y`, but still add `scale.y()`.
+- A `width` outside `(0, 1]` renders with a substitute (`1` for anything above `1`, otherwise `0.7`) and an `INVALID_GEOM_PARAM` warning.

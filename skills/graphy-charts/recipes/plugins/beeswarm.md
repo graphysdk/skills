@@ -17,7 +17,7 @@ import {
   type RenderHitTester,
   useGeomHitTest,
   useHoverState,
-  usePanelScreenRect,
+  useElementScreenRect,
 } from '@graphysdk/react-renderer';
 import type {
   CompiledGeom,
@@ -170,21 +170,21 @@ function buildSwarmTester(placed: PlacedPoint[], width: number, height: number, 
 }
 
 /**
- * Paints the swarm and owns its hover. Measures the panel (`usePanelScreenRect`), lays the circles out
+ * Paints the swarm and owns its hover. Measures the panel (`useElementScreenRect`), lays the circles out
  * in pixel space, and registers the spatial query with `useGeomHitTest`. The hovered point is read from
  * the shared hover store and repainted on top, so the geom inherits the central tooltip and needs no
  * `renderHover` overlay.
  */
 const BeeswarmLayer = ({ layer }: { layer: CompiledLayer }) => {
-  const { ref, rect } = usePanelScreenRect();
+  const { measureRef, screenRect } = useElementScreenRect();
   const points = useMemo(() => readPoints(layer.data), [layer.data]);
   const placed = useMemo(
-    () => (rect ? computeSwarm(points, rect.width, rect.height, POINT_RADIUS) : []),
-    [points, rect]
+    () => (screenRect ? computeSwarm(points, screenRect.width, screenRect.height, POINT_RADIUS) : []),
+    [points, screenRect]
   );
   const tester = useMemo<RenderHitTester>(
-    () => (rect ? buildSwarmTester(placed, rect.width, rect.height, POINT_HIT_RADIUS) : () => null),
-    [placed, rect]
+    () => (screenRect ? buildSwarmTester(placed, screenRect.width, screenRect.height, POINT_HIT_RADIUS) : () => null),
+    [placed, screenRect]
   );
   useGeomHitTest(layer.id, tester);
 
@@ -195,7 +195,7 @@ const BeeswarmLayer = ({ layer }: { layer: CompiledLayer }) => {
 
   return (
     <>
-      <rect ref={ref} width="100%" height="100%" fill="transparent" pointerEvents="none" />
+      <rect ref={measureRef} width="100%" height="100%" fill="transparent" pointerEvents="none" />
       {placed.map((point) => (
         <circle
           key={point.index}
@@ -275,3 +275,6 @@ export const BeeswarmChart = () => (
 - Swap `computeSwarm` for any pixel-space placement (jitter, violin-density dodge, a d3-force collision pass); keep the row-index identity aligned with the compiled data order so hover keys resolve.
 - Tune `POINT_RADIUS` / `POINT_HIT_RADIUS` for density; the hit radius can exceed the drawn radius to keep small marks targetable.
 - To swarm vertically, declare the position role on `axis: 'y'` and dodge along x instead — the layout and tester swap coordinates, the geom contract is otherwise unchanged.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at — the settled dot's centre, though it is knowable only render-side here — to make the marks annotatable and give the editor overlay a creation trigger on them.
+- `FALLBACK_COLOR` and the dot stroke hex constants (`#fff`, `#1f2937`) sit outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks and they hold their hex under `colorScheme="dark"` while the built-in layers flip. Expose them as geom params so a spec can set them per chart. See `reference/styling.md`.
+- Registering through the `useGeomHitTest` hook rather than a `hitTest` factory also raises `MISSING_RENDER_HIT_TEST`: the check reads the render contract, which declares no hover source, while the hook registers at runtime. Hover works; the warning is expected for this shape of geom.

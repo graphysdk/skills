@@ -1,8 +1,8 @@
 # Lenny's Newsletter
 
-**Tier: config + theme tokens.** No slots, no plugins — the card chrome and headline both come from the spec.
+**Tier: config + stylesheet + theme tokens.** No slots, no plugins — the card chrome, the headline and the plate rules all come from the spec.
 
-Warm newsletter style: cream chart grounds with a hairline ink outline and a 28px corner radius (drawn by the spec's `appearance`, not an outer card), one full-strength brand orange leading a soft autumn ramp, and Plus Jakarta Sans throughout. Value labels are plain bold ink with no plate behind them; cartesian charts sit on a single 2px ink baseline while polar charts drop the baseline and grid entirely.
+Warm newsletter style: cream chart grounds with a hairline ink outline and a 28px corner radius drawn by the chart's own frame, not an outer card, one full-strength brand orange leading a soft autumn ramp, and Plus Jakarta Sans throughout. Value labels are plain bold ink with no plate behind them; cartesian charts sit on a single 2px ink baseline while polar charts drop the baseline and grid entirely.
 
 ## Constants
 
@@ -37,7 +37,7 @@ export const LINE_FOLLOWER = '#AE9070';
 
 ## Theme overrides
 
-`fontDataLabel`, `fontCategoryLabel`, and `fontTickLabel` are measured font tokens and take structured `FontTokenOverride` objects — a partial override like `{ weight: 600 }` keeps every other font property at its default.
+The theme covers the chrome around the plot — the legend and the headline — plus the family every text target inherits.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -47,48 +47,46 @@ export const themeOverrides: ThemeOverrides = {
   fontFamilyHeading: LENNY_FONT_FAMILY.body,
   textPrimary: LENNY_COLORS.ink,
   textSecondary: LENNY_COLORS.inkSecondary,
-  gridLineColor: LENNY_COLORS.gridLine,
   // Legend as plain dot + label, no pill chrome.
   legendBackground: 'transparent',
   legendBorderColor: 'transparent',
-  // Value labels as plain bold ink, no plate behind them.
-  dataLabelOutsideBackground: 'transparent',
-  dataLabelTextColor: LENNY_COLORS.ink,
-  dataLabelInsideTextColor: LENNY_COLORS.ink,
-  fontDataLabel: { weight: 700, size: { value: 1.3, unit: 'em' } },
-  fontCategoryLabel: { weight: 600, size: { value: 1.1, unit: 'em' } },
-  fontTickLabel: { weight: 600 },
 };
 ```
 
-## Shared config fragments
+## Shared fragments
 
-This style composes three reusable config fragments instead of one builder: the card appearance plus a cartesian or polar panel.
+This style composes small fragments: the card, then a cartesian or polar plate. Each comes in two halves — a `config` object for what the chart contains, and a stylesheet for what it looks like.
 
 ```ts
-/** Shared card chrome, applied through the spec: cream ground, radius 28 with a hairline ink outline. */
-const cardAppearance = {
-  background: { type: 'solid', color: LENNY_COLORS.card },
-  border: { type: 'solid', color: LENNY_COLORS.ink, width: 1 },
-  cornerRadius: 28,
-  textScale: 1.2,
-} as const;
+import { style, styles } from '@graphysdk/viz-engine';
+
+/** The card itself: cream ground, radius 28, hairline ink outline, and text one fifth up. */
+const cardAppearance = { textScale: 1.2 } as const;
+const cardChromeStyles = styles({
+  defaults: [
+    style.graph({ background: LENNY_COLORS.card, borderColor: LENNY_COLORS.ink, borderWidth: 1, borderRadius: 28 }),
+    style.tickLabel({ fontWeight: 600, textColor: LENNY_COLORS.inkSecondary }),
+    // Value labels as plain bold ink, and nothing behind the outside ones.
+    style.dataLabel({ fontSize: 13, fontWeight: 700, textColor: LENNY_COLORS.ink }),
+    style.dataLabel.observation.outside({ background: 'transparent' }),
+  ],
+});
 
 // A cartesian plate: a single 2px ink baseline, a solid horizontal grid, no side rules.
 const cartesianPanel = {
   axes: {
     x: { ticks: { isVisible: false } },
-    y: { position: 'left', grid: { lineStyle: 'solid' } },
-  },
-  panel: {
-    border: {
-      top: { isVisible: false },
-      right: { isVisible: false },
-      bottom: { isVisible: true, lineStyle: 'solid', lineWidth: 2, color: LENNY_COLORS.ink },
-      left: { isVisible: false },
-    },
+    y: { position: 'left' },
   },
 } as const;
+const cartesianPlateStyles = styles({
+  defaults: [
+    style.gridLine({ lineType: 'solid' }),
+    style.tickLine({ color: LENNY_COLORS.gridLine }),
+    style.panelBorder({ strokeWidth: 0 }),
+    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: LENNY_COLORS.ink }),
+  ],
+});
 
 // A polar plate: no baseline, no grid — the ring is its own ground.
 const polarPanel = {
@@ -96,16 +94,11 @@ const polarPanel = {
     x: { ticks: { isVisible: false } },
     y: { ticks: { isVisible: false }, grid: { isVisible: false } },
   },
-  panel: {
-    border: {
-      top: { isVisible: false },
-      right: { isVisible: false },
-      bottom: { isVisible: false },
-      left: { isVisible: false },
-    },
-  },
 } as const;
+const polarPlateStyles = styles({ defaults: [style.panelBorder({ strokeWidth: 0 })] });
 ```
+
+Each style entry merges property by property, so `style.tickLabel({ fontWeight: 600 })` bolds the tick text and leaves its size and family alone. An edge is taken off the plate with `strokeWidth: 0` — it draws nothing and reserves no space, which is what lets the polar plate float free of any rule. `borderRadius` on `style.graph` is a pixel number; on a bar it is a token (`'none'` through `'full'`).
 
 ## Title helper
 
@@ -131,12 +124,11 @@ export const createLennyTitle = (segments: Array<{ text: string; color?: string 
 
 ## Example: columns, actual vs forecast
 
-Slim columns via wider band padding; the forecast bar takes the paler tint of the same orange.
+Slim columns via wider band padding; the forecast bar takes the paler tint of the same orange. The card and plate stylesheets pipe in after the `config()` that names their structure.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const cpmData = {
   columns: [{ key: 'quarter' }, { key: 'cpm' }, { key: 'type' }],
@@ -169,7 +161,9 @@ const cpmSpec = pipe(
     legend: { position: 'bottom' },
     ...cartesianPanel,
     appearance: cardAppearance,
-  })
+  }),
+  cardChromeStyles,
+  cartesianPlateStyles
 );
 
 export function CpmChart() {
@@ -183,10 +177,10 @@ export function CpmChart() {
 
 ## Example: line race with direct end labels
 
-The lead series takes the full-strength orange, the follower the muted brown. Thick 6px strokes carry the newsletter's hand-drawn weight.
+The lead series takes the full-strength orange, the follower the muted brown. Thick 6px strokes carry the newsletter's hand-drawn weight, and the traces stay bare — a line washes a gradient beneath it only where `fillAlpha` is declared.
 
 ```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
+import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
 
 const productData = {
@@ -208,11 +202,14 @@ const productData = {
 const productRaceSpec = pipe(
   createSpec(),
   mapping({ x: 'month', y: 'value', color: 'product' }),
-  geom.line({ params: { lineWidth: 6, showFill: false } }),
+  geom.line(),
+  styles({ defaults: [style.geom.line({ strokeWidth: 6 })] }),
   scale.x(),
   scale.y.continuous({ domainMin: 100 }),
   scale.color.discrete({ domain: ['Product A', 'Product B'], range: [BRAND_ORANGE, LINE_FOLLOWER] }),
   config({ ...cartesianPanel, appearance: cardAppearance }),
+  cardChromeStyles,
+  cartesianPlateStyles,
   config({
     legend: { position: 'right', display: 'direct' },
     content: {
@@ -231,6 +228,8 @@ export function ProductRaceChart() {
 }
 ```
 
+`GraphProvider` takes `colorScheme="light" | "dark"` when a chart needs to be pinned to one scheme; these charts leave it at the default and rely on the card's own colours.
+
 ## Fonts
 
 Theme tokens set font families but do not load the fonts — the page must load Plus Jakarta Sans:
@@ -238,3 +237,12 @@ Theme tokens set font families but do not load the fonts — the page must load 
 ```html
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&display=swap" />
 ```
+
+## Other charts in this style
+
+Each pipes its `config({ ...cartesianPanel | ...polarPanel, appearance: cardAppearance })`, then `cardChromeStyles`, then the matching plate stylesheet.
+
+- Stacked columns: `geom.bar({ position: 'stack' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: LENNY_COLORS.card, borderWidth: 1 })] })` with `scale.x({ padding: 0.3 })` — card-coloured hairlines cut the stack into slabs; segments in `[LENNY_COLORS.actual, ROSE_REST]`.
+- Donut: the same bar entry at `borderWidth: 2` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`, colours from `AUTUMN_RAMP`, percentage + category labels outside, `polarPanel` + `polarPlateStyles`.
+- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: LENNY_COLORS.card, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; golden-quarter months in `BRAND_ORANGE`, the rest in `ROSE_REST`.
+- Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `BRAND_ORANGE`, remainder in `TRACK_REMAINING`.

@@ -16,7 +16,6 @@ const data: Data = {
     { month: 'Jan', revenue: 1200 },
     { month: 'Feb', revenue: null }, // null = missing value
   ],
-  _metadata: { parsingLocale: 'en-US' }, // optional
 };
 ```
 
@@ -25,15 +24,25 @@ const data: Data = {
 | `columns[].key` | `string` | Unique, stable identifier; the name you use in `mapping()` and transforms. |
 | `columns[].label` | `string?` | Friendly display name. Falls back to `key`. |
 | `rows` | `Array<Record<string, DataValue>>` | One object per row; keys match `columns[].key`. |
-| `_metadata.parsingLocale` | `'en-US' \| 'en-GB' \| 'ar' \| 'pt-PT'` | Locale for parsing. Defaults to `'en-GB'`. |
+
+Those three fields are the whole authorable surface. The object and each column also carry an internal `_metadata` block (`parsingLocale`, `isHidden`, `aggregation`, sort/filter state) that the editor writes and the engine reads; it is absent from the exported `Data` type, so treat it as read-only host state.
 
 **Reference columns by `key`, never by `label`.** Every `mapping()`, transform and aesthetic takes the key; a label used as a variable name fails compilation with `UNKNOWN_VARIABLE`. When you didn't author the dataset yourself, read its `columns` array first and take the keys from there.
 
 `DataValue = number | string | Date | null`. Strings are fine everywhere — parsing turns `'$1,200'`, `'12%'`, `'01/02/2022'`, `'2.5k'` into typed values. Cells that are `null`, `undefined`, `''` (or whitespace), or `'-'` count as empty. Rows whose every cell is empty are dropped.
 
-## parsingLocale
+## Locale
 
-Controls how ambiguous values are read, most importantly numeric date order: `'en-US'` reads `01/02/2022` as Jan 2 (month-day-year); `'en-GB'`, `'pt-PT'`, `'ar'` read it as Feb 1 (day-month-year). It is also the fallback display locale when no `formattingLocale` is given to `GraphProvider`. If your dates are numeric-separated, set it explicitly.
+Supported locales: `'en-GB' | 'en-US' | 'ar' | 'pt-PT'`. Two separate settings use them.
+
+| Setting | Where | Default | Governs |
+|---|---|---|---|
+| parsing locale | `_metadata.parsingLocale` on the data object (host state) | `'en-GB'` | how source cells are read — most importantly numeric date order |
+| `config({ parsingLocale })` | the spec | `'en-US'` | display formatting (axes, tooltips, headline, data labels) and value coercion in predicates and annotation anchors |
+
+`formattingLocale` on `GraphProvider` overrides `config({ parsingLocale })` for display only (`locale = formattingLocale ?? parsingLocale`).
+
+Numeric date order is the trap: `'en-US'` reads `01/02/2022` as Jan 2 (month-day-year); `'en-GB'`, `'pt-PT'`, `'ar'` read it as Feb 1 (day-month-year). Cells are read under the *parsing* locale, which you cannot set from the public `Data` type — so hand numeric-separated dates over in an unambiguous form (`'2022-02-01'`, `'Feb 1, 2022'`, `Date` objects) and let the display locale do the rest.
 
 ## Type and format inference
 
@@ -50,6 +59,18 @@ Parsing details:
 - Percentages are stored as fractions: `'12%'` → `0.12`. Only percent **strings** infer the percentage format — a column of bare fractions (0.12) infers `decimal` and renders as plain numbers. And inside a percentage column a bare numeric cell passes through unscaled: `12` stays `12` (renders "1200%"), so don't mix bare numbers into a percent-string column.
 - Currency strings are stripped to a number; the symbol sets the format's `iso` (e.g. `'usd'`).
 - Dates become UTC `Date` objects. `'2022-02'` parses as month + year; `'Q1 2022'` as a quarter; `'February 2022'` as month + year; bare `'February'`/`'Feb'` as a month with no year.
+
+### Chronological years for year-less dates
+
+A temporal column whose format carries no year — `month`, `day_month`, `weekly_date_range` — gets synthetic years assigned by the compiler, so the values sort as a sequence rather than collapsing onto one calendar year.
+
+The rule: walk the column **in row order**, carrying a running year that starts at the current calendar year. Whenever a value sorts before its predecessor (compared on month/day, year ignored), bump the year. Each colour group runs its **own independent sequence**; ungrouped rows share one.
+
+What follows from it:
+
+- `Jan, Feb, … Dec, Jan, Feb` reads as fourteen consecutive months across two years, not a loop back to the start.
+- The same month repeated across two series stays aligned on the axis, because each series restarts the sequence.
+- Row order is the input order — sort the rows the way you want the axis read. Reordering rows changes the assigned years.
 
 ## ValueFormat
 
@@ -122,16 +143,16 @@ const input = pipe(
 
 | Option | Default | Meaning |
 |---|---|---|
-| `reshape` | all numeric variables | Columns to collapse into rows. Numeric only — reshaping a categorical/temporal column is an error. |
+| `reshape` | numeric variables not named in `keep` | Columns to collapse into rows. Numeric only — reshaping a categorical/temporal column is an error. |
 | `keep` | all categorical/temporal variables | Columns carried through unchanged. |
 | `keyName` | `'key'` | New categorical column holding the source column names. |
 | `valueName` | `'value'` | New numeric column holding the values. |
 
-With all defaults, `transform.reshape()` melts every numeric column and keeps the rest — often exactly right for a wide table. If the source columns share a format (all currency), the value column keeps it; if they differ, the value column gets a per-observation `lookup` format so each series still displays in its own format.
+With all defaults, `transform.reshape()` melts every numeric column and keeps the rest — often exactly right for a wide table. If the source columns share a format (all currency), the value column keeps it; if they differ, the value column gets a per-observation `lookup` format so each series still displays in its own format. A mixed-format value column is still one axis holding two units, so observations across it are not comparable — a `annotation.differenceArrow` spanning them is dropped (see `reference/storytelling.md`).
 
 ## Gotchas
 
-- **Month names are dates, not categories.** A column of `'Jan'`, `'Feb'`, … infers as temporal `month` and each cell parses to a real date. A stray non-month cell like `'Total'` or `'Avg'` becomes `null` — filter summary rows out before charting. Short and long forms (`'Feb'`/`'February'`) can be mixed.
+- **Month names are dates, not categories.** A column of `'Jan'`, `'Feb'`, … infers as temporal `month` and each cell parses to a real date, then picks up a synthetic year in row order (see *Chronological years for year-less dates* — that is why `Jan` after `Dec` lands a year later instead of wrapping). A stray non-month cell like `'Total'` or `'Avg'` becomes `null` — filter summary rows out before charting. Short and long forms (`'Feb'`/`'February'`) can be mixed.
 - **Mixed-type columns fail silently.** Only the first non-empty cell picks the format; every later cell that doesn't parse under it becomes `null`. `['12', 'n/a', '15']` keeps two values; `['n/a', '12', '15']` makes the whole column `text`.
 - **Bare 4-digit numbers are decimals, not years** — unless the whole column passes the year pass (≥ 2 values, all 1900–2199). One `'2022'` in a decimal column is the number 2022, and a y-axis over years like 2020–2023 will show `2,020`.
 - **Numeric dates depend on locale.** `'01/02/2022'` flips month/day between `'en-US'` and the `'en-GB'` default. Unambiguous forms (`'2022-02-01'`, `'Feb 1, 2022'`, `Date` objects) are locale-proof.

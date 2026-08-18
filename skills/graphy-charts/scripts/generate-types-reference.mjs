@@ -57,8 +57,8 @@ const GROUPS = [
       "VariableName",
       "Locale",
       "SpecInput",
-      "CompilerInput",
-      "GraphTheme",
+      "ColorScheme",
+      "ColorSchemeName",
     ],
   },
   {
@@ -104,7 +104,31 @@ const GROUPS = [
   {
     title: "Config",
     pkg: "viz-engine",
-    symbols: ["ConfigSpec", "BORDER_PRESETS"],
+    symbols: ["ConfigSpec"],
+  },
+  {
+    // The stylesheet is where nearly all chart paint lives since the style
+    // cascade landed; `styles`/`style`/`token` carry the option types inline.
+    title: "Styling API",
+    pkg: "viz-engine",
+    symbols: [
+      "styles",
+      "style",
+      "token",
+      "Stylesheet",
+      "StylesheetInput",
+      "StyleRule",
+      "StyleDeclarations",
+      "StyleProperty",
+      "StyleSelect",
+      "ChromeStyleSelect",
+      "StyleEntryOptions",
+      "StyleState",
+      "StyleTokenRef",
+      "StyleTokenTable",
+      "LightDarkColor",
+      "BUILTIN_STYLES",
+    ],
   },
   {
     title: "Highlights",
@@ -125,6 +149,10 @@ const GROUPS = [
       "MONO_BASES",
       "NEON_BASES",
       "DEFAULT_COLOR_PALETTE",
+      "ColorRamp",
+      "SequentialSchemeName",
+      "DivergingSchemeName",
+      "sampleColorScheme",
     ],
   },
   {
@@ -140,7 +168,17 @@ const GROUPS = [
   {
     title: "Theme tokens",
     pkg: "react-renderer",
-    symbols: ["ThemeOverrides", "ThemeValues"],
+    symbols: [
+      "ThemeOverrides",
+      "ThemeValues",
+      "MeasuredFontTokenKey",
+      "FontTokenOverride",
+    ],
+  },
+  {
+    title: "Animation",
+    pkg: "react-renderer",
+    symbols: ["GraphAnimation", "GraphAnimationProps"],
   },
   {
     title: "Slots",
@@ -156,6 +194,7 @@ const GROUPS = [
       "AxisTicksSlotProps",
       "AxisLabelSlotProps",
       "SwatchSlotProps",
+      "EditorSurfaceSlotProps",
     ],
   },
   {

@@ -17,15 +17,29 @@ const facadeEntry = path.join(appRoot, 'scripts/runtime-facade.ts');
 const outDir = path.join(appRoot, '.vendor-build');
 const generatedFile = path.join(appRoot, 'server/src/bundler/vendor/runtime.generated.ts');
 
+// Resolved off the package's `.` entry (the only exported subpath) so the
+// sibling file is found without going through the exports map.
+const vizEngineGraphConfig = fileURLToPath(
+  new URL('./graph-config.mjs', import.meta.resolve('@graphysdk/viz-engine'))
+);
+
 await build({
   configFile: false,
   root: appRoot,
   logLevel: 'warn',
   define: { 'process.env.NODE_ENV': '"production"' },
   resolve: {
-    // react-renderer reaches react-dom/server for text measurement; use the
-    // browser build so nothing pulls the Node-only entry.
-    alias: { 'react-dom/server': 'react-dom/server.browser' },
+    alias: {
+      // react-renderer reaches react-dom/server for text measurement; use the
+      // browser build so nothing pulls the Node-only entry.
+      'react-dom/server': 'react-dom/server.browser',
+      // Upstream packaging bug: react-renderer's shared chunk (reachable from
+      // its main entry) statically imports `@graphysdk/viz-engine/graph-config`,
+      // but viz-engine's `publishConfig.exports` omits that subpath, so nothing
+      // can resolve it through the package name. The file does ship, so alias to
+      // its absolute path. Drop this once viz-engine exports the subpath.
+      '@graphysdk/viz-engine/graph-config': vizEngineGraphConfig,
+    },
   },
   build: {
     outDir,

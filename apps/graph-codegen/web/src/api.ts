@@ -18,8 +18,11 @@ export type GraphCodegenEvent =
   | { type: 'turn_done'; costUsd?: number; ms?: number }
   | { type: 'error'; message: string };
 
-export const AVAILABLE_MODELS = ['claude-fable-5', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5'] as const;
+export const AVAILABLE_MODELS = ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'] as const;
 export type AvailableModel = (typeof AVAILABLE_MODELS)[number];
+
+/** Preselected in the model picker and used when a request omits `model`. */
+export const DEFAULT_MODEL: AvailableModel = 'claude-opus-5';
 
 export const OUTPUT_MODES = ['tsx', 'js'] as const;
 /** The authoring format the agent emits: TSX, or plain JavaScript with h() calls. */

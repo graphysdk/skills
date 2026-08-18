@@ -8,6 +8,8 @@ A combo chart is just multiple geom layers in one spec. Each layer can carry its
 | Bars + rate line (dual axis) | two single-column layers, line gets `yScaleType: 'secondary'` + `scale.ySecondary()` |
 | Dodged bars + reference line (shared axis) | line layer omits `yScaleType` — both layers share the primary y scale |
 | Area + threshold line | `geom.area` instead of `geom.bar`, line on the secondary axis |
+| Constant reference line | `geom.rule({ aes: { y: { value: 2500 } } })` |
+| Paint one layer differently | `geom.line({ id: 'total' })` + `style.geom.line({ … }, { layer: 'total' })` |
 
 ## Base: stacked bars + total line
 
@@ -92,6 +94,33 @@ geom.line({ aes: { y: 'targetPct', color: 'lineSeriesLabel' }, yScaleType: 'seco
 scale.ySecondary(),
 ```
 
+## Painting one layer
+
+Give the layer an `id` and scope a stylesheet entry to it with `{ layer }` — the way to make the
+overlay read differently from the marks beneath it without touching them (`reference/styling.md`):
+
+```ts
+geom.bar({ id: 'bars', position: 'stack', aes: { y: 'sales', color: 'region' } }),
+geom.line({ id: 'total', aes: { y: 'total' }, yScaleType: 'secondary' }),
+styles({
+  overrides: [
+    style.geom.line({ strokeWidth: 3, color: '#1e293b' }, { layer: 'total' }),
+    style.geom.bar({ borderRadius: 'md' }, { layer: 'bars' }),
+  ],
+}),
+```
+
+An `overrides` entry beats the color scale, so the overlay does not need a synthesized series label
+just to claim a palette slot. Keep the label when you also want the layer in the legend.
+
+Constant reference line — `geom.rule` is the purpose-built geom. It reads a scalar from exactly one
+of `x` or `y`, spans the panel, and is non-interactive:
+
+```ts
+geom.rule({ aes: { y: { value: 2500 } }, params: { label: 'Target', labelPosition: 'start' } }),
+styles({ defaults: [style.geom.rule({ color: '#e5484d', strokeWidth: 2, lineType: 'dashed' })] }),
+```
+
 ## Dual axis vs shared axis
 
 - **Secondary axis** (`yScaleType: 'secondary'` on the layer) when the overlay carries a different unit or magnitude ($ vs %, totals vs per-segment values). Each axis gets an independent domain.
@@ -99,7 +128,8 @@ scale.ySecondary(),
 
 ## Gotchas
 
-- The secondary y config key in `config()` is `axes.ySecondary` (a full axis config: `isVisible`, `label`, `position`, …) — there is no `hasDualYAxis` key in the viz-engine config.
+- The secondary y config key in `config()` is `axes.ySecondary` — there is no `hasDualYAxis` key in the viz-engine config. It is a sparse override, not a resolved axis: an unset field is inherited (`position` from the side opposite `y`; `isVisible`, `grid` and `ticks` from `y` itself), and pinning one field ends that inheritance for it.
 - `scale.ySecondary()` is auto-injected when any layer declares `yScaleType: 'secondary'`, but add it explicitly (or use `scale.ySecondary.continuous({ … })`) when you want to control its domain.
 - Map the synthesized constant column to `color` even for a single-series layer — without a `color` mapping the layer gets no legend entry and no palette slot.
 - Layer `transforms` reshape only that layer's view of the data; the sibling layers still see the original wide columns (the total line reads `total` untouched while the bars see reshaped rows).
+- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop), tuned together by `animation` on `GraphRenderer`. `maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers, so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.

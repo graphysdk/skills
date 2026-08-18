@@ -58,8 +58,11 @@ export function toCustomErrorMessage(error: unknown): string {
   return message;
 }
 
-export const AVAILABLE_MODELS = ['claude-fable-5', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5'] as const;
+export const AVAILABLE_MODELS = ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'] as const;
 export type AvailableModel = (typeof AVAILABLE_MODELS)[number];
+
+/** Preselected in the model picker and used when a request omits `model`. */
+export const DEFAULT_MODEL: AvailableModel = 'claude-opus-5';
 
 export const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 export type ImageMediaType = (typeof IMAGE_MEDIA_TYPES)[number];

@@ -170,3 +170,4 @@ export const DumbbellChart = () => (
 - Dot colors, radius, and connector width are all params — override per layer via `params: { ... }` or change `defaultParams` for a house default. For per-observation color instead of fixed endpoint colors, add a `color` visual aesthetic and read `getColor`.
 - Rename the endpoint aesthetics (`aes: 'start'` / `aes: 'end'` in `positionRoles`) to fit the domain (`before`/`after`, `low`/`high`) — the typed `kit.geom.<name>({ aes })` keys and the `tooltip` entries follow the declared names.
 - `zero: false` on the y scale is usually right for dumbbells (the gap is the message); drop it when absolute magnitude matters.
+- Plugin paint sits outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks. Expose every colour you would otherwise hard-code as a geom param. See `reference/styling.md`.
