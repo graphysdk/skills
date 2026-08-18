@@ -3,7 +3,13 @@ import { streamSSE } from 'hono/streaming';
 
 import { bundleApp } from './bundler/bundle.js';
 import type { AvailableModel, ImageAttachment, ImageMediaType } from './agent-session.js';
-import { AVAILABLE_MODELS, IMAGE_MEDIA_TYPES, runAgentTurn, toCustomErrorMessage } from './agent-session.js';
+import {
+  AVAILABLE_MODELS,
+  DEFAULT_MODEL,
+  IMAGE_MEDIA_TYPES,
+  runAgentTurn,
+  toCustomErrorMessage,
+} from './agent-session.js';
 import type { GraphCodegenConfig } from './config.js';
 import { importCsvData, writeWorkspaceDataFile } from './csv-import.js';
 import type { OutputMode } from './session-store.js';
@@ -41,7 +47,7 @@ export function createApp(config: GraphCodegenConfig): Hono {
         await send({ type: 'error', message: 'Missing prompt.' });
         return;
       }
-      const model = (body.model ?? AVAILABLE_MODELS[0]) as AvailableModel;
+      const model = (body.model ?? DEFAULT_MODEL) as AvailableModel;
       if (!AVAILABLE_MODELS.includes(model)) {
         await send({
           type: 'error',

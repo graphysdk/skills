@@ -1,6 +1,6 @@
 ---
 name: graphy-charts
-description: Build highly expressive charts with Graphy's viz stack (@graphysdk/viz-engine, @graphysdk/react-renderer).
+description: Build highly expressive charts with Graphy's viz stack (@graphysdk/viz-engine, @graphysdk/react-renderer). Also covers installing and setting up the SDK in a React codebase.
 ---
 
 # graphy-charts
@@ -11,21 +11,21 @@ Build charts with `@graphysdk/viz-engine` (a grammar-of-graphics compiler, frame
 
 The engine is a grammar of graphics in the ggplot2 / Vega-Lite tradition. You do not pick a chart type from a menu; you compose one from orthogonal primitives:
 
-- A **layer** = a **geom** (mark kind: `point`, `line`, `area`, `bar`, `rule`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
+- A **layer** = a **geom** (mark kind: `point`, `line`, `area`, `bar`, `rule`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `sum`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
 - Chart types are compositions: a pie chart is `bar` + `position: 'fill'` + `coord.polar({ theta: 'y' })`; a donut adds `innerRadius`; a horizontal bar chart is `coord.flip()`; a radar chart is `line`/`area` + `coord.polar({ theta: 'x' })`.
 - A reference line is `geom.rule()`. A trendline is `stat.smooth`. An average line is `stat.mean`.
 - **Transforms** reshape data declaratively inside the spec: `transform.filter`, `transform.sort`, `transform.aggregate`, `transform.reshape` (wide→long), `transform.constant`. Prefer them over preprocessing `rows` with vanilla JS. Full option tables in `reference/spec-api.md`.
 - **Scales** map data to visual values; **guides** (axes, legends, headline numbers) make scales legible. Calling `scale.x()` / `scale.y()` with no arguments infers the scale type from the data. Add a scale for every mapped positional aesthetic; `color` gets a default palette scale automatically.
+- A **stylesheet** (`styles({ tokens, defaults, overrides })`) is a spec item like any other and owns **all paint**: mark fill/border/stroke/size, grid and tick lines, panel border, graph background, label typography (`reference/styling.md`).
 - **Highlights** (predicate-driven emphasis) and **annotations** (arrows, text, shapes, images, …) are spec-level and serializable — the storytelling layer.
 
-Data flows one way: raw `Data` → resolved `Spec` (defaults applied, types inferred) → `CompiledSpec` (render-ready) → painted React output. You author the first step; the rest is automatic.
+Data flows one way: raw `Data` → resolved `Spec` (defaults applied, types inferred, the authored stylesheet folded onto the built-in one) → `CompiledSpec` (render-ready, paint resolved per observation) → painted React output. You author the first step; the rest is automatic.
 
 ## Minimal chart
 
 ```tsx
 import { createSpec, pipe, mapping, geom, scale } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css'; // required once per app
 
 const data = {
   columns: [{ key: 'month' }, { key: 'revenue' }],
@@ -49,10 +49,11 @@ export function RevenueChart() {
 
 ## The expressiveness ladder
 
-1. **Spec + `config()`** — chart structure and chart-level options: layers, scales, coords, legend/axes/panel settings, titles, headline numbers, number formats.
-2. **Theme tokens** — pass `themeOverrides` to `GraphProvider` to restyle colors, fonts, and chrome (grid lines, tooltip, legend geometry) without touching structure.
-3. **Slots** — replace whole regions (header, footer, tooltip, legend, grid, axis ticks, swatch) with your own React components via the `slots` prop on `GraphRenderer`.
-4. **Plugins** — change how marks are painted (render-only override of a built-in geom) or add entirely new geoms/stats/transforms (`defineGeomRenderer`, `createGraphyKit`).
+1. **Spec + `config()`** — chart structure and chart-level options: layers, scales, coords, legend/axes settings, titles, headline numbers, number formats, layout.
+2. **Stylesheet** — pipe `styles({ ... })` into the spec to repaint anything the chart itself draws: mark fill/border/stroke/size, grid and tick lines, panel border, graph background, axis/tick/data-label typography. Predicate- and state-aware, serializable. This is the primary restyling tier — `reference/styling.md`.
+3. **Theme tokens** — pass `themeOverrides` to `GraphProvider` for the HTML chrome *around* the plot only: legend, tooltip, headline, footer, default font family. React-only, not serializable.
+4. **Slots** — replace whole regions (header, footer, tooltip, legend, grid, axis ticks, swatch) with your own React components via the `slots` prop on `GraphRenderer`.
+5. **Plugins** — change how marks are painted (render-only override of a built-in geom) or add entirely new geoms/stats/transforms (`defineGeomRenderer`, `createGraphyKit`).
 
 See `recipes/themes/` for complete worked examples at each tier.
 
@@ -62,12 +63,14 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 
 | I want to… | Read |
 |---|---|
+| Install the SDK, or fix a failed install (registry auth, 404/403, peer errors, unstyled graph) | `reference/install.md` |
 | See the full spec builder API and every `config()` key | `reference/spec-api.md` |
 | Check the exact signature, option keys, or accepted values of an exported symbol | `reference/types.md` |
 | Filter, sort, aggregate or derive data inside the spec (`transform.*`) | `reference/spec-api.md` |
 | Understand the `Data` format, parsing, value formats, wide→long reshape | `reference/data.md` |
 | Render in React: provider/renderer props, sizing, locales, error handling | `reference/react-api.md` |
-| Restyle colors, fonts, grid, tooltip, legend chrome via tokens | `reference/theming.md` |
+| Recolor geoms; restyle grid, tick lines, panel border, graph background, label typography | `reference/styling.md` |
+| Restyle the legend, tooltip, headline and footer chrome via theme tokens | `reference/theming.md` |
 | Replace the header, footer, tooltip, legend, grid, or axis ticks | `reference/slots.md` |
 | Annotate, highlight, add reference lines/trendlines/headline numbers/data labels | `reference/storytelling.md` |
 | Compare two values or periods, show a change/gap/drop (difference arrows) | `reference/storytelling.md` |
@@ -92,7 +95,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 
 ## Themes
 
-Complete house styles ready to apply or adapt. Each file states its tier, then gives palette/font constants, the full `ThemeOverrides`, a shared `config()` builder, and worked example specs. All are tokens + config unless noted.
+Complete house styles ready to apply or adapt. Each file states its tier, then gives palette/font constants, the spec stylesheet, the `ThemeOverrides` for the surrounding chrome, a shared `config()` builder, and worked example specs. All are stylesheet + tokens + config unless noted.
 
 | Theme | Look | File |
 |---|---|---|
@@ -116,4 +119,6 @@ node scripts/validate-spec.mjs path/to/my-spec.mjs
 - Mappings, transforms and aesthetics reference columns by `key`, never by `label`.
 - Every consumer must wrap `GraphRenderer` in a `GraphProvider`; the renderer has no standalone mode.
 - The `plugins` array on `GraphProvider` is frozen at mount — remount with a React `key` to change it.
-- Layer styling that varies per observation or group belongs in the spec (mappings, scales, geom params); chart chrome belongs in theme tokens.
+- Everything the chart draws — geoms, grid, tick lines, panel border, graph background, axis/tick/data-label type — is painted from the spec stylesheet (`styles`), varying per observation via `style.geom(decls, { where })` and per series via `{ layer }`. `themeOverrides` governs the surrounding HTML chrome: legend, tooltip, headline, footer.
+- Geom `params` merge without validation, so a key the geom does not declare is accepted and ignored. A declaration that has no visible effect is usually one the stylesheet should have carried.
+- Each entry point injects its own CSS; there is nothing to import. Editing lives behind the `@graphysdk/react-renderer/editable` entry point (`EditableGraphRenderer`, `EditorPanel`) — `mode="editable"` on a plain `GraphRenderer` renders no editor surface.

@@ -8,7 +8,8 @@
 | Stacked rose | `geom.bar({ position: 'stack' })` — series stack outward along the radius |
 | Radial bar (racetrack) | `geom.bar({ position: 'stack' })` + `coord.polar({ theta: 'y', innerRadius: 0.15 })` — one concentric track per category, series as consecutive arc segments |
 | Rotated start | `coord.polar({ theta: 'x', startAngle: -90 })` — first spoke lands on the given angle in degrees (default `0`) |
-| Segment styling | `geom.bar({ params: { width: 0.7, borderColor: '#fff', borderWidth: 1 } })` |
+| Segment styling | `geom.bar({ params: { width: 0.7 } })` + `styles({ defaults: [style.geom.bar({ borderColor: '#fff', borderWidth: 1 })] })` |
+| Rounded ends | `styles({ defaults: [style.geom.bar({ borderRadius: 'full' })] })` |
 
 ## Base rose
 
@@ -65,15 +66,36 @@ geom.bar({ position: 'stack' }),
 coord.polar({ theta: 'y', innerRadius: 0.15 }),
 ```
 
-Bar params under polar — `width` is the fraction of the category band in `(0, 1]` (angular for rose petals, radial for tracks); borders separate segments:
+Geometry and paint — `width` is the fraction of the category band in `(0, 1]` (angular for rose petals, radial for tracks); borders separate segments, and everything else the bar paints lives in the stylesheet (`reference/styling.md`):
 
 ```ts
-geom.bar({ position: 'dodge', params: { width: 0.7, borderColor: '#ffffff', borderWidth: 1 } }),
+geom.bar({ position: 'dodge', params: { width: 0.7 } }),
+styles({ defaults: [style.geom.bar({ borderColor: '#ffffff', borderWidth: 1 })] }),
 ```
+
+Rounded segments — `borderRadius` is a token (`'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full'`, default `'sm'`) applied to the whole segment silhouette. `'full'` rounds to half the segment's radial thickness, which is what gives a racetrack its capsule ends:
+
+```ts
+geom.bar({ position: 'stack' }),
+coord.polar({ theta: 'y', innerRadius: 0.15 }),
+styles({ defaults: [style.geom.bar({ borderRadius: 'full' })] }),
+```
+
+## Intro animation
+
+A rose grows outward along the radius, staggered around the circle in visual order (a stacked wedge
+rises as one). A racetrack sweeps its arcs open from `startAngle` on one shared clock, unstaggered.
+The renderer's `animation` prop tunes both:
+
+```tsx
+<GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
+```
+
+`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
 
 ## Gotchas
 
 - Pass `scale.y({ zero: true })` so petal length / arc sweep is proportional from zero; a data-min domain start makes the smallest value vanish into the center.
-- Under `coord.polar` the compiler zeroes discrete-scale padding automatically — spoke bands span the full circle; control gaps via the bar `width` param instead.
+- Under `coord.polar` the compiler zeroes discrete-scale padding automatically — spoke bands span the full circle; control gaps via the bar `width` param instead. A `width` outside `(0, 1]` renders with a substitute (`1` above `1`, otherwise `0.7`) and an `INVALID_GEOM_PARAM` warning; a too-wide band overlaps its neighbours around the circle.
 - `startAngle` is in degrees and rotates where the first discrete spoke lands (rose) or where arcs begin sweeping (racetrack).
 - Unlike pie/donut (which never draw axes), these charts keep a real categorical `x` mapping, so both axes render by default; hide or tune them via `config({ axes: { x: { isVisible: false } } })` etc.

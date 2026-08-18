@@ -1,6 +1,8 @@
 # Spec builder API reference
 
-All builders import from `@graphysdk/viz-engine`. Verified against `packages/viz-engine/src/spec/`.
+All builders import from `@graphysdk/viz-engine`.
+
+This file covers chart **structure**: layers, mappings, scales, coords, stats, transforms and `config()`. Chart **paint** — every fill, border, stroke width, corner radius, mark size, grid/tick line and label font — is a separate spec item, the stylesheet: `reference/styling.md`. Exact signatures: `reference/types.md`.
 
 ## Composition model: `createSpec` + `pipe`
 
@@ -28,6 +30,7 @@ const input = pipe(
 | `mapping(...)` | shallow-merges into the global mapping |
 | `config(...)` | deep-merges |
 | `coord.*` | overwrites (one coord per spec) |
+| `styles(...)` | nests the previous stylesheet into the new one's `extends` — each piped `styles()` sits **above** everything piped before it |
 | `highlight(...)`, `annotation.*` | append (see `reference/storytelling.md`) |
 
 ## `mapping()` — aesthetics
@@ -77,46 +80,46 @@ Each `geom.<name>(options)` produces one layer. Common options (all optional, `s
 | `interactive` | `boolean` | `true` (`false` for rule) | include in hover hit-detection |
 | `dataLabels` | `DataLabelsInput` | all off | see below |
 
-### Geom params and defaults (`spec/layer/layer.defaults.ts`)
+### Geom params and defaults
 
-**`geom.point()`** — default position `'identity'`.
+Params carry **geometry and policy only** — sizing, interpolation, missing-value handling, the rule's label. Each geom's paint is a stylesheet declaration, named alongside its params below. Params merge without validation, so a key the geom does not declare is accepted and ignored. Defaults live on each geom strategy (`compiler/geoms/strategies/*.geom.ts`).
 
-| Param | Default | Effect |
-|---|---|---|
-| `size` | `8` | marker diameter in px (overridden per observation when `size` is mapped) |
+**`geom.point()`** — default position `'identity'`. Takes no params (`PointGeomParams` is empty). Paint: `style.geom.point({ size, borderColor, borderWidth })` — marker diameter defaults to `8` and also answers to a mapped `size` aesthetic.
 
 **`geom.line()`** — default position `'identity'`.
 
 | Param | Default | Effect |
 |---|---|---|
-| `lineWidth` | `'auto'` | px, or `'auto'` to read the mapped `strokeWidth` value |
 | `interpolate` | `'linear'` | `'linear'` or `'catmull-rom'` (smooth spline) |
 | `missingValues` | `'gap'` | `'zero'` (substitute 0), `'gap'` (break path), `'connect'` (span nulls) |
-| `showFill` | `false` | gradient fill from the line down to the baseline |
 
-**`geom.area()`** — default position `'stack'`. Same `lineWidth` / `interpolate` as line; `missingValues` defaults to `'zero'`.
+Paint: `style.geom.line({ strokeWidth, lineType, fillAlpha })` — defaults `2` / `'solid'` / undeclared. `fillAlpha` is the peak opacity of the gradient wash beneath the line; undeclared draws no wash. A mapped `strokeWidth` or `lineType` aesthetic beats a `defaults` entry and loses to an `overrides` one.
+
+**`geom.area()`** — default position `'stack'`. Same two params as line; `missingValues` defaults to `'zero'`. Paint: `style.geom.area({ alpha, strokeWidth, lineType, strokeAlpha })` — defaults `0.3` / `2` / `'solid'` / `1`.
 
 **`geom.bar()`** — default position `'dodge'`. Bars render as pie wedges under `coord.polar`.
 
 | Param | Default | Effect |
 |---|---|---|
 | `width` | `0.7` | bar width as a fraction `(0, 1]` of the category band |
-| `borderRadius` | `'auto'` | corner rounding in px, or `'full'` for pill bars |
-| `borderColor` | unset | border drawn only when set |
-| `borderWidth` | `1` | px, only with `borderColor` |
+
+Paint: `style.geom.bar({ borderRadius, borderColor, borderWidth })`. `borderRadius` takes a token, not pixels — `'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full'`, default `'sm'`. `borderWidth` default `1`, drawn only with a `borderColor`.
 
 **`geom.rule()`** — a single reference line; default position `'identity'`, `interactive: false`. Horizontal when the layer maps `y` (usually a constant: `aes: { y: { value: 100 } }`), vertical when it maps `x`; orientation flips with `coord.flip()`.
 
 | Param | Default | Effect |
 |---|---|---|
-| `color` | theme token | stroke color |
-| `strokeWidth` | `1` | px |
-| `lineType` | `'dashed'` | `'solid' \| 'dashed' \| 'dotted'` |
 | `label` | unset | inline text along the line |
 | `labelPosition` | `'start'` | `'start' \| 'end'` |
 
+Paint: `style.geom.rule({ color, strokeWidth, lineType })` — defaults `token('ruleColor')` / `1` / `'dashed'`; label typography is `style.geom.rule.label({ fontFamily, fontSize, fontWeight, lineHeight })`. Scope either to one rule with `{ layer: '<layer id>' }`.
+
 ```ts
-geom.rule({ aes: { y: { value: 1500 } }, params: { label: 'Target', lineType: 'dotted' } });
+pipe(
+  createSpec(),
+  geom.rule({ id: 'target', aes: { y: { value: 1500 } }, params: { label: 'Target' } }),
+  styles({ overrides: [style.geom.rule({ lineType: 'dotted' }, { layer: 'target' })] }),
+);
 ```
 
 ### `dataLabels` (`DataLabelsConfig`)
@@ -137,6 +140,8 @@ geom.rule({ aes: { y: { value: 1500 } }, params: { label: 'Target', lineType: 'd
 | `categoryOffset` | `4` | px |
 
 Label text comes from `mapping.label` when set, otherwise the layer's y value (segment magnitude for stacked positions).
+
+These keys decide *whether and where* a label sits. Its paint — font, text color, pill background, padding, border — is `style.dataLabel`, partitioned by role (`.observation`, `.category`, `.aggregate`) and, for the first two, by resolved position (`.inside` / `.outside`).
 
 ## `scale`
 
@@ -175,11 +180,22 @@ Options per scale type:
 | | `overrides` | none | `{ [groupNumber]: { hex?, id? } }` per-series color overrides (1-indexed); `id` looks up a color in the active custom palette, `hex` wins if both set |
 | identity | — | — | data values pass through as visual values (`scale.size.identity()`: `{ size: 10 }` → 10 px) |
 
+`scale.color.continuous()` takes the continuous options above (minus `range`'s numeric meaning) plus a color ramp:
+
+| Option | Default | Effect |
+|---|---|---|
+| `scheme` | none | named colormap, matched case-insensitively: sequential `'viridis' \| 'magma' \| 'inferno' \| 'plasma' \| 'cividis' \| 'turbo' \| 'Blues' \| 'Greens' \| 'Greys' \| 'Oranges' \| 'Purples' \| 'Reds'`, diverging `'RdBu' \| 'BrBG' \| 'PuOr' \| 'Spectral'` |
+| `range` | none | explicit ramp of ≥2 color stops; supersedes `scheme` (setting both raises `CONFLICTING_COLOR_RAMP`) |
+| `interpolate` | `'lab'` | interpolation space for `range` stops: `'rgb' \| 'lab' \| 'hcl' \| 'hsl'`; ignored for `scheme` |
+| `domainMid` | none | pins the ramp's neutral stop to a data value (usually `0`) instead of the data midpoint — a diverging scheme without it raises `DIVERGING_SCHEME_WITHOUT_MIDPOINT` |
+| `symmetric` | `true` when `domainMid` is set | symmetrise the domain about `domainMid` so equal magnitudes get equal intensity; `false` keeps the raw extent |
+
 `size.continuous` defaults `transform: 'sqrt'` so value maps to mark **area**, not radius.
 
 ```ts
 scale.y.continuous({ zero: true, domainMax: 100 });
 scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
+scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
 scale.lineType.discrete({ domain: ['actual', 'forecast'], range: ['solid', 'dashed'] });
 ```
 
@@ -197,12 +213,13 @@ Compositions: pie = `geom.bar({ position: 'fill' })` + `coord.polar({ theta: 'y'
 
 ## `stat`
 
-A stat reshapes **one layer's** data after transforms run. Pass to a layer: `geom.line({ stat: stat.smooth({ method: 'linear' }) })` (string shorthands `'identity' | 'count' | 'mean' | 'smooth'` also work; bare `'smooth'` defaults to `method: 'linear'`).
+A stat reshapes **one layer's** data after transforms run. Pass to a layer: `geom.line({ stat: stat.smooth({ method: 'linear' }) })` (string shorthands `'identity' | 'count' | 'mean' | 'sum' | 'smooth'` also work; bare `'smooth'` defaults to `method: 'linear'`).
 
 | Builder | Effect |
 |---|---|
 | `stat.identity()` | pass-through (default) |
 | `stat.count()` | one observation per x value (and series group) with the row count as y — requires a mapped `x`; errors if `y` is also mapped |
+| `stat.sum()` | totals y per x value, per series — grouped like `count`, not reduced to one observation like `mean`; requires a mapped `y` |
 | `stat.mean()` | reduces the layer to a **single observation** holding the mean of y (no grouping) — pair with `geom.rule` for an average line; a layer that still maps `x` (line/bar) fails to compile |
 | `stat.smooth({ method, order?, bandwidth? })` | regression curve — trendlines |
 
@@ -232,6 +249,7 @@ Top level also accepts `parsingLocale` (default `'en-US'`) — used to parse ann
 |---|---|---|---|
 | `position` | `'auto' \| 'right' \| 'left' \| 'top' \| 'bottom' \| 'none'` | `'auto'` | legend placement; `'none'` hides |
 | `display` | `'pill' \| 'direct' \| 'auto'` | `'auto'` | boxed pills vs labels at series endpoints |
+| `align` | `'auto' \| 'start' \| 'center' \| 'end'` | `'auto'` | placement along the legend's flow (row for top/bottom, column for left/right); `'auto'` = `start` horizontal, `center` vertical. Vertical legends always pin to the plot border across the flow |
 
 ### `axes` — `x`, `y`, and optional `ySecondary`
 
@@ -244,29 +262,28 @@ Each axis takes the same shape. Defaults: x below, y beside.
 | `position` | `'left' \| 'right' \| 'top' \| 'bottom'` | `'bottom'` | `'right'` | which edge |
 | `grid.isVisible` | `boolean \| null` | `null` | `null` | `null` lets geom policy decide (bars hide the x grid) |
 | `grid.lineStyle` | `'solid' \| 'dashed' \| 'dotted'` | `'dashed'` | `'dashed'` | grid stroke style |
-| `grid.lineWidth` | `number \| null` | `null` | `null` | `null` inherits theme |
+| `grid.lineWidth` | `number \| null` | `null` | `null` | `null` inherits the stylesheet's `gridLine` width |
 | `ticks.isVisible` | `boolean` | `true` | `false` | tick labels |
 | `ticks.mode` | `'auto' \| 'edges'` | `'auto'` | `'auto'` | `'edges'` shows only first/last tick |
 
-Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it auto-injects the `ySecondary` scale and renders the second axis opposite the primary y. `axes.ySecondary` (same `YAxisConfig` shape, optional) configures it; its grid defaults to hidden.
+These keys decide whether a grid line is drawn and how thick; its color and every other stroke property come from `style.gridLine({ color, strokeWidth, lineType })` / `.x` / `.y`. Tick marks are `style.tickLine`; tick and axis label type are `style.tickLabel` / `style.axisLabel`.
+
+Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it auto-injects the `ySecondary` scale and renders the second axis opposite the primary y. `axes.ySecondary` is a **sparse** `DeepPartial<YAxisConfig>`: an unset field is inherited at compile time — `position` from the side opposite `y`, `isVisible`/`grid`/`ticks` from `y`, `label` from nothing. An absent override means "mirror the primary axis", so pinning a field trades that mirroring away.
 
 ### `panel`
 
 | Key | Type | Default | Effect |
 |---|---|---|---|
-| `border.top/right/bottom/left.isVisible` | `boolean` | `true` | draw that edge |
-| `border.<edge>.lineStyle` | `'solid' \| 'dashed' \| 'dotted'` | `'dashed'` | edge style |
-| `border.<edge>.lineWidth` | `number \| null` | `null` | `null` inherits theme grid width |
-| `border.<edge>.color` | `string \| null` | `null` | any CSS color incl. theme tokens; `null` inherits |
-| `cornerRadius` | `number` | `8` | px; a corner rounds only when both meeting edges are visible |
 | `overflow.dataLabels` | `{ x, y }` of `'outside' \| 'inside' \| 'none'` | `{ x: 'inside', y: 'inside' }` | how the panel absorbs overflowing labels |
 | `overflow.differenceArrows` | same | `{ x: 'outside', y: 'outside' }` | same, for difference arrows |
+
+The panel's frame is drawn from `style.panelBorder({ color, strokeWidth, lineType, borderRadius })`, plus the per-edge builders `.top` / `.right` / `.bottom` / `.left` (an edge takes no `borderRadius`). Hide an edge with `strokeWidth: 0`; it then reserves no space.
 
 ### `headline`
 
 | Key | Type | Default | Effect |
 |---|---|---|---|
-| `show` | `'total' \| 'average' \| 'current' \| 'conversion' \| 'none'` | `'none'` | which aggregate number to display |
+| `show` | `'total' \| 'average' \| 'current' \| 'conversion' \| 'none'` | `'none'` | which aggregate number to display; `'conversion'` compiles to no headline |
 | `compareWith` | `'previous' \| 'first' \| 'none'` | `'none'` | trend indicator reference |
 | `size` | `'auto' \| 'small' \| 'medium' \| 'large'` | `'auto'` | number size |
 | `position` | `'above' \| 'center'` | `'above'` | `'center'` only valid inside a donut hole |
@@ -290,29 +307,29 @@ Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it aut
 | `isCaptionVisible` | `boolean` | `false` |
 | `source` | `{ label?, url? } \| null` | `null` |
 | `isSourceVisible` | `boolean` | `false` |
+| `brandMark` | `{ enabled, placement, variant }` | `{ enabled: false, placement: 'footer', variant: 'full' }` |
 
 `null` means no content; the `is*Visible` flags toggle display without losing the stored text.
+
+`brandMark` is the "Made with Graphy" provenance badge: `placement` is `'footer' | 'header'`, `variant` is `'full' | 'mini'` (a frame under 200 px wide always collapses to the mini form). A partial `brandMark` merges onto the defaults. `isBrandMarkVisible` is a flat alias for `brandMark.enabled`, kept in sync by `resolveConfig`; prefer the structured field.
 
 ### `appearance`
 
 | Key | Type | Default | Effect |
 |---|---|---|---|
 | `textScale` | `number` | `1` | multiplier on every text element |
-| `background` | `{ type: 'theme' } \| { type: 'solid', color } \| { type: 'tinted', color? }` | `{ type: 'theme' }` | chart background; tinted mixes theme background with a color (defaults to first palette color) |
-| `border` | `{ type: 'none' } \| { type: 'solid', color, width } \| { type: 'tinted', color?, width } \| { type: 'gradient', color?, width } \| { type: 'preset', preset, width }` | `{ type: 'none' }` | border ring drawn inside the chart bounds (width shrinks the panel) |
-| `cornerRadius` | `number` | `8` | chart frame corner radius, px |
-| `highlightStyle` | `'dim' \| 'desaturate'` | `'dim'` | how non-matched observations fade when a highlight is active |
 
-`BORDER_PRESETS` (for `border.type: 'preset'`): `lilac`, `neon_pink`, `blackberry`, `sun`, `iceland`, `sunset`, `ultraviolet`, `purple`, `ice_cream`, `mint`, `cool`, `fresh`.
+Frame paint — background, border ring, corner rounding — is `style.graph({ background, borderColor, borderWidth, borderRadius })`. Highlight de-emphasis is the `dimmed` state: `style.geom({ alpha: 0.4 }, { state: 'dimmed' })` is the built-in; `style.geom({ saturation: 0 }, { state: 'dimmed' })` gives a desaturated fade.
 
 ### `layout`
 
 | Key | Type | Default | Effect |
 |---|---|---|---|
-| `padding` | `number \| null` | `null` | outer padding on all sides, px; `null` = engine default |
+| `padding` | `number \| EdgePaddingConfig \| null` | `null` | outer padding, px; a number sets all four sides, `{ top?, right?, bottom?, left? }` sets sides individually (an unnamed side keeps the default — pass an explicit `0` to remove one), `null` = engine default |
 | `gaps` | `Record<regionName, number \| { before?, after? }>` | `{}` | per-region overrides of grid spacing; a bare number sets the trailing gap |
 
 ## See also
 
+- `reference/styling.md` — `styles()`, the `style.*` targets, `token()`, the cascade and the built-in defaults.
 - `reference/storytelling.md` — `highlight()` predicates and every `annotation.*` builder (arrows, text, shapes, images, pinned numbers).
 - `reference/plugins.md` — custom geoms, stats, and transforms via `createGraphyKit` / `defineGeomRenderer`.

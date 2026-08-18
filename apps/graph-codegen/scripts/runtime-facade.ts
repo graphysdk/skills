@@ -10,10 +10,6 @@
 
 import React from 'react';
 
-// The published renderer ships its compiled stylesheet as a separate export;
-// importing it here makes the vendor build emit it as `runtime.css`.
-import '@graphysdk/react-renderer/styles.css';
-
 // React ships as CommonJS, so `export * from 'react'` does not surface its named
 // API as static ES exports. Re-export the public surface off the default object
 // instead, so `import { useState } from 'react'` (remapped to this module) and
@@ -105,9 +101,10 @@ export {
   lightenCss,
   UnitSpaceSvg,
   useCompiledSelector,
+  useElementScreenRect,
   useGeomHitTest,
   useGeomHover,
-  usePanelScreenRect,
+  useHoverState,
   vars,
 } from '@graphysdk/react-renderer';
 export {
@@ -120,6 +117,7 @@ export {
   createGraphyBuilder,
   createSpec,
   createStableKeyGenerator,
+  createStyleResolver,
   Dataset,
   extractConstantValue,
   extractVariableName,
@@ -155,7 +153,11 @@ export {
   readAuthoredNumber,
   readAuthoredString,
   scale,
+  Stat,
   stat,
+  style,
+  styles,
+  token,
   toPercent,
   toViewBoxX,
   toViewBoxY,

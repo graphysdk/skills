@@ -1,6 +1,6 @@
 # International
 
-**Tier: config + theme tokens.** No slots, no plugins — the entire look is spec config plus `themeOverrides`.
+**Tier: config + stylesheet + theme tokens.** No slots, no plugins — the look is spec `config()` for structure, a `styles()` stylesheet for paint, and `themeOverrides` for the chrome around the plot.
 
 Editorial newspaper style: white chart plates, an ink-and-grey series palette with **one red accent reserved for the key data point**, and Golos Text headlines over small Inter engine text. Charts show a horizontal major grid only, no side rules, and a single solid bottom border as the axis baseline; the headline repeats the accent color on its key phrase so title and chart read as one statement.
 
@@ -18,7 +18,7 @@ export const INTL_COLORS = {
   greyLight: '#C9C9C9', // fourth series colour
   greyDark: '#4A4A4A', // fifth series colour
   greyFaint: '#E3E3E3', // de-emphasised remainder fills
-  gridLine: '#E9E9E9', // horizontal major grid
+  gridLine: '#E9E9E9', // horizontal major grid and tick marks
 } as const;
 
 export const INTL_FONT_FAMILY = {
@@ -38,12 +38,12 @@ export const INTL_PALETTE = [
 
 ## Theme overrides
 
-The measured font tokens (`fontTickLabel`, `fontAxisLabel`, `fontLegendLabel`, `fontDataLabel`) take structured `FontTokenOverride` objects; `fontPieLabel` is a plain CSS font shorthand string.
+The theme dresses the HTML chrome: legend, headline and footer. `fontLegendLabel` is the measured font token and takes a structured `FontTokenOverride`; `fontPieLabel` is a plain CSS font shorthand string. `fontFamilyDefault` reaches every plot text target the stylesheet does not name a family for, which is how one Inter cut covers the whole chart.
 
 ```ts
 import { type FontTokenOverride, type ThemeOverrides } from '@graphysdk/react-renderer';
 
-// Axis, legend, and label text all share the same small Inter cut.
+// Legend keys take the same small Inter cut as the axis text.
 const smallCapsFont: FontTokenOverride = {
   family: INTL_FONT_FAMILY.body,
   size: { value: 10.5, unit: 'px' },
@@ -54,19 +54,37 @@ const smallCapsFont: FontTokenOverride = {
 export const theme: ThemeOverrides = {
   textPrimary: INTL_COLORS.body,
   textSecondary: INTL_COLORS.grey,
-  gridLineColor: INTL_COLORS.gridLine,
-  gridLineWidth: '1px',
   legendBackground: 'transparent',
   legendBorderColor: 'transparent',
   legendTextColor: INTL_COLORS.grey,
   fontFamilyDefault: INTL_FONT_FAMILY.body,
   fontFamilyHeading: INTL_FONT_FAMILY.heading,
-  fontTickLabel: smallCapsFont,
-  fontAxisLabel: smallCapsFont,
   fontLegendLabel: smallCapsFont,
-  fontDataLabel: smallCapsFont,
   fontPieLabel: `600 10.5px/1.4 ${INTL_FONT_FAMILY.body}`,
 };
+```
+
+## Shared plate stylesheet
+
+White paper, a solid horizontal grid in the faint grey, and one solid bottom border as the axis baseline. The three text targets carry the same 10.5px cut, ink for the labels that name things and grey for the tick values.
+
+```ts
+import { style, styles } from '@graphysdk/viz-engine';
+
+const internationalChromeStyles = styles({
+  defaults: [
+    style.axisLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.body }),
+    style.tickLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.grey }),
+    style.dataLabel({ fontSize: 10.5, fontWeight: 500, textColor: INTL_COLORS.body }),
+
+    style.graph({ background: INTL_COLORS.paper }),
+    style.gridLine({ lineType: 'solid', strokeWidth: 1 }),
+    style.tickLine({ color: INTL_COLORS.gridLine }),
+    // `strokeWidth: 0` takes an edge off the plate: no stroke, no reserved space.
+    style.panelBorder({ strokeWidth: 0 }),
+    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1 }),
+  ],
+});
 ```
 
 ## Shared config builder
@@ -74,27 +92,17 @@ export const theme: ThemeOverrides = {
 ```ts
 import { config } from '@graphysdk/viz-engine';
 
-// Shared frame: white paper, horizontal major grid only, and a single solid bottom
-// border as the axis baseline.
+// Shared frame: which guides exist. Horizontal major grid only, no x ticks.
 const createInternationalConfig = (options: { legendPosition?: 'none' | 'top' | 'bottom' } = {}) =>
   config({
     legend: { position: options.legendPosition ?? 'none' },
-    appearance: { background: { type: 'solid', color: INTL_COLORS.paper } },
     layout: {
       padding: 32,
       gaps: { header: options.legendPosition === 'top' ? 24 : 40 },
     },
-    panel: {
-      border: {
-        top: { isVisible: false },
-        bottom: { isVisible: true, lineStyle: 'solid', lineWidth: 1 },
-        left: { isVisible: false },
-        right: { isVisible: false },
-      },
-    },
     axes: {
       x: { position: 'bottom', grid: { isVisible: false }, ticks: { isVisible: false } },
-      y: { position: 'left', grid: { isVisible: true, lineStyle: 'solid', lineWidth: 1 } },
+      y: { position: 'left', grid: { isVisible: true } },
     },
   });
 ```
@@ -131,12 +139,11 @@ export const createInternationalTitle = (
 
 ## Example: bar chart, actual vs forecast
 
-Actual quarters take the ink; the red is spent on the single forecast bar.
+Actual quarters take the ink; the red is spent on the single forecast bar. Bars run at 66% of the band with square corners — `borderRadius` on a geom is a token, and square is `'none'`.
 
 ```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
+import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const cpmData = {
   columns: [{ key: 'quarter' }, { key: 'cpm' }, { key: 'type' }],
@@ -152,11 +159,13 @@ const cpmData = {
 const cpmSpec = pipe(
   createSpec(),
   mapping({ x: 'quarter', y: 'cpm', color: 'type' }),
-  geom.bar({ position: 'identity', params: { width: 0.66, borderRadius: 0 } }),
+  geom.bar({ position: 'identity', params: { width: 0.66 } }),
+  styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] }),
   scale.x(),
   scale.y.continuous({ domainMin: 0, domainMax: 8 }),
   scale.color.discrete({ domain: ['actual', 'forecast'], range: [INTL_COLORS.ink, INTL_COLORS.accent] }),
   createInternationalConfig(),
+  internationalChromeStyles,
   config({
     content: {
       title: createInternationalTitle([
@@ -173,19 +182,21 @@ const cpmSpec = pipe(
 
 export function CpmChart() {
   return (
-    <GraphProvider data={cpmData} input={cpmSpec} theme="light" themeOverrides={theme}>
+    <GraphProvider data={cpmData} input={cpmSpec} colorScheme="light" themeOverrides={theme}>
       <GraphRenderer sizing={{ mode: 'responsive' }} />
     </GraphProvider>
   );
 }
 ```
 
+Band width is geometry and belongs to the geom's `params`; corner shape, border and fill are paint and belong to the stylesheet. The bar entry lives in `defaults`, so the colour scale still decides which bar is red.
+
 ## Example: donut
 
 Ring at 0.55 inner radius with a 2px white separation between wedges; the red is spent on the leader wedge, the rest run down the ink-and-grey palette.
 
 ```tsx
-import { config, coord, createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
+import { config, coord, createSpec, geom, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
 
 const revenueData = {
@@ -203,7 +214,6 @@ const revenueDonutSpec = pipe(
   createSpec({ x: '', y: 'revenue', color: 'region' }),
   geom.bar({
     position: 'fill',
-    params: { borderRadius: 0, borderColor: INTL_COLORS.paper, borderWidth: 2 },
     dataLabels: {
       showDataLabels: true,
       format: 'percentage',
@@ -213,11 +223,13 @@ const revenueDonutSpec = pipe(
       align: 'center',
     },
   }),
+  styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: INTL_COLORS.paper, borderWidth: 2 })] }),
   coord.polar({ theta: 'y', innerRadius: 0.55 }),
   scale.x(),
   scale.y(),
   scale.color.discrete({ domain: ['North', 'East', 'Central', 'South', 'West'], range: [...INTL_PALETTE] }),
   createInternationalConfig(),
+  internationalChromeStyles,
   config({
     content: {
       title: createInternationalTitle([
@@ -233,7 +245,7 @@ const revenueDonutSpec = pipe(
 
 export function RevenueDonut() {
   return (
-    <GraphProvider data={revenueData} input={revenueDonutSpec} theme="light" themeOverrides={theme}>
+    <GraphProvider data={revenueData} input={revenueDonutSpec} colorScheme="light" themeOverrides={theme}>
       <GraphRenderer sizing={{ mode: 'responsive' }} />
     </GraphProvider>
   );
@@ -247,3 +259,12 @@ Theme tokens set font families but do not load the fonts — the page must load 
 ```html
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Golos+Text:wght@400..900&display=swap" />
 ```
+
+## Other charts in this style
+
+Each pipes `createInternationalConfig()` + `internationalChromeStyles`, then its own geom stylesheet.
+
+- Stacked bars: `geom.bar({ position: 'stack', params: { width: 0.66 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })`; segments in `[INTL_COLORS.ink, INTL_COLORS.accent]`, legend below.
+- Line race: `geom.line()` + `geom.point({ interactive: false })` for a dot on every vertex, with `styles({ defaults: [style.geom.line({ strokeWidth: 1.75 }), style.geom.point({ size: 6.5 })] })`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`.
+- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: INTL_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; the accent marks the emphasised months, the rest stay ink.
+- Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `ink`, remainder in `greyFaint`, and the red stays in the headline.

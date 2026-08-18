@@ -2,14 +2,14 @@
 
 # Type reference
 
-Generated from `@graphysdk/viz-engine@0.0.1-alpha.20260721093629` and `@graphysdk/react-renderer@0.0.1-alpha.20260721093629`.
+Generated from `@graphysdk/viz-engine@1.8.1-beta.1786952756412` and `@graphysdk/react-renderer@1.8.1-beta.1786952756412`.
 
 > The exact public chart-authoring API, extracted verbatim (with JSDoc) from the
 > built `.d.ts` of `@graphysdk/viz-engine` and `@graphysdk/react-renderer`.
 > Check precise signatures, option keys, and accepted values here; see
 > `spec-api.md` for how the pieces compose. Every type these declarations
 > reference is defined in this file, most under "Supporting types" at the
-> end. The only opaque names are compiled/internal shapes an author never constructs: CompiledAxisGuide, CompiledGeom, CompiledLayerOf, CompiledLegendGuide, CompiledPanel, CompiledStat, CreateGraphyBuilderOptions, DiagnosticsCollector, GeomCompilerInput, GeomSummaries, GraphyBuilder, HeadlineMeasurer, LayerInputOf, Observation, StatCompilerInput, TextMeasurer, TransformStrategy.
+> end. The only opaque names are compiled/internal shapes an author never constructs: Command, CompiledAxisGuide, CompiledGeom, CompiledLayerOf, CompiledLegendGuide, CompiledSpec, CompiledStat, CreateGraphyBuilderOptions, GeomCompilerInput, GeomSummaries, GraphyBuilder, HeadlineMeasurer, LayerInputOf, LayerSpecOf, Observation, StatCompilerInput, TextMeasurer, TransformStrategy.
 
 ## Core & data
 
@@ -62,15 +62,17 @@ interface SpecInput {
     scales: ScaleInput[];
     transforms: AnyTransformInput[];
     highlights: HighlightInput[];
+    styles?: StylesheetInput;
     annotations?: AnnotationsInput;
     coords?: CoordInput;
     config: ConfigInput;
 }
 
-/** Data is passed as a separate argument. */
-type CompilerInput = SpecInput;
+/** The light/dark axis a {@link LightDarkColor} resolves against. */
+type ColorScheme = 'light' | 'dark';
 
-type GraphTheme = 'light' | 'dark';
+/** Any named colour scheme accepted by a continuous colour scale. */
+type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
 ```
 
 ## Spec builders
@@ -173,12 +175,13 @@ const coord: {
     polar: (params?: Partial<PolarCoordParams>) => PolarCoordInput;
 };
 
-/** Factories for the stats a layer can apply (identity, count, smooth, mean). */
+/** Factories for the stats a layer can apply (identity, count, smooth, mean, sum). */
 const stat: {
     identity: typeof identity;
     count: typeof count;
     smooth: typeof smooth;
     mean: typeof mean;
+    sum: typeof sum;
 };
 
 /** Factories for data transforms applied before charting (reshape, filter, sort, aggregate, constant). */
@@ -317,8 +320,9 @@ interface CustomTransformInput<Name extends string = string> {
  * - `'count'` — Count the number of observations per x-axis value
  * - `'smooth'` — Fit a regression curve through `(x, y)` and emit the fitted points
  * - `'mean'` — Reduce the dataset to a single observation holding the mean of `y`
+ * - `'sum'` — Total `y` per x-axis value, per series
  */
-type StatName = 'identity' | 'count' | 'smooth' | 'mean';
+type StatName = 'identity' | 'count' | 'smooth' | 'mean' | 'sum';
 
 /**
  * Regression methods supported by the `smooth` stat.
@@ -358,9 +362,301 @@ interface ConfigSpec {
     appearance: AppearanceSpec;
     layout: LayoutConfig;
 }
+```
 
-/** Named gradient presets available to `border.type === 'preset'`. */
-const BORDER_PRESETS: readonly ["lilac", "neon_pink", "blackberry", "sun", "iceland", "sunset", "ultraviolet", "purple", "ice_cream", "mint", "cool", "fresh"];
+## Styling API
+
+```ts
+/**
+ * Create a pipeable stylesheet item. Piping several stacks them in order: each item sits above
+ * everything piped before it, the presets it extends included, so later items are more specific.
+ *
+ * @example
+ *   pipe(
+ *     createSpec({ x: 'month', y: 'sales' }),
+ *     geom.bar(),
+ *     styles({
+ *       defaults: [style.geom({ color: '#c9ced8' })],
+ *       overrides: [style.geom({ color: '#e5484d' }, { where: { variable: 'sales', gt: 500 } })],
+ *     }),
+ *   )
+ */
+function styles(stylesheet: Stylesheet): StylesheetInput;
+
+/**
+ * Typed builders for stylesheet entries — shorthand for the serialized {@link StyleRule} shape. The
+ * path addresses an element (serialized into `select`), the options argument holds conditions
+ * (serialized into `when`) plus the optional `id`. `style.geom` takes the paint every kind shares;
+ * `style.geom.bar` stamps `select.kind = 'bar'` and opens the bar vocabulary, and the other kinds nest
+ * the same way (`style.geom.line`). Chrome targets nest by partition instead: `style.panelBorder.top`
+ * stamps `select.edge`, `style.gridLine.x` stamps `select.axis` and the bare builders address the
+ * whole target.
+ *
+ * @example
+ *   styles({
+ *     defaults: [style.geom({ color: '#c9ced8' }), style.gridLine({ lineType: 'solid' })],
+ *     overrides: [style.geom.bar({ borderRadius: 'full' }, { where: { variable: 'sales', gt: 500 } })],
+ *   })
+ */
+const style: {
+    geom: ((declarations: GeomStyleDeclarations, options?: StyleEntryOptions) => StyleRule) & {
+        bar: (declarations: BarStyleDeclarations, options?: StyleEntryOptions) => StyleRule;
+        line: (declarations: LineStyleDeclarations, options?: StyleEntryOptions) => StyleRule;
+        area: (declarations: AreaStyleDeclarations, options?: StyleEntryOptions) => StyleRule;
+        point: (declarations: PointStyleDeclarations, options?: StyleEntryOptions) => StyleRule;
+        rule: ((declarations: RuleStyleDeclarations, options?: StyleEntryOptions) => StyleRule) & {
+            label: (declarations: RuleLabelStyleDeclarations, options?: RuleLabelStyleEntryOptions) => StyleRule;
+        };
+    };
+    panelBorder: ((declarations: PanelBorderStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        top: (declarations: PanelBorderEdgeStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        right: (declarations: PanelBorderEdgeStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        bottom: (declarations: PanelBorderEdgeStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        left: (declarations: PanelBorderEdgeStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    gridLine: ((declarations: GridLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        x: (declarations: GridLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        y: (declarations: GridLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    tickLine: ((declarations: TickLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        x: (declarations: TickLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        y: (declarations: TickLineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    axisLabel: ((declarations: AxisLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        x: (declarations: AxisLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        y: (declarations: AxisLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    tickLabel: ((declarations: TickLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        x: (declarations: TickLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        y: (declarations: TickLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    dataLabel: ((declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        observation: ((declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+            inside: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+            outside: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        };
+        category: ((declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+            inside: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+            outside: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        };
+        aggregate: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    graph: (declarations: GraphStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+};
+
+/**
+ * Reference a color from the stylesheet's token table.
+ *
+ * @example
+ *   styles({
+ *     tokens: { alert: { light: '#e5484d', dark: '#ff6369' } },
+ *     overrides: [style.geom({ color: token('alert') }, { where: { variable: 'sales', gt: 500 } })],
+ *   })
+ */
+function token(name: string): StyleTokenRef;
+
+/**
+ * A stylesheet — the reusable shape a preset or theme ships as, and the body of the pipeable
+ * {@link StylesheetInput}. `defaults` apply only where no mapped aesthetic decided a value;
+ * `overrides` replace what one decided. `tokens` names colors entries reference via {@link token}.
+ * `extends` composes other stylesheets under this one: tokens merge name-by-name, lists
+ * concatenate, later wins.
+ */
+interface Stylesheet {
+    extends?: Stylesheet[];
+    tokens?: StyleTokenTable;
+    defaults?: StyleRule[];
+    overrides?: StyleRule[];
+}
+
+/** The pipeable stylesheet item: a {@link Stylesheet} tagged for `pipe`. */
+interface StylesheetInput extends Stylesheet {
+    type: 'styles';
+}
+
+/**
+ * One entry in a stylesheet list — the serialized shape the {@link style} builders emit. `select`
+ * addresses what the entry styles, `when` holds the conditions under which it applies, and `id` is an
+ * optional stable identity carried into diagnostics, so tooling can point at "that entry" across
+ * edits. Within a list, order is specificity: the last matching entry that declares a property wins.
+ */
+type StyleRule = {
+    id?: string;
+    select: {
+        target: 'geom';
+        kind?: undefined;
+        layer?: string;
+    };
+    declarations: GeomStyleDeclarations;
+    when?: WhenClause;
+} | {
+    [K in keyof KindStyleDeclarationsMap]: {
+        id?: string;
+        select: {
+            target: 'geom';
+            kind: K;
+            layer?: string;
+        };
+        declarations: KindStyleDeclarationsMap[K];
+        when?: WhenClause;
+    };
+}[keyof KindStyleDeclarationsMap] | {
+    id?: string;
+    select: {
+        target: 'panelBorder';
+        edge?: undefined;
+    };
+    declarations: PanelBorderStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'panelBorder';
+        edge: PanelBorderEdge;
+    };
+    declarations: PanelBorderEdgeStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'gridLine';
+        axis?: AxisKey;
+    };
+    declarations: GridLineStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'tickLine';
+        axis?: AxisKey;
+    };
+    declarations: TickLineStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'axisLabel';
+        axis?: AxisKey;
+    };
+    declarations: AxisLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'tickLabel';
+        axis?: AxisKey;
+    };
+    declarations: TickLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'ruleLabel';
+        layer?: string;
+    };
+    declarations: RuleLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'dataLabel';
+        role?: undefined;
+        position?: undefined;
+    };
+    declarations: DataLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'dataLabel';
+        role: 'observation' | 'category';
+        position?: DataLabelPosition;
+    };
+    declarations: DataLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'dataLabel';
+        role: 'aggregate';
+        position?: undefined;
+    };
+    declarations: DataLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'graph';
+    };
+    declarations: GraphStyleDeclarations;
+    when?: undefined;
+};
+
+/** The declarations an entry can author, color-valued properties in any {@link StyleColorValue} form. */
+type StyleDeclarations = StyleDeclarationsFor<StyleColorValue>;
+
+/** A stylable geom paint property. */
+type StyleProperty = keyof StyleDeclarations;
+
+/**
+ * The structural address of a style entry — what it styles, decidable with no data.
+ *
+ * - `target` — the element class: `geom` or one of the chrome targets (`panelBorder`, `gridLine`,
+ *   `tickLine`, `axisLabel`, `tickLabel`, `ruleLabel`, `dataLabel`, `graph`). Chrome entries are
+ *   chart-scoped and condition-free — they carry no `when`.
+ * - `kind` — restrict a geom entry to one kind, and open that kind's vocabulary. Stamped by the kind
+ *   builders (`style.geom.bar`). Absent, the entry applies to every layer with the shared vocabulary.
+ * - `layer` — restrict a geom or ruleLabel entry to the layer with that authored id.
+ * - `edge` / `axis` / `role` / `position` — restrict a chrome entry to one partition of its target: a
+ *   panel-border edge, the axis a grid line, tick line, axis label or tick label belongs to, a data
+ *   label's role and where it sits. Absent, the entry addresses the whole target. `position` needs a
+ *   role and stack totals (`aggregate`) always sit outside, so it never partitions them.
+ */
+type StyleSelect = StyleRule['select'];
+
+/** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
+type ChromeStyleSelect = Extract<StyleSelect, {
+    target: 'panelBorder' | 'gridLine' | 'tickLine' | 'axisLabel' | 'tickLabel' | 'ruleLabel' | 'dataLabel' | 'graph';
+}>;
+
+/**
+ * The options bag every geom builder takes after its declarations. The builder routes each key to its
+ * serialized home: conditions into `when`, `layer` into `select`, `id` to the entry's top level.
+ */
+interface StyleEntryOptions {
+    where?: Predicate;
+    state?: StyleState;
+    layer?: string;
+    id?: string;
+}
+
+type StyleState = (typeof STYLE_STATES)[number];
+
+/** The serialized form of a {@link token} reference. */
+interface StyleTokenRef {
+    token: string;
+}
+
+/** The stylesheet's token table, mapping the names {@link token} references to their colors. */
+type StyleTokenTable = Record<string, StyleTokenValue>;
+
+/** A color with one variant per {@link ColorScheme}, resolved against the active scheme at read time. */
+interface LightDarkColor {
+    light: string;
+    dark: string;
+}
+
+/**
+ * The engine's built-in stylesheet: the look of a geom or chrome element when nothing else decides.
+ * It is the implicit base of every stylesheet — entries sit below the authored `defaults`, tokens
+ * merge under the authored table, so redefining a token restyles the default it backs.
+ * Colors are never palette lookups — scales only speak for mapped aesthetics.
+ */
+const BUILTIN_STYLES: Readonly<{
+    tokens: Readonly<StyleTokenTable>;
+    defaults: readonly StyleRule[];
+    overrides: readonly StyleRule[];
+}>;
 ```
 
 ## Highlights
@@ -368,15 +664,14 @@ const BORDER_PRESETS: readonly ["lilac", "neon_pink", "blackberry", "sun", "icel
 ```ts
 /**
  * User-facing highlight definition. `id` is auto-assigned by the resolver when
- * omitted. `layerIndex` is an authoring handle that the resolver normalises to
- * the layer's stable `id`; omit to evaluate against every layer.
+ * omitted. Omit the layer scope to evaluate against every layer.
  */
 interface HighlightInput {
     type: 'highlight';
     id?: string;
     predicate: Predicate;
     scope?: HighlightScope;
-    layerIndex?: number;
+    layerId?: string;
 }
 ```
 
@@ -387,7 +682,7 @@ interface HighlightInput {
 interface AnnotationsInput {
     differenceArrows?: DifferenceArrowInput[];
     shapes?: ShapeInput[];
-    freeformArrows?: ArrowInput[];
+    arrows?: ArrowInput[];
     textAnnotations?: TextAnnotationInput[];
     images?: ImageAnnotationInput[];
     stickers?: StickerAnnotationInput[];
@@ -413,6 +708,7 @@ type PaletteOverridesInput = Record<number, {
     id?: string;
 }>;
 
+/** Host-owned custom palettes, keyed by `paletteId`, that a `scale.color.palette` may reference by id. */
 type CustomPalettesInput = Record<string, CustomPaletteColor[]>;
 
 /** The hues available as a base for monochrome palettes, in pick order. */
@@ -422,7 +718,24 @@ const MONO_BASES: readonly ["grey", "red", "orange", "yellow", "green", "cyan", 
 const NEON_BASES: readonly ["cyan", "pink", "purple", "red", "orange", "yellow", "green", "blue"];
 
 /** Series colors used when a chart specifies no palette. Cycled in order as series count grows. */
-const DEFAULT_COLOR_PALETTE: string[];
+const DEFAULT_COLOR_PALETTE: [string, ...string[]];
+
+/** A normalized colour ramp: maps `t ∈ [0, 1]` to a colour string. */
+type ColorRamp = (t: number) => string;
+
+type SequentialSchemeName = (typeof SEQUENTIAL_SCHEME_NAMES)[number];
+
+/** A diverging colormap: its canonical ColorBrewer code or a friendly alias. */
+type DivergingSchemeName = (typeof DIVERGING_SCHEME_NAMES)[number] | SchemeAlias;
+
+/**
+ * Samples a continuous colour scheme (or an explicit `range`) into `count` evenly-spaced colour strings —
+ * the swatch strip a scheme picker or continuous-colour legend preview renders. Stop precedence matches a
+ * continuous colour scale: an explicit `range` wins over a named `scheme`, which wins over the brand
+ * sequential ramp. The stops span `t ∈ [0, 1]` inclusive; `count < 2` yields a single `t = 0` stop (or an
+ * empty array below 1).
+ */
+function sampleColorScheme(options?: SampleColorSchemeOptions, count?: number): string[];
 ```
 
 ## Diagnostics
@@ -453,27 +766,31 @@ interface UserInputIssue extends DiagnosticDetails {
 ## Provider & renderer
 
 ```ts
-/** Props for {@link GraphProvider}: the data and spec input to compile, plus theme, locale and plugin wiring. */
+/** Props for {@link GraphProvider}: the data and spec input to compile, plus color scheme, locale and plugin wiring. */
 interface GraphProviderProps {
     data: Data;
-    input: CompilerInput;
+    input: SpecInput;
     /**
      * Custom geoms, stats, and transforms (and their render halves) registered for this graph. Seeds
      * the compiler and builds the per-provider render resolver from one array. Construction-time config,
-     * frozen at mount — change the registered set by remounting (React `key`); `data`/`input`/`theme`
+     * frozen at mount — change the registered set by remounting (React `key`); `data`/`input`/`colorScheme`
      * stay reactive.
      */
     plugins?: readonly Plugin_2[];
     formattingLocale?: Locale;
-    onChange?: (next: CompilerInput) => void;
+    /**
+     * Filled with this graph's {@link GraphHandle}, for callers mounted outside the provider where the
+     * hooks can't reach. `useGraphHistoryShortcuts` binds the undo/redo chords to one.
+     */
+    handleRef?: Ref<GraphHandle>;
+    onChange?: (next: SpecInput) => void;
     /** Fires with the compile failure(s) whenever a compile/recompile/dispatch produces errors. */
     onError?: (errors: VizDiagnostic[]) => void;
     /** Fires with any warnings a successful compile produced. */
     onWarnings?: (warnings: VizDiagnostic[]) => void;
-    theme?: GraphTheme;
+    colorScheme?: ColorScheme;
     themeOverrides?: ThemeOverrides;
     customPalettes?: CustomPalettesInput;
-    fontList?: FontListInput;
     children: ReactNode;
 }
 
@@ -483,7 +800,11 @@ interface GraphRendererProps {
     sizing?: GraphSizing;
     /** Callback invoked when the graph's container is resized. Fires in every sizing mode. */
     onResize?: ResizeObserverOnResize;
-    isAnimated?: boolean;
+    /**
+     * Animation settings. A boolean disables/enables animations globally, an object tunes the intro
+     * and data transitions separately. A reduced-motion preference disables everything regardless.
+     */
+    animation?: GraphAnimation;
     showTooltips?: boolean;
     mode?: GraphMode;
     /** Per-region component overrides. Unspecified regions render their default. */
@@ -526,6 +847,48 @@ type ThemeOverrides = Partial<Omit<ThemeValues, MeasuredFontTokenKey>> & {
 
 /** Every theme token mapped to its resolved CSS string value. */
 type ThemeValues = Record<keyof typeof vars, string>;
+
+/**
+ * The element font tokens JS measurement reproduces. Overridden structurally
+ * ({@link FontTokenOverride}); the CSS variable's shorthand is serialized from the same object
+ * measurement reads, so paint and layout move together.
+ */
+type MeasuredFontTokenKey = 'fontLegendLabel';
+
+/**
+ * A structured override of a measured font token. Omitted fields keep the token's default (which
+ * still cascades from the leaf tokens, e.g. `fontSizeXs`), so `{ weight: 600 }` changes only the
+ * weight.
+ */
+interface FontTokenOverride {
+    family?: string;
+    weight?: number;
+    style?: FontStyle;
+    size?: FontLength;
+    /** Unitless multiplier; sizes HTML line boxes (legend band). Canvas measurement ignores it. */
+    lineHeight?: number;
+}
+```
+
+## Animation
+
+```ts
+/**
+ * Animation settings for a graph. `false` disables every animation. A viewer who prefers reduced
+ * motion gets no animation whatever this asks for.
+ */
+type GraphAnimation = boolean | GraphAnimationProps;
+
+/** Per-kind animation settings. Each kind is independent: turning one off leaves the other running. */
+interface GraphAnimationProps {
+    /**
+     * Settings for the intro animation played when the chart first mounts or the chart type changes.
+     * `false` disables it, an object overrides individual intro settings. Defaults on.
+     */
+    intro?: boolean | Partial<IntroAnimationOptions>;
+    /** Whether geoms animate to their new position when the underlying data changes. Defaults on. */
+    transitions?: boolean;
+}
 ```
 
 ## Slots
@@ -536,8 +899,8 @@ type ThemeValues = Record<keyof typeof vars, string>;
  * still owns whether a region exists and what data it receives, and an override gets the same
  * render-ready props as its default.
  *
- * Layout-safe regions (`Header`, `Footer`, `Tooltip`, `Grid`, `Swatch`) are bare components —
- * DOM-measured, reserving no edge space or painting inside a box the layout already sized.
+ * Layout-safe regions (`Header`, `Footer`, `Tooltip`, `Grid`, `Swatch`, `EditorSurface`) are bare
+ * components — DOM-measured, reserving no edge space or painting inside a box the layout already sized.
  * Layout-coupled regions (`AxisTicks`, `AxisLabel`, `Legend`, `Headline`) are
  * {@link SlotOverride}s that also declare their reserved size via `measure`, else paint and the
  * reserved band desync. The tick and title bands are separate slots so overriding one leaves the other
@@ -549,6 +912,12 @@ interface GraphSlots {
     Tooltip?: ComponentType<TooltipSlotProps>;
     Grid?: ComponentType<GridSlotProps>;
     Swatch?: ComponentType<SwatchSlotProps>;
+    /**
+     * The chart's editor layer, mounted over the frame in `mode="editable"`. Only
+     * `@graphysdk/react-renderer/editable` exports something that fills it, so a read-only embed bundles
+     * no editing code.
+     */
+    EditorSurface?: ComponentType<EditorSurfaceSlotProps>;
     Legend?: SlotOverride<LegendSlotProps, (legend: FormattedLegend, ctx: SlotMeasureContext) => number>;
     Headline?: SlotOverride<HeadlineSlotProps, HeadlineMeasurer>;
     AxisTicks?: SlotOverride<AxisTicksSlotProps, (axis: FormattedAxis, ctx: SlotMeasureContext) => number>;
@@ -568,6 +937,11 @@ interface HeaderSlotProps {
     isTitleVisible: boolean;
     subtitle: TextContent | null;
     isSubtitleVisible: boolean;
+    /**
+     * Resolved badge visual for header placement. `hidden` when the mark is off, below the min
+     * footprint, or configured for footer placement.
+     */
+    brandMark: BrandMarkVisual;
 }
 
 /**
@@ -583,6 +957,11 @@ interface FooterSlotProps {
     isCaptionVisible: boolean;
     source: SourceContent | null;
     isSourceVisible: boolean;
+    /**
+     * Resolved badge visual for footer placement. `hidden` when the mark is off, below the min
+     * footprint, or configured for header placement.
+     */
+    brandMark: BrandMarkVisual;
 }
 
 /** Props for the Tooltip slot, overridable via `slots.Tooltip` on `GraphRenderer`. Positioning stays built in. */
@@ -597,7 +976,7 @@ interface TooltipSlotProps {
  */
 interface GridSlotProps {
     axes: FormattedAxis[];
-    panel: CompiledPanel;
+    panelBorderSizes: EdgeSizes;
     panelFrameRect: GraphLayout['panelFrame'];
     panelRect: GraphLayout['panel'];
 }
@@ -653,6 +1032,14 @@ interface SwatchSlotProps {
     lineType?: LineStyleType;
     width?: number;
     height?: number;
+}
+
+/** Props the renderer passes to the editor layer filling the `EditorSurface` slot. */
+interface EditorSurfaceSlotProps {
+    /** The frame's content box — the element the layer measures, listens on and aligns its chrome to. */
+    frameElement: HTMLElement;
+    /** The panel's rect within that box, so chrome positioned from `layout` shares its origin. */
+    panelRect: Rect;
 }
 ```
 
@@ -750,7 +1137,20 @@ abstract class Geom<TParams = Record<string, never>> {
      * Optional: resolve a per-observation annotation anchor in normalised panel `[0, 1]` space. A geom
      * that supports anchoring (bar, line) implements this; the annotation stage skips geoms that don't.
      */
-    resolveAnchorPosition?: (observation: Observation, coordSystem: CoordSystem) => AnchorPosition | null;
+    resolveAnchorPosition?: (observation: Observation, context: AnchorContext) => AnchorPosition | null;
+    /**
+     * Optional: the fraction of its band this geom occupies (a bar's `width`). An `axis` annotation
+     * anchor aligns to that rather than the whole band, so `align: 'left'` lands where the geoms end.
+     * A geom that draws on the band centre with no width doesn't implement it.
+     */
+    resolveBandFraction?: (params: LayerSpec['params']) => number;
+    /**
+     * Optional: an observation's extent box in normalised panel `[0, 1]²` space. Selection anchors fold
+     * the boxes of every matched observation across layers; geoms that don't implement this are skipped,
+     * matching {@link resolveAnchorPosition}'s skip semantics. Return `null` when there is no
+     * panel-space box (polar stores angles/radii).
+     */
+    resolveAnchorBox?: (observation: Observation, coordSystem: CoordSystem) => AnchorBox | null;
     /**
      * Optional: the geom's bespoke default data-label source when none is mapped (point → the bound
      * `size` variable). Returns `null` to defer to the shared segment-y default.
@@ -772,16 +1172,12 @@ abstract class Geom<TParams = Record<string, never>> {
     abstract readonly defaultParams: TParams;
     /**
      * Resolve this geom's params from the (optional) user-supplied params, merged over
-     * {@link defaultParams}. Read by the layer resolver. Override to apply a geom-specific invariant the
-     * merge can't express — area normalises `missingValues: 'gap'` to `'zero'`, which it can't render
-     * mid-stack. Params are validated at the typed builder call site, so this works on an open record.
-     * A substitution worth surfacing (e.g. bar clamping an out-of-range `width`) is reported through
-     * `reportIssue` as a geom-scoped issue; the resolver stamps the layer context on and records it as
-     * a warning.
+     * {@link defaultParams}. Read by the layer resolver.
+     * Override to apply a geom-specific invariant the merge can't express.
      */
     resolveParams(options: {
         params: Record<string, unknown> | undefined;
-        diagnostics?: DiagnosticsCollector;
+        diagnostics?: DiagnosticsSink;
     }): Record<string, unknown>;
     abstract compile(input: GeomCompilerInput): CompiledGeom;
 }
@@ -895,6 +1291,33 @@ type AggregationFunction = 'count' | 'sum' | 'mean' | 'median' | 'mode' | 'min' 
 type AnchorAlign = 'center' | 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 /**
+ * A target's bounding box in normalized panel space `[0, 1]²`, data-up (`yMax` is the top edge),
+ * matching the resolved-anchor convention.
+ */
+interface AnchorBox {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+}
+
+/**
+ * What a geom reads besides the observation itself to place an anchor. `position` is the sole
+ * authority on whether the value columns hold cumulative stack bounds; the measurement half reads it
+ * too (`resolveSegmentYSource`), so both halves of an anchor agree on what the columns mean.
+ */
+interface AnchorContext {
+    readonly coordSystem: CoordSystem;
+    readonly position: PositionType;
+    readonly purpose: AnchorPurpose;
+    /**
+     * Which point of the geom's box to resolve to, when the anchor names one. It overrides where
+     * `purpose` would otherwise place the anchor; geoms without a box (a line vertex) ignore it.
+     */
+    readonly align?: AnchorAlign;
+}
+
+/**
  * A nudge applied after a target resolves. `unit` selects the frame: `'panel'` is a
  * fraction of the plot rect, `'px'` is device pixels (resolved at runtime).
  */
@@ -910,6 +1333,18 @@ interface AnchorPosition {
     x: number;
     y: number;
 }
+
+/**
+ * What an anchor is taken for, which decides where on an observation with extent it lands.
+ *
+ * - `'pin'` — something sits on the observation (a number, a comment, a sticker) and only has to read
+ *   as its own, so it moves off an edge shared with a neighbouring segment.
+ * - `'value'` — something reads the value off the axis (a difference arrow), so it stays on the outer
+ *   edge, seam or not; anywhere else and the span measures neither end.
+ *
+ * A geom whose observations carry no extent resolves both to the same place.
+ */
+type AnchorPurpose = 'pin' | 'value';
 
 /**
  * A hit with a scale-derived panel anchor — every index kind except `'render-hit-test'`. The compiler's
@@ -979,6 +1414,29 @@ type AnnotationItem = {
 };
 
 /**
+ * A point on the box of the annotation with id `ref`, reduced to the box-point named by `align`.
+ * Dropped on a missing ref or a reference cycle. Nothing to resolve, so the input and resolved unions
+ * share this type.
+ */
+interface AnnotationPointAnchor {
+    anchorType: 'annotation';
+    /** Explicit id of the target annotation. */
+    ref: string;
+    align?: AnchorAlign;
+    offset?: AnchorOffset;
+}
+
+/**
+ * Copies the box of the annotation with id `ref`. Dropped on a missing ref, a cycle, or a zero-area
+ * (point) target. Nothing to resolve, so the input and resolved unions share this type.
+ */
+interface AnnotationRegionAnchor {
+    anchorType: 'annotation';
+    /** Explicit id of the target annotation. */
+    ref: string;
+}
+
+/**
  * Whether an annotation renders beneath the geoms (background) or on top (foreground).
  */
 type AnnotationZOrder = 'background' | 'foreground';
@@ -993,7 +1451,9 @@ type AnyTransformInput = TransformInput | CustomTransformInput<string>;
 
 /**
  * Visual appearance settings that travel through the spec but only affect
- * rendering (not data, scales, or layout math).
+ * rendering (not data, scales, or layout math). Frame paint — background,
+ * border ring, corner rounding — is styled through the stylesheet's `graph`
+ * target, not here.
  */
 interface AppearanceSpec {
     /**
@@ -1006,38 +1466,12 @@ interface AppearanceSpec {
      * @default 1
      */
     textScale: number;
-    /**
-     * Chart background fill. Defaults to the theme's `graphBackground` token.
-     * @default { type: 'theme' }
-     */
-    background: BackgroundSpec;
-    /**
-     * Border ring painted inside the chart bounds. Defaults to no border.
-     * @default { type: 'none' }
-     */
-    border: BorderSpec;
-    /**
-     * Corner radius (px) applied to both the chart frame and its inner content.
-     * Use `0` for square corners.
-     * @default 8
-     */
-    cornerRadius: number;
-    /**
-     * How non-matched observations are de-emphasised when a highlight is active.
-     * @default 'dim'
-     */
-    highlightStyle: HighlightStyle;
 }
 
 /**
- * Area-specific parameters (same rendering knobs as line, but fills under the curve)
+ * Area-specific parameters.
  */
 interface AreaGeomParams {
-    /**
-     * Outline stroke width in pixels. `'auto'` reads the per-observation
-     * `strokeWidth` value (`getStrokeWidth`), falling back to the geom default.
-     */
-    lineWidth: number | 'auto';
     /**
      * Interpolation method between points — a d3-shape curve family (`'linear'` ⇒
      * `curveLinear`, `'catmull-rom'` ⇒ `curveCatmullRom`).
@@ -1053,6 +1487,12 @@ interface AreaGeomParams {
      * */
     missingValues: MissingValuesType;
 }
+
+/**
+ * The paint vocabulary of the area geom — the shared paint plus the outline's width, dash, and
+ * opacity. `alpha` is the fill's opacity; `strokeAlpha` the outline's.
+ */
+type AreaStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation' | 'strokeWidth' | 'lineType' | 'strokeAlpha'>;
 
 /**
  * Arrow annotation. Each endpoint is a {@link PointAnchorInput}, so it can float in
@@ -1091,7 +1531,20 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 interface AxesConfig {
     x: XAxisConfig;
     y: YAxisConfig;
-    ySecondary?: YAxisConfig;
+    ySecondary?: SecondaryAxisOverride;
+}
+
+/**
+ * A point given as axis values, mapped through the position scales. Dropped when either coordinate
+ * fails to map: a value outside a discrete scale's domain, a missing scale, or a polar coord.
+ * Nothing to resolve, so the input and resolved unions share this type.
+ */
+interface AxisAnchor {
+    anchorType: 'axis';
+    x: DataValue;
+    y: DataValue;
+    align?: AnchorAlign;
+    offset?: AnchorOffset;
 }
 
 /**
@@ -1099,7 +1552,7 @@ interface AxesConfig {
  */
 interface AxisGridConfig {
     /**
-     * Whether grid lines are visible.
+     * Whether grid lines are visible. Their paint is styled through the stylesheet's `gridLine` target.
      * - true/false: explicit visibility
      * - null: let the compiler decide based on geom/coord policies
      *   (visible unless a geom policy hides it, e.g. bar charts hide the x grid)
@@ -1116,6 +1569,15 @@ interface AxisGridConfig {
      */
     lineWidth: number | null;
 }
+
+/** Which axis something belongs to, with `ySecondary` already folded into `y`. */
+type AxisKey = 'x' | 'y';
+
+/**
+ * The vocabulary of the axisLabel target — an axis's own label, not its tick labels. Its `fontSize`
+ * is also the band the label reserves.
+ */
+type AxisLabelStyleDeclarations = TextStyleDeclarations;
 
 /**
  * Maps each positional aesthetic to its axis orientation.
@@ -1134,6 +1596,13 @@ interface AxisMapping {
 }
 
 type AxisPosition = 'left' | 'right' | 'top' | 'bottom';
+
+/**
+ * Axis a config command can target. `x` and `y` are always fully resolved; `ySecondary` is the
+ * sparse {@link SecondaryAxisOverride}, so commands addressing it must be able to express a field
+ * that is not set.
+ */
+type AxisTarget = PrimaryAxisTarget | 'ySecondary';
 
 /**
  * A single axis tick with its raw value and normalized position. Ticks in one axis share the same
@@ -1168,25 +1637,9 @@ interface AxisTicksConfig {
 }
 
 /**
- * Background fill behind the chart.
- * - 'theme': inherit the active theme's `graphBackground` token (default).
- * - 'solid': override with an explicit CSS color string (use `'transparent'` for no fill).
- * - 'tinted': mix the theme background with an anchor color. When `color` is
- *   omitted the compiler resolves it to the first color of the active palette.
- */
-type BackgroundSpec = {
-    type: 'theme';
-} | {
-    type: 'solid';
-    color: string;
-} | {
-    type: 'tinted';
-    color?: string;
-};
-
-/**
- * Bar/Column-specific parameters. `width` sets the band envelope the compiler writes into the
- * position variables; the remaining params style the painted rect.
+ * Bar/Column-specific parameters. `width` is geometry — it sets the band envelope the compiler
+ * writes into the position variables. Paint (fill, border, corner rounding) is not a param: it
+ * lives in the stylesheet (`spec.styles`), resolved per observation by the style resolver.
  */
 interface BarGeomParams {
     /**
@@ -1194,22 +1647,10 @@ interface BarGeomParams {
      * @default 0.7
      */
     width: number;
-    /**
-     * Corner rounding in pixels, or `'full'` for pill-shaped bars.
-     * @default 'auto'
-     */
-    borderRadius: number | 'auto' | 'full';
-    /**
-     * Border color. The border is only drawn when this is set.
-     */
-    borderColor?: string;
-    /**
-     * Border width in pixels. Only takes effect when `borderColor` is set.
-     * A non-positive or non-finite value falls back to the default.
-     * @default 1
-     */
-    borderWidth: number;
 }
+
+/** The paint vocabulary of the bar geom — the shared paint plus corner rounding and a border. */
+type BarStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation' | 'borderRadius' | 'borderColor' | 'borderWidth'>;
 
 /**
  * Base params shared by all coordinate systems
@@ -1226,6 +1667,11 @@ interface BaseCoordParams {
 }
 
 interface BaseGeomOptions<T extends GeomParams> {
+    /**
+     * Stable identifier; auto-assigned during resolution when omitted. Set it to give highlights and
+     * annotation anchors a `layerId` to point at.
+     */
+    id?: string;
     /** Layer-local aesthetic mapping, merged over the spec-level mapping. */
     aes?: AesMapping;
     stat?: StatName | StatInput | CustomStatInput<string>;
@@ -1237,44 +1683,41 @@ interface BaseGeomOptions<T extends GeomParams> {
     dataLabels?: DataLabelsInput;
 }
 
-/** Name of a built-in gradient available to `border.type === 'preset'`. */
-type BorderPreset = (typeof BORDER_PRESETS)[number];
+/**
+ * Named corner-rounding scale for geoms that paint rect-like shapes. Semantic rather than a pixel
+ * value so each coordinate system renders it in its own frame. `'none'` is square; `'full'` rounds
+ * to half the shape's cross-axis thickness (a pill for bars).
+ */
+type BorderRadiusToken = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 /**
- * Border ring painted around the chart. The ring is drawn INSIDE the
- * configured chart dimensions — increasing `width` shrinks the plot/panel
- * area accordingly.
- *
- * - 'none': no border.
- * - 'solid': fill the ring with `color` as-is. Pass a theme token (e.g.
- *   `'var(--graphy-grey-70)'`) for a theme-aware grey ring.
- * - 'tinted': fill the ring with `color` lightened/darkened by the active
- *   color scheme. When `color` is omitted the compiler resolves it to the
- *   first color of the active palette.
- * - 'gradient': fill the ring with a linear gradient derived from `color`,
- *   adjusted for the active color scheme. When `color` is omitted the
- *   compiler resolves it to the first color of the active palette.
- * - 'preset': fill the ring with a named gradient from `BORDER_PRESETS`.
+ * The "Made with Graphy" provenance badge. A discovery signal (not a lock) — distinct from
+ * `source`, which is the user's own attribution.
  */
-type BorderSpec = {
-    type: 'none';
-} | {
-    type: 'solid';
-    color: string;
-    width: number;
-} | {
-    type: 'tinted';
-    color?: string;
-    width: number;
-} | {
-    type: 'gradient';
-    color?: string;
-    width: number;
-} | {
-    type: 'preset';
-    preset: BorderPreset;
-    width: number;
-};
+interface BrandMarkConfig {
+    enabled: boolean;
+    placement: BrandMarkPlacement;
+    variant: BrandMarkVariant;
+}
+
+/** Where the Graphy provenance badge anchors on the chart frame. */
+type BrandMarkPlacement = 'footer' | 'header';
+
+/**
+ * Visual treatment for the badge when the frame is large enough for the full pill.
+ * Below 200 px wide the renderer always collapses to the circular mini form regardless.
+ */
+type BrandMarkVariant = 'full' | 'mini';
+
+/**
+ * Colour interpolation space for an explicit ramp's stops. `'lab'` (perceptually near-uniform) is the
+ * engine default; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's. Named schemes
+ * carry their own baked-in interpolation, so this never applies to them.
+ */
+const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
+
+/** Every {@link CoordType}, for validation and diagnostics. */
+const COORD_TYPES: readonly ["cartesian", "polar", "flip"];
 
 interface CartesianCoordInput {
     type: 'coord';
@@ -1321,12 +1764,59 @@ interface CategoricalValueFormat {
     type: 'text';
 }
 
+/** The options bag the chrome builders take. */
+interface ChromeStyleEntryOptions {
+    id?: string;
+}
+
+/**
+ * Options for a continuous `color` scale. Same as {@link ContinuousScaleOptions}, but the value maps to a
+ * colour: supply a `scheme`, an explicit `range` of stops, or neither (the brand sequential ramp).
+ */
+type ColorContinuousScaleOptions = Omit<ContinuousScaleOptions, 'range'> & {
+    /**
+     * Explicit colour ramp — two-or-more stops the value interpolates through, in the `interpolate` space.
+     * Supersedes `scheme`.
+     * @example scale.color.continuous({ range: ['#fff', '#f00'] })
+     */
+    range?: ReadonlyArray<number | string>;
+    /**
+     * Named colormap. Sequential (`'viridis'`, `'magma'`, …) or diverging (`'RdBu'`, `'BrBG'`, …), matched
+     * case-insensitively. A diverging scheme reads as intended only with a `domainMid`.
+     * @example scale.color.continuous({ scheme: 'viridis' })
+     */
+    scheme?: ColorSchemeName;
+    /**
+     * Colour interpolation space for `range` stops. `'lab'` (default) is perceptually near-uniform; `'rgb'`
+     * matches d3's raw default. Ignored for `scheme` (which carries its own interpolation).
+     * @example scale.color.continuous({ range: ['#440154', '#21908c', '#fde725'], interpolate: 'lab' })
+     */
+    interpolate?: ColorInterpolationSpace;
+    /**
+     * Diverging midpoint — pins the ramp's neutral stop to this data value (usually 0) rather than the data
+     * midpoint.
+     * @example scale.color.continuous({ scheme: 'RdBu', domainMid: 0 })
+     */
+    domainMid?: number;
+    /**
+     * Symmetrise the domain about `domainMid` so equal magnitudes get equal colour intensity. Defaults to
+     * `true` when `domainMid` is set, so `domainMid` alone is enough. Pass `false` to keep the raw extent,
+     * where the shorter arm still reaches full intensity. No effect without `domainMid`.
+     */
+    symmetric?: boolean;
+};
+
+type ColorInterpolationSpace = (typeof COLOR_INTERPOLATION_SPACES)[number];
+
 interface ColorScaleMethods {
     /**
-     * Continuous (numeric) color scale. Supports `transform`, `reverse`, `nice`, `zero`, `domainMin`, `domainMax`.
-     * @example scale.color.continuous({ reverse: true })
+     * Continuous (numeric) color scale. Supports `transform`, `reverse`, `nice`, `zero`, `domainMin`,
+     * `domainMax`, a `scheme` or colour-ramp `range`, the `interpolate` space, and — for a diverging ramp —
+     * `domainMid` (neutral value) with `symmetric`.
+     * @example scale.color.continuous({ scheme: 'viridis' })
+     * @example scale.color.continuous({ scheme: 'RdBu', domainMid: 0, symmetric: true })
      */
-    continuous: (options?: ContinuousScaleOptions) => ContinuousScaleInput;
+    continuous: (options?: ColorContinuousScaleOptions) => ContinuousScaleInput;
     /**
      * Discrete (categorical) color scale. Supports explicit `range` values.
      * @example scale.color.discrete({ range: ['red', 'blue', 'green'] })
@@ -1403,10 +1893,25 @@ interface ContentConfig {
     isCaptionVisible: boolean;
     source: SourceContent | null;
     isSourceVisible: boolean;
+    /**
+     * Structured provenance-badge config. Canonical source of truth for enabled /
+     * placement / variant after {@link resolveConfig}.
+     */
+    brandMark: BrandMarkConfig;
+    /**
+     * Legacy alias for {@link BrandMarkConfig.enabled}. Kept in sync by resolveConfig so
+     * existing callers and the node-renderer path keep working. Prefer `brandMark.enabled`.
+     */
+    isBrandMarkVisible: boolean;
 }
 
-/** Content input — all fields optional. */
-type ContentInput = Partial<ContentConfig>;
+/** Content input — all fields optional. Partial brandMark merges onto defaults. */
+type ContentInput = Partial<Omit<ContentConfig, 'brandMark'>> & {
+    brandMark?: Partial<BrandMarkConfig>;
+};
+
+/** A slot in the chart's text content. */
+type ContentPart = 'title' | 'subtitle' | 'caption' | 'source';
 
 type ContinuousScaleInput = {
     type: 'scale';
@@ -1419,7 +1924,23 @@ type ContinuousScaleInput = {
     clamp?: boolean;
     domainMin?: number | null;
     domainMax?: number | null;
-    range?: [number, number] | null;
+    /**
+     * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a ramp of
+     * two-or-more colour strings for a continuous `color` scale, interpolated in the
+     * {@link ContinuousScaleInput.interpolate} space.
+     */
+    range?: ReadonlyArray<number | string> | null;
+    /**
+     * Named colormap for a continuous `color` scale (e.g. `'viridis'`, `'RdBu'`). Superseded by an explicit
+     * `range`. Inert for non-colour aesthetics.
+     */
+    scheme?: ColorSchemeName | null;
+    /** Interpolation space for a colour `range`'s stops. Ignored for `scheme`. Inert for non-colour aesthetics. */
+    interpolate?: ColorInterpolationSpace;
+    /** Diverging midpoint — pins a colour ramp's neutral stop to this value. Inert for non-colour aesthetics. */
+    domainMid?: number | null;
+    /** Symmetrise the domain about `domainMid`. Defaults to `true` when `domainMid` is set; inert otherwise. */
+    symmetric?: boolean;
 };
 
 type ContinuousScaleOptions = {
@@ -1468,13 +1989,12 @@ type ContinuousScaleOptions = {
      */
     domainMax?: number;
     /**
-     * Output range for non-positional scales (size, alpha, strokeWidth).
-     * Ignored for position aesthetics (x, y).
-     * Aesthetic-specific defaults are applied when not specified:
-     * - size: [4, 20]
-     * - alpha: [0.1, 1]
-     * - strokeWidth: [1, 4]
-     * @example range: [2, 30] // custom size range in pixels
+     * Output range for non-positional magnitude scales (size, alpha, strokeWidth). Ignored for position
+     * aesthetics (x, y). A numeric `[min, max]`; aesthetic-specific defaults apply when omitted
+     * (size `[4, 20]`, alpha `[0.1, 1]`, strokeWidth `[1, 4]`).
+     *
+     * A continuous `color` scale takes a colour ramp instead — see {@link ColorContinuousScaleOptions}.
+     * @example scale.size.continuous({ range: [2, 30] })
      */
     range?: [number, number];
 };
@@ -1499,7 +2019,7 @@ type CoordSystem = CartesianCoordSystem | PolarCoordSystem;
  * - `'polar'` — Polar coordinates for pie, radar, and radial charts
  * - `'flip'` — Cartesian with x and y axes swapped
  */
-type CoordType = 'cartesian' | 'polar' | 'flip';
+type CoordType = (typeof COORD_TYPES)[number];
 
 /**
  * Resolved count stat spec.
@@ -1516,7 +2036,13 @@ interface CurrencyValueFormat {
     iso: CurrencyIso;
 }
 
-/** A single named color slot within a custom palette supplied by the renderer. */
+/** A resolved layer spec for a custom geom — the {@link CustomGeomLayerInput} counterpart. */
+interface CustomGeomLayerSpec extends LayerSpecBase {
+    geom: string;
+    params: Record<string, unknown>;
+}
+
+/** A single named color slot within a custom palette supplied by the host. */
 type CustomPaletteColor = {
     id: string;
     hex: string;
@@ -1530,11 +2056,22 @@ type CustomPaletteInput = {
 };
 
 /**
+ * Where a data label sits relative to the geom or stack it decorates, independent of its role.
+ *
+ * - `inside` — over the geom.
+ * - `outside` — past the geom's edge; labels on zero-extent anchors (line points, markers) always
+ *   read as outside.
+ */
+const DATA_LABEL_POSITIONS: readonly ["inside", "outside"];
+
+/**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
  * but emitters draw from this vocabulary so consumers can rely on consistent keys per code rather
  * than parsing prose:
  *
  * - `layerIndex` — index of the offending layer
+ * - `layerId` — stable id of the offending layer
+ * - `annotationId` — stable id of the offending annotation (`INCOMPARABLE_ARROW_ENDPOINTS`)
  * - `aesthetic` — the aesthetic channel (`x`, `y`, `color`, …)
  * - `variableName` — the offending data variable
  * - `scaleType` — the scale type involved
@@ -1544,8 +2081,17 @@ type CustomPaletteInput = {
  * - `kind` — the registry or resolver label for a registration diagnostic (`UNKNOWN_REGISTERED_TYPE`,
  *   `DUPLICATE_REGISTERED_TYPE`, `MISSING_GEOM_RENDERER`)
  * - `geom` / `param` — the geom type and its param that failed validation (`INVALID_GEOM_PARAM`)
+ * - `ref` — the id an annotation reference points at
+ * - `annotationId` — id of the annotation the diagnostic is about
  */
-const DIAGNOSTIC_CONTEXT_KEYS: readonly ["layerIndex", "aesthetic", "variableName", "scaleType", "variableType", "expected", "actual", "requested", "available", "kind", "geom", "param"];
+const DIAGNOSTIC_CONTEXT_KEYS: readonly ["layerIndex", "layerId", "annotationId", "aesthetic", "variableName", "scaleType", "variableType", "expected", "actual", "requested", "available", "kind", "geom", "param", "styleEntryId", "ref", "annotationId"];
+
+/**
+ * Diverging colormap names from `d3-scale-chromatic`, in Brewer's capitalisation. `RdBu`, `BrBG` and
+ * `PuOr` are colour-vision-deficiency safe; `Spectral` is offered for its familiar rainbow look but is not
+ * CVD-safe. Red-green ramps are deliberately excluded.
+ */
+const DIVERGING_SCHEME_NAMES: readonly ["RdBu", "BrBG", "PuOr", "Spectral"];
 
 /**
  * Anchor along one axis of the geom's box, CSS-flexbox style. `justify` runs along the value
@@ -1575,10 +2121,21 @@ type DataLabelJustify = DataLabelAnchor | 'panel-start' | 'panel-end';
  *   `showStackTotals` for stack-end totals. (Pie wedges keep `'outside'`.)
  *
  * Styling follows the label's effective position: over the geom → inside styling (white text,
- * no plate); off it — by placement, offset, or not fitting — outside styling (dark text on a
- * plate). Area labels always use the plated styling: the translucent fill can't back white text.
+ * no background); off it — by placement, offset, or not fitting — outside styling (dark text on
+ * a background). Area labels always use the outside styling: the translucent fill can't back
+ * white text.
  */
 type DataLabelPlacement = 'auto' | 'inside' | 'outside';
+
+type DataLabelPosition = (typeof DATA_LABEL_POSITIONS)[number];
+
+/**
+ * The vocabulary of the dataLabel target and each of its roles: the shared type, the box
+ * paddings and the box paint. A label draws its background only where one resolves.
+ */
+interface DataLabelStyleDeclarations extends TextStyleDeclarations, Pick<StyleDeclarations, 'paddingInline' | 'paddingBlock' | 'background' | 'borderColor' | 'borderWidth'> {
+    borderRadius?: number;
+}
 
 /**
  * Resolved data-labels config carried per-layer.
@@ -1737,6 +2294,18 @@ interface DiagnosticDetails {
 }
 
 /**
+ * The write surface of a diagnostics sink. Producers (geoms, resolvers) only ever record issues, so
+ * they take this interface — the compile pipeline keeps `drain`/`reset` to itself, and decorators
+ * like {@link DiagnosticsWithBaseContext} can stand in without owning a buffer.
+ */
+interface DiagnosticsSink {
+    addWarning: (issue: UserInputIssue, options?: {
+        persistent?: boolean;
+    }) => void;
+    addError: (issue: UserInputIssue) => void;
+}
+
+/**
  * User-facing difference-arrow input. `size`, `color` and `labelCrossPosition`
  * are defaulted by the resolver.
  */
@@ -1793,6 +2362,88 @@ type DiscreteScaleOptions<RangeValue extends number | string = number | string> 
      * @default false
      */
     reverse?: boolean;
+};
+
+interface DispatchOptions {
+    /**
+     * Fold this dispatch into the top entry so a per-frame gesture leaves one undoable entry keyed to
+     * its *oldest* revert. Folding continues only while the same command targets the same
+     * {@link EditTarget}.
+     *
+     * @default `false`.
+     */
+    transient?: boolean;
+}
+
+/**
+ * Layout configuration.
+ *
+ * A general per-region map (rather than a theme token per gap) because the set of boundaries is
+ * open-ended and reads naturally as part of the chart spec. Anything left unset keeps the engine
+ * defaults.
+ */
+/**
+ * Per-side outer padding, in pixels. Any side left unset falls back to the engine default padding
+ * ({@link LAYOUT_PADDING}), so `{ top: 40 }` keeps the other three sides at the default. Use an
+ * explicit `0` to remove a side's padding.
+ */
+type EdgePaddingConfig = {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+};
+
+/** Measured sizes (in pixels) for each edge of the layout. */
+type EdgeSizes = Record<LayoutEdge, number>;
+
+/**
+ * What a {@link Command} is about, as opposed to what it mutates — what a selection resolves to, and
+ * what undo restores selection to.
+ */
+type EditTarget = {
+    kind: 'annotation';
+    id: string;
+} | {
+    kind: 'highlight';
+    id: string;
+} | {
+    kind: 'styleRule';
+    list: StylesheetList;
+    select: StyleSelect;
+    when?: WhenClause;
+} | {
+    kind: 'content';
+    part: ContentPart;
+} | {
+    kind: 'axis';
+    axis: AxisTarget;
+} | {
+    kind: 'grid';
+    axis: GridAxisTarget;
+} | {
+    kind: 'legend';
+} | {
+    kind: 'layer';
+    layerId?: string;
+} | {
+    kind: 'observation';
+    layerId: string;
+    index: number;
+} | {
+    kind: 'mapping';
+    aesthetic: AestheticKey;
+} | {
+    kind: 'scale';
+    aesthetic: ScaledAestheticKey;
+} | {
+    kind: 'coords';
+} | {
+    kind: 'appearance';
+} | {
+    kind: 'headline';
+} | {
+    kind: 'numberFormat';
 };
 
 /** A value format with no inner lookups. Lookup cases and fallbacks are constrained to this so a `lookup` cannot nest another `lookup` at the type level. */
@@ -1959,6 +2610,9 @@ interface GeomParamsMap {
     rule: RuleGeomParams;
 }
 
+/** The paint declarations every geom kind shares. */
+type GeomStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation'>;
+
 /** Output of the layout computation. */
 interface GraphLayout {
     /** The full graphical area: panel + axes + axis labels, excluding header and footer. */
@@ -1987,6 +2641,15 @@ interface GraphLayout {
     legends: Partial<Record<LayoutEdge, Rect>>;
 }
 
+/**
+ * The vocabulary of the graph target — the chart frame. The border ring draws only when both
+ * `borderColor` and a positive `borderWidth` resolve; its width also shrinks the area the chart
+ * lays out in.
+ */
+interface GraphStyleDeclarations extends Pick<StyleDeclarations, 'background' | 'borderColor' | 'borderWidth'> {
+    borderRadius?: number;
+}
+
 type GraphyPaletteConfig = {
     type: 'graphy';
     variant?: GraphyPaletteVariant;
@@ -1995,11 +2658,40 @@ type GraphyPaletteConfig = {
 /** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
 type GraphyPaletteVariant = 'default' | 'waterfall';
 
+/**
+ * Axes a grid command writes. `both` is one command under one edit target, so a drag over the whole
+ * grid folds into a single undo entry rather than one per axis per frame.
+ */
+type GridAxisTarget = PrimaryAxisTarget | 'both';
+
+/** The vocabulary of the gridLine target — the stroke of an axis's grid lines. */
+type GridLineStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType'>;
+
 /** A geom's per-coord grid/border visibility overrides, applied by the axes guide. */
 interface GridPolicy {
     hideGridX?: boolean;
     hideGridY?: boolean;
     hideBorder?: boolean;
+}
+
+/**
+ * Animation technique for bars and points: each geom grows out of its zero baseline along the axis
+ * carrying the value — a column's height, a pie's angle, a rose's radius, a point's size.
+ */
+interface GrowIntroPlan extends IntroPlanBase {
+    type: 'grow';
+    /**
+     * The zero position geoms collapse to at the start of the entrance, in the grow axis's own units:
+     * a top-left-frame `[0, 1]` position, radians for `'angle'`, a unit radius for `'radius'`, 0 for `'size'`.
+     */
+    baseline: number;
+    /** `'y'`/`'x'` grow a bar's length; `'angle'` sweeps a pie; `'radius'` a rose; `'size'` pops a point. */
+    growAxis: 'x' | 'y' | 'angle' | 'radius' | 'size';
+    /**
+     * Entrance delay per observation, in seconds, keyed by the same stable render key
+     * `createStableKeyGenerator` produces. Empty for angle growth — those arcs share one clock.
+     */
+    delayByKey: Record<string, number>;
 }
 
 /** Geometric shape an axis traces: a straight line, a full circle or a spoke from the centre. */
@@ -2083,7 +2775,8 @@ type HeadlineTrendDirection = 'up' | 'down' | 'flat';
 interface HighlightBuilderOptions {
     id?: string;
     scope?: HighlightScope;
-    layerIndex?: number;
+    /** Stable id of the layer to scope the highlight to. */
+    layerId?: string;
 }
 
 /**
@@ -2113,13 +2806,6 @@ type HighlightScope = 'data-point' | 'series' | 'x-value';
  *   Used by line, area, point.
  */
 type HighlightStrategy = 'observation-rerender' | 'overlay-anchor';
-
-/**
- * Chart-global dimming mode for non-matched observations when at least one
- * observation is matched by a highlight. `'dim'` lowers their opacity;
- * `'desaturate'` replaces their fill/stroke with a neutral grey.
- */
-type HighlightStyle = 'dim' | 'desaturate';
 
 /**
  * A single hit returned by the hover engine. Discriminated on {@link AnchoredHoverHit.anchored}: an
@@ -2227,12 +2913,35 @@ type InternalErrorCode = 'INTERNAL_INVARIANT';
  */
 type InterpolateType = 'linear' | 'catmull-rom';
 
+interface IntroPlanBase {
+    layerId: string;
+    /** Entrance duration in seconds, `durationScale` already applied. */
+    durationSeconds: number;
+}
+
+/**
+ * The order staggered point geoms enter in: reading order along the main axis, or by size for
+ * bubbles, which falls back to main-axis order for points with no size.
+ */
+type IntroStaggerOrder = 'main-axis' | 'value-ascending' | 'value-descending';
+
 /**
  * Any value that survives a `JSON.stringify` / `JSON.parse` round-trip unchanged.
  */
 type JsonValue = string | number | boolean | null | JsonValue[] | {
     [key: string]: JsonValue;
 };
+
+/**
+ * Each geom kind's vocabulary, keyed by the kind name a `select.kind` can carry.
+ */
+interface KindStyleDeclarationsMap {
+    bar: BarStyleDeclarations;
+    line: LineStyleDeclarations;
+    area: AreaStyleDeclarations;
+    point: PointStyleDeclarations;
+    rule: RuleStyleDeclarations;
+}
 
 /** The aesthetic channels with first-class engine support — the source of {@link AestheticKey}. */
 interface KnownAesthetics {
@@ -2304,6 +3013,10 @@ const LAYOUT_ROW_GAPS: {
         readonly after: 10;
         readonly before: 16;
     };
+    readonly footer: {
+        readonly after: 0;
+        readonly before: 16;
+    };
 };
 
 /** The full set of supported BCP-47 locale strings. */
@@ -2343,18 +3056,37 @@ interface LayerInputBase {
 }
 
 /**
- * Layout configuration.
- *
- * A general per-region map (rather than a theme token per gap) because the set of boundaries is
- * open-ended and reads naturally as part of the chart spec. Anything left unset keeps the engine
- * defaults.
+ * A layer's entrance plan, discriminated on `type`.
  */
+type LayerIntroPlan = GrowIntroPlan | WipeIntroPlan;
+
+/**
+ * Discriminated union of all resolved layer specs, keyed on `geom`.
+ * All properties are fully resolved — no optionals.
+ */
+type LayerSpec = {
+    [G in GeomName]: LayerSpecOf<G>;
+}[GeomName] | CustomGeomLayerSpec;
+
+interface LayerSpecBase {
+    type: 'layer';
+    id: string;
+    mapping: AesMapping;
+    stat: StatSpec;
+    position: PositionType;
+    yScaleType: YScaleType;
+    transforms: TransformInput[];
+    interactive: boolean;
+    dataLabels: DataLabelsConfig;
+}
+
 interface LayoutConfig {
     /**
-     * Outer padding around the whole chart, in pixels, applied on all four sides. `null` uses the engine
-     * default padding ({@link LAYOUT_PADDING}).
+     * Outer padding around the whole chart, in pixels. A number applies to all four sides; an
+     * {@link EdgePaddingConfig} sets sides individually. `null` uses the engine default padding
+     * ({@link LAYOUT_PADDING}) on every side.
      */
-    padding: number | null;
+    padding: number | EdgePaddingConfig | null;
     /** Per-region overrides for the grid spacing around each named region. */
     gaps: Partial<Record<LayoutGapName, LayoutGapOverride>>;
 }
@@ -2381,12 +3113,21 @@ type LayoutGapOverride = number | {
 };
 
 /**
+ * Placement of the legend items along its flow.
+ * - For a horizontal (`top`/`bottom`) legend this runs along the row: `start` = left, `end` = right.
+ * - For a vertical (`left`/`right`) legend it runs down the column: `start` = top, `end` = bottom.
+ * Vertical legends always pin to the plot border across the flow regardless of this value.
+ * `'auto'` resolves during compilation to `start` for horizontal legends and `center` for vertical.
+ */
+type LegendAlign = 'auto' | 'start' | 'center' | 'end';
+
+/**
  * Legend configuration (after defaults applied)
  */
 interface LegendConfig {
     /**
      * Position of the legend
-     * @default 'top'
+     * @default 'auto'
      */
     position: LegendPosition;
     /**
@@ -2398,6 +3139,16 @@ interface LegendConfig {
      * @default 'auto'
      */
     display: LegendDisplay;
+    /**
+     * Placement of the legend items along its flow.
+     * - For a horizontal (`top`/`bottom`) legend this runs along the row: `start` = left, `end` = right.
+     * - For a vertical (`left`/`right`) legend it runs down the column: `start` = top, `end` = bottom.
+     * Vertical legends always pin to the plot border across the flow regardless of this value.
+     * `'auto'` resolves to `start` for horizontal legends and `center` for vertical ones.
+     *
+     * @default 'auto'
+     */
+    align: LegendAlign;
 }
 
 /**
@@ -2482,14 +3233,9 @@ type LegendPosition = 'auto' | 'right' | 'left' | 'top' | 'bottom' | 'none';
 type LegendSidePlacement = 'never' | 'whenCrowded' | 'whenStackedVertical';
 
 /**
- * Line-specific parameters
+ * Line-specific parameters.
  */
 interface LineGeomParams {
-    /**
-     * Stroke width in pixels. `'auto'` reads the per-observation `strokeWidth`
-     * value (`getStrokeWidth`) and falls back to the geom default when unmapped.
-     */
-    lineWidth: number | 'auto';
     /**
      * Interpolation method to use for the line. Names a d3-shape curve family:
      * `'linear'` ⇒ `curveLinear`, `'catmull-rom'` ⇒ `curveCatmullRom`.
@@ -2505,13 +3251,13 @@ interface LineGeomParams {
      * @default 'gap'
      */
     missingValues: MissingValuesType;
-    /**
-     * Draws a gradient fill beneath the line (series color fading from the line down to
-     * transparent at the panel baseline).
-     * @default false
-     */
-    showFill: boolean;
 }
+
+/**
+ * The paint vocabulary of the line geom — the shared paint plus the path's width, dash and the
+ * gradient wash beneath it. `alpha` is the stroke's opacity; `fillAlpha` the wash's.
+ */
+type LineStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation' | 'strokeWidth' | 'lineType' | 'fillAlpha'>;
 
 /**
  * Stroke style for line rendering.
@@ -2652,12 +3398,14 @@ interface NumericValueFormat {
 
 /** Points at a single observation by its anchor value and series. */
 interface ObservationAnchorInput {
-    /** Pick a specific layer when multiple share the same `(anchorValue, groupValue)` pair. */
-    layerIndex?: number;
+    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    layerId?: string;
     /** Value on the main axis (x in cartesian, y in flipped). */
     anchorValue: DataValue;
     /** The group value to match if any, otherwise match any group. */
     groupValue?: DataValue;
+    /** Which point of the matched geom's box to resolve to. Omitted means the geom-natural point. */
+    align?: AnchorAlign;
 }
 
 /**
@@ -2667,6 +3415,12 @@ interface OverflowStrategyConfig {
     x: PanelOverflowStrategy;
     y: PanelOverflowStrategy;
 }
+
+/** Every {@link PolarTheta}, for validation and diagnostics. */
+const POLAR_THETAS: readonly ["x", "y"];
+
+/** Every {@link PositionType}, for validation and diagnostics. */
+const POSITION_TYPES: readonly ["stack", "dodge", "identity", "fill"];
 
 /** Palette selector accepted from users; a custom palette is referenced by `id` only. */
 type PaletteConfigInput = DefaultPaletteConfig | GraphyPaletteConfig | PastelPaletteConfig | NeonPaletteConfig | MonoPaletteConfig | CustomPaletteInput;
@@ -2690,48 +3444,21 @@ interface PaletteScaleOptions {
     overrides?: PaletteOverridesInput;
 }
 
-/** One side of the panel border. */
+/** One side of the panel border, the `edge` partition of the panelBorder target. */
 type PanelBorderEdge = 'top' | 'right' | 'bottom' | 'left';
 
-/**
- * Configuration for one edge of the panel border.
- */
-interface PanelBorderEdgeConfig {
-    /**
-     * Whether this edge is drawn.
-     * @default true
-     */
-    isVisible: boolean;
-    /**
-     * Line style of this edge.
-     * @default 'dashed'
-     */
-    lineStyle: LineStyleType;
-    /**
-     * Stroke width of this edge in px. null inherits the theme's grid line width.
-     * @default null
-     */
-    lineWidth: number | null;
-    /**
-     * Stroke color of this edge. Accepts any CSS color, including theme tokens
-     * (e.g. `'var(--graphy-grey-70)'`). null inherits the theme's grid line color.
-     * @default null
-     */
-    color: string | null;
+/** The vocabulary of one panel-border edge — its stroke only; corner rounding is panel-wide. */
+type PanelBorderEdgeStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType'>;
+
+/** The vocabulary of an edge-agnostic panelBorder entry. */
+interface PanelBorderStyleDeclarations extends Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType'> {
+    borderRadius?: number;
 }
 
 /**
- * Panel configuration. The border is configured per edge; a corner is rounded
- * only when both edges meeting at it are visible.
+ * Panel configuration. The border's paint is styled through the stylesheet's `panelBorder` target.
  */
 interface PanelConfig {
-    border: Record<PanelBorderEdge, PanelBorderEdgeConfig>;
-    /**
-     * Corner radius of the panel border in px. A corner is rounded only when both edges meeting
-     * at it are visible.
-     * @default 8
-     */
-    cornerRadius: number;
     /** Per-source, per-axis strategy to use for content that overflows the panel edge. */
     overflow: {
         dataLabels: OverflowStrategyConfig;
@@ -2742,10 +3469,10 @@ interface PanelConfig {
 /**
  * How the panel adapts to content that would otherwise overflow its edge.
  * - `outside`: the overflowing element lands outside the panel frame and the frame shrinks to
- *    accomodate it.
+ *    accommodate it.
  * - `inside`: the overflowing element stays inside the panel frame and the content inside the
- *   frame shrinks to accomodate it.
- * - `none`: no accomodation, content may overflow and overlap with other elements
+ *   frame shrinks to accommodate it.
+ * - `none`: no accommodation, content may overflow and overlap with other elements
  */
 type PanelOverflowStrategy = 'outside' | 'inside' | 'none';
 
@@ -2782,6 +3509,9 @@ type Plugin = CompileDefinition | {
  *
  * - `panel`: a fraction of the plot rect (`[0,1]`), top-left origin. Does not snap to data.
  * - `observation`: pinned to one observation by its `(anchorValue, groupValue)` pair.
+ * - `axis`: see {@link AxisAnchor}.
+ * - `selection`: see {@link SelectionPointAnchor}.
+ * - `annotation`: see {@link AnnotationPointAnchor}.
  */
 type PointAnchorInput = {
     anchorType: 'panel';
@@ -2790,21 +3520,22 @@ type PointAnchorInput = {
     offset?: AnchorOffset;
 } | {
     anchorType: 'observation';
-    /** Pick a specific layer when multiple share the same `(anchorValue, groupValue)` pair. */
-    layerIndex?: number;
+    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    layerId?: string;
     anchorValue: DataValue;
     groupValue?: DataValue;
     align?: AnchorAlign;
     offset?: AnchorOffset;
-};
+} | AxisAnchor | SelectionPointAnchor | AnnotationPointAnchor;
 
 /**
- * Point-specific parameters
+ * Point-specific parameters.
  */
 interface PointGeomParams {
-    /** Marker diameter in pixels. */
-    size: number;
 }
+
+/** The paint vocabulary of the point geom — the shared paint plus marker diameter and border. */
+type PointStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation' | 'size' | 'borderColor' | 'borderWidth'>;
 
 interface PolarCoordInput {
     type: 'coord';
@@ -2819,7 +3550,7 @@ interface PolarCoordParams extends BaseCoordParams {
     /**
      * Which aesthetic maps to theta (angle): 'x' or 'y'
      */
-    theta: 'x' | 'y';
+    theta: PolarTheta;
     /**
      * Starting angle in degrees
      */
@@ -2876,6 +3607,14 @@ interface PolarCoordSystem {
     bandAxis: 'x' | 'y' | null;
 }
 
+/**
+ * Which aesthetic sweeps the angle under polar coords.
+ *
+ * - `'y'` — the value becomes the angle, so a band's segments are wedges of a pie
+ * - `'x'` — the category becomes the angle and the value stays on the radius: a rose chart
+ */
+type PolarTheta = (typeof POLAR_THETAS)[number];
+
 /** The axis a position role binds to. */
 type PositionAxis = 'x' | 'y';
 
@@ -2915,7 +3654,7 @@ type PositionRoles = readonly PositionRole[];
  * - `'identity'` — No adjustment, use raw positions (e.g. scatter plot, allows overlapping)
  * - `'fill'` — Normalize stacks to fill 100% of the axis (e.g. 100% stacked bar chart)
  */
-type PositionType = 'stack' | 'dodge' | 'identity' | 'fill';
+type PositionType = (typeof POSITION_TYPES)[number];
 
 interface PositionalScaleMethods {
     /**
@@ -2945,8 +3684,14 @@ interface PositionalScaleMethods {
     sqrt: (options?: ContinuousScaleOptions) => ContinuousScaleInput;
 }
 
-/** Any highlight match condition: a field test or a logical combination of them. */
+/**
+ * An observation match condition: a variable test or a logical combination of them.
+ * Shared by every predicated spec feature (highlights, style rules).
+ */
 type Predicate = VariablePredicate | LogicalPredicate;
+
+/** Axis a config command targets when every field it writes is always resolved. */
+type PrimaryAxisTarget = 'x' | 'y';
 
 interface QuantitativeScaleMethods {
     /**
@@ -2981,6 +3726,8 @@ interface Rect {
  * An area, expressed as a relationship to the graph.
  *
  * - `panel`: a rectangle in panel-rect fractions (`[0,1]`), top-left origin.
+ * - `selection`: see {@link SelectionRegionAnchor}.
+ * - `annotation`: see {@link AnnotationRegionAnchor}.
  */
 type RegionAnchorInput = {
     anchorType: 'panel';
@@ -2988,7 +3735,7 @@ type RegionAnchorInput = {
     y: number;
     width: number;
     height: number;
-};
+} | SelectionRegionAnchor | AnnotationRegionAnchor;
 
 /**
  * A render-side spatial query a layout geom registers for its layer. The cursor arrives in
@@ -3071,12 +3818,6 @@ interface RichTextContent {
  * under a flipped coord system the orientation inverts with the axes.
  */
 interface RuleGeomParams {
-    /** Stroke color; falls back to a theme token. */
-    color?: string;
-    /** Stroke width in pixels. */
-    strokeWidth: number;
-    /** Dash pattern of the line (solid, dashed, dotted, ...). */
-    lineType: LineStyleType;
     /** Optional inline text label rendered alongside the line. */
     label?: string;
     labelPosition: RuleLabelPosition;
@@ -3086,6 +3827,55 @@ interface RuleGeomParams {
  * Where the optional inline label is anchored along a reference line.
  */
 type RuleLabelPosition = 'start' | 'end';
+
+/** The vocabulary of the ruleLabel target. */
+type RuleLabelStyleDeclarations = Pick<StyleDeclarations, 'fontFamily' | 'fontSize' | 'fontWeight' | 'lineHeight'>;
+
+/** The options the rule label builder takes. */
+interface RuleLabelStyleEntryOptions {
+    layer?: string;
+    id?: string;
+}
+
+/**
+ * The paint vocabulary of the rule geom.
+ */
+type RuleStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType'>;
+
+/** Friendly aliases for the ColorBrewer diverging codes: `'red-blue'` resolves to the same ramp as `'RdBu'`. */
+const SCHEME_ALIASES: {
+    readonly 'red-blue': "RdBu";
+    readonly 'brown-teal': "BrBG";
+    readonly 'purple-orange': "PuOr";
+    readonly spectral: "Spectral";
+};
+
+/**
+ * Sequential colormap names from `d3-scale-chromatic`. Matplotlib schemes are lowercase (`viridis`),
+ * ColorBrewer schemes keep Brewer's capitalisation (`Blues`) — lookup is case-insensitive, so casing only
+ * drives autocomplete. `viridis`/`cividis` are perceptually uniform and colour-vision-deficiency safe.
+ */
+const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "Blues", "Greens", "Greys", "Oranges", "Purples", "Reds"];
+
+/**
+ * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
+ *
+ * - `dimmed` — de-emphasized: a highlight matched elsewhere, or the pointer hovers another element.
+ * - `hovered` — the pointer is on the element.
+ */
+const STYLE_STATES: readonly ["dimmed", "hovered"];
+
+/** Options for {@link sampleColorScheme} — the colour-ramp knobs a scheme picker or legend preview exposes. */
+interface SampleColorSchemeOptions {
+    /** Named colormap, sequential or diverging (e.g. `'viridis'`, `'RdBu'`), matched case-insensitively. Superseded by `range`. */
+    scheme?: ColorSchemeName;
+    /** Explicit ramp of two-or-more colour stops, blended in `interpolate`. Supersedes `scheme`. */
+    range?: readonly string[];
+    /** Interpolation space for `range` stops; `'lab'` by default. Ignored for a named `scheme` (which carries its own). */
+    interpolate?: ColorInterpolationSpace;
+    /** Flip the ramp so `t = 0` reads the far end. */
+    reverse?: boolean;
+}
 
 interface ScaleAPI {
     /**
@@ -3178,6 +3968,44 @@ type ScaledPositionAestheticKey = 'x' | 'y' | 'ySecondary';
 /** Scale keys whose output is a visual channel rather than a position. */
 type ScaledVisualAestheticKey = 'color' | 'size' | 'alpha' | 'strokeWidth' | 'lineType';
 
+/** A human-readable alias for a cryptic ColorBrewer diverging code (e.g. `'red-blue'` → `'RdBu'`). */
+type SchemeAlias = keyof typeof SCHEME_ALIASES;
+
+/**
+ * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
+ * left unset is inherited at compile time — `position` from the side opposite `y`, `isVisible`,
+ * `grid` and `ticks` from `y` itself, and `label` from no label at all. An absent override
+ * therefore means "mirror the primary axis", which stops being expressible once a field is pinned.
+ */
+type SecondaryAxisOverride = DeepPartial<YAxisConfig>;
+
+/**
+ * A point at the box of every observation matching `predicate` (a {@link Predicate} — the same
+ * matcher language highlights use), reduced to the box-point named by `align`. Dropped when nothing
+ * matches. Nothing to resolve, so the input and resolved unions share this type.
+ */
+interface SelectionPointAnchor {
+    anchorType: 'selection';
+    predicate: Predicate;
+    align: AnchorAlign;
+    offset?: AnchorOffset;
+}
+
+/**
+ * The tight bounding box of every observation matching `predicate` (a {@link Predicate} — the same
+ * matcher language highlights use), grown by `padding`. Dropped when nothing matches. Nothing to
+ * resolve, so the input and resolved unions share this type.
+ */
+interface SelectionRegionAnchor {
+    anchorType: 'selection';
+    predicate: Predicate;
+    /**
+     * Padding around the box: a number pads both axes in panel fractions, an {@link AnchorOffset} pads
+     * each axis in its `unit` (`px` padding is applied by the runtime resolution pass).
+     */
+    padding?: number | AnchorOffset;
+}
+
 /**
  * Rectangle annotation. Its area is positioned by a {@link RegionAnchorInput} so it
  * re-resolves each compile (re-flows on resize, tracks data when bound).
@@ -3189,7 +4017,8 @@ interface ShapeInput {
     zOrder?: AnnotationZOrder;
     /** The area this shape fills. */
     region: RegionAnchorInput;
-    fillColor?: string;
+    /** null falls back to the theme `defaultAnnotationShapeFill`; omitting it leaves the shape unfilled. */
+    fillColor?: string | null;
     /** Fill alpha, 0 (transparent) to 1 (opaque). */
     fillOpacity?: number;
     strokeWidth?: number;
@@ -3210,6 +4039,18 @@ interface SmoothStatInput {
     order?: number;
     /** LOESS bandwidth — only meaningful when `method: 'loess'`. */
     bandwidth?: number;
+}
+
+/**
+ * Resolved smooth (regression) stat spec.
+ */
+interface SmoothStatSpec {
+    type: 'smooth';
+    method: SmoothMethod;
+    /** Polynomial order — only meaningful when `method: 'polynomial'`. */
+    order: number;
+    /** LOESS bandwidth — only meaningful when `method: 'loess'`. */
+    bandwidth: number;
 }
 
 /***************************************************************
@@ -3252,7 +4093,7 @@ interface SourceContent {
  */
 type SpatialKind = 'buckets' | 'rects' | 'points' | 'noop' | 'render-hit-test';
 
-type SpecItem = LayerInput | ScaleInput | CoordInput | ConfigItem | AnyTransformInput | MappingItem | HighlightInput | AnnotationItem;
+type SpecItem = LayerInput | ScaleInput | CoordInput | ConfigItem | AnyTransformInput | MappingItem | HighlightInput | AnnotationItem | StylesheetInput;
 
 /**
  * Base class for statistical transformations applied to layer data (e.g. binning, counting, smoothing).
@@ -3274,7 +4115,12 @@ abstract class Stat {
 /**
  * User-facing stat input — either a {@link StatName} string shorthand or an object spec.
  */
-type StatInput = IdentityStatSpec | CountStatSpec | SmoothStatInput | MeanStatSpec;
+type StatInput = IdentityStatSpec | CountStatSpec | SmoothStatInput | MeanStatSpec | SumStatSpec;
+
+/**
+ * Discriminated union of all resolved stat specs (post-resolution).
+ */
+type StatSpec = IdentityStatSpec | CountStatSpec | SmoothStatSpec | MeanStatSpec | SumStatSpec;
 
 /**
  * Sticker annotation: a built-in emoji-like image positioned by a {@link PointAnchorInput}.
@@ -3287,6 +4133,84 @@ interface StickerAnnotationInput {
 
 /** Identifier of a built-in sticker image, resolved by the renderer's sticker catalogue. */
 type StickerId = string;
+
+/**
+ * A color-valued declaration in any of its authored forms: a CSS color literal, an inline
+ * light-dark pair, or a reference into the stylesheet's token table.
+ */
+type StyleColorValue = string | LightDarkColor | StyleTokenRef;
+
+/**
+ * Every style property any target understands, in one flat shape. Which subset a given entry may
+ * declare is the target's vocabulary — the `Pick` aliases below; the compile stage drops
+ * declarations outside the entry's vocabulary. `ColorValue` is the shape of the color-valued
+ * properties: authored entries take a {@link StyleColorValue}, resolved reads yield a single string.
+ * `RadiusValue` is the `borderRadius` form: geom vocabularies take a token, chrome targets a pixel
+ * number, and the compiled shape holds either.
+ *
+ * - `color` — fill color.
+ * - `alpha` — fill opacity, `0..1`.
+ * - `saturation` — saturation multiplier, `0..1`; `0` is grey.
+ * - `borderRadius` — corner rounding: a token resolved to pixels by the bar recipes or the rounding
+ *   in pixels on chrome targets.
+ * - `borderColor` — border stroke color. A bar draws a border only when this resolves; a point marker
+ *   always has one (built-in white).
+ * - `borderWidth` — border stroke width in pixels; `0` is an explicit no-border.
+ * - `strokeWidth` — path stroke width in pixels for line and area outlines, grid lines and
+ *   panel-border edges; `0` hides a chrome stroke and reserves no space for it.
+ * - `lineType` — dash pattern of a stroke.
+ * - `strokeAlpha` — area outline opacity, `0..1`, independent of the fill's `alpha`.
+ * - `fillAlpha` — peak opacity of the gradient wash beneath a line, `0..1`. Undeclared draws no wash.
+ * - `size` — point marker diameter in pixels.
+ * - `background` — the graph's background fill.
+ * - `fontFamily` — the CSS family list text is drawn in. Undeclared keeps the renderer's own family,
+ *   so a host font reaches text no entry names.
+ * - `fontSize` — text size in pixels, before `textScale`.
+ * - `fontWeight` — numeric text weight, `1..1000`.
+ * - `lineHeight` — the band one line of text reserves, as a multiple of `fontSize`. Above `1` it is
+ *   leading around the text, which stays the size `fontSize` names.
+ * - `textColor` — the color text is painted in, as opposed to `color`, which fills a shape.
+ * - `offset` — pixels a text target sits away from what it annotates; the band it reserves grows with it.
+ * - `length` — how far a tick line reaches out from the panel edge, in pixels.
+ * - `paddingInline` — horizontal padding between a label's text and its box edge, each side, in pixels.
+ * - `paddingBlock` — vertical padding between a label's text and its box edge, each side, in pixels.
+ */
+interface StyleDeclarationsFor<ColorValue, RadiusValue = BorderRadiusToken> {
+    color?: ColorValue;
+    alpha?: number;
+    saturation?: number;
+    borderRadius?: RadiusValue;
+    borderColor?: ColorValue;
+    borderWidth?: number;
+    strokeWidth?: number;
+    lineType?: LineStyleType;
+    strokeAlpha?: number;
+    fillAlpha?: number;
+    size?: number;
+    background?: ColorValue;
+    fontFamily?: string;
+    fontSize?: number;
+    fontWeight?: number;
+    lineHeight?: number;
+    textColor?: ColorValue;
+    offset?: number;
+    length?: number;
+    paddingInline?: number;
+    paddingBlock?: number;
+}
+
+/** A named color in the stylesheet's token table: one literal or a light-dark pair. */
+type StyleTokenValue = string | LightDarkColor;
+
+/** Which of a stylesheet's two lists an entry lives in. */
+type StylesheetList = 'defaults' | 'overrides';
+
+/**
+ * Resolved sum stat spec.
+ */
+interface SumStatSpec {
+    type: 'sum';
+}
 
 interface TemporalValueFormat {
     type: 'datetime' | 'time' | 'date' | 'year' | 'quarter' | 'month_year' | 'month' | 'weekly_date_range_with_year' | 'weekly_date_range' | 'day_month';
@@ -3302,17 +4226,19 @@ interface TemporalValueFormat {
 type TextAnnotationBackgroundColorStyle = 'fade' | 'opaque';
 
 /**
- * Rich-text annotation. Its top-left corner is positioned by a {@link PointAnchorInput};
- * `width` is a fraction of the plot rect. Height is intrinsic to the rendered content.
+ * Rich-text annotation positioned by a {@link PointAnchorInput}; `width` is a fraction of the plot
+ * rect and the height is intrinsic to the rendered content.
  */
 interface TextAnnotationInput {
     id?: string;
     /** Rich-text body to render. */
     content: RichTextContent;
-    /** The annotation's top-left corner. */
+    /** The point the text is positioned at; `align` decides which point of the text's box sits here. */
     at: PointAnchorInput;
     /** 0..1 of plot width. */
     width: number;
+    /** Which point of the text's own box sits at `at`. Defaults to `center`. */
+    align?: AnchorAlign;
     /** null falls back to a transparent background. */
     backgroundColor?: string | null;
     /** Whether the background fill fades into the plot or is fully opaque. */
@@ -3322,11 +4248,27 @@ interface TextAnnotationInput {
 /** A text value — plain string or structured rich text. */
 type TextContent = string | RichTextContent;
 
+/** The type every text-drawing target speaks. */
+type TextStyleDeclarations = Pick<StyleDeclarations, 'fontFamily' | 'fontSize' | 'fontWeight' | 'lineHeight' | 'textColor'>;
+
+/**
+ * The vocabulary of the tickLabel target.
+ */
+type TickLabelStyleDeclarations = TextStyleDeclarations & Pick<StyleDeclarations, 'offset'>;
+
+/** The vocabulary of the tickLine target. */
+type TickLineStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType' | 'length'>;
+
 /** Fully-derived tooltip content. The popover renders directly from this. */
 interface TooltipContent {
-    /** Formatted main-axis value of the primary's observation. `null` for polar. */
+    /**
+     * Formatted main-axis value of the primary's observation. `null` for polar, and whenever
+     * {@link TooltipContent.comment} is set — the two share one slot.
+     */
     header: string | null;
     rows: TooltipRow[];
+    /** Rich text of the comment whose mini bubble the pointer is over; `null` otherwise. */
+    comment: RichTextContent | null;
 }
 
 type TooltipContract = ReadonlyArray<{
@@ -3361,7 +4303,7 @@ interface TooltipRow {
 /**
  * Stable code for a failure the caller can fix by editing their {@link Spec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'PALETTE_NOT_FOUND' | 'LAYER_INDEX_OUT_OF_RANGE' | 'INVALID_HIGHLIGHT_OPERATOR' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED';
 
 /**
  * The compiler-emitted descriptor of how a raw data value should be turned into a display string.
@@ -3411,11 +4353,11 @@ interface VariableMapping {
 }
 
 /**
- * Field-based predicates against post-transform user columns.
+ * Predicates over the layer's post-transform variables.
  *
  * `lt`, `lte`, `gt`, `gte`, and `range` accept `DataValue`s and are coerced at
- * evaluation time by the referenced column's `DataType`. Ordering operators
- * against a categorical field are a resolve-time validation error.
+ * evaluation time by the referenced variable's `DataType`. Ordering operators
+ * on a categorical variable are a resolve-time validation error.
  */
 type VariablePredicate = {
     variable: VariableName;
@@ -3451,6 +4393,30 @@ type VizErrorKind = 'user-input' | 'internal';
 
 /** Whether a diagnostic is fatal (`error`) or advisory (`warning`). */
 type VizErrorSeverity = 'error' | 'warning';
+
+/**
+ * The conditions under which a style entry applies — facts that need data or runtime context, as
+ * opposed to the structural address in {@link StyleSelect}.
+ *
+ * - `where` — match observations over the layer's post-transform variables. Absent, every observation
+ *   matches.
+ * - `state` — apply only while the renderer reads with this {@link StyleState} active. Absent, the
+ *   entry is stateless.
+ */
+interface WhenClause {
+    where?: Predicate;
+    state?: StyleState;
+}
+
+/**
+ * Animation technique for cartesian lines/areas: one clip-rect reveal per layer travelling along
+ * the main axis from its start. Every series in the layer enters together.
+ */
+interface WipeIntroPlan extends IntroPlanBase {
+    type: 'wipe';
+    /** Render axis the wipe travels along: `'x'` for standard cartesian, `'y'` when flipped. */
+    axis: 'x' | 'y';
+}
 
 /**
  * X-axis configuration (after defaults applied)
@@ -3549,6 +4515,8 @@ function smooth(options: {
 }): SmoothStatInput;
 
 function sort(options: SortOptions): SortTransformInput;
+
+function sum(): SumStatSpec;
 ```
 
 ## Supporting types — @graphysdk/react-renderer
@@ -3556,44 +4524,18 @@ function sort(options: SortOptions): SortTransformInput;
 Types referenced by the sections above, included so no name dangles.
 
 ```ts
+/**
+ * How the badge paints at the current frame size:
+ * - `full` — glyph + "Made with Graphy" pill
+ * - `mini` — circular glyph capsule (also the under-200 px ladder step)
+ * - `hidden` — flag off, or frame below the minimum footprint
+ */
+type BrandMarkVisual = 'full' | 'mini' | 'hidden';
+
 type CoordKind = CoordSystem['type'];
 
 /** Maps a coord-kind discriminator to the corresponding `CoordSystem` member. */
 type CoordSystemFor<C extends CoordKind> = C extends 'cartesian' ? CartesianCoordSystem : C extends 'polar' ? PolarCoordSystem : never;
-
-const FONT_STYLES: readonly ["normal", "italic", "oblique"];
-
-/**
- * A CSS length keeping its unit so measurement can treat it like CSS paint does: em scales with
- * `textScale` (see `emToPx`), px stays absolute.
- */
-interface FontLength {
-    value: number;
-    unit: 'px' | 'em';
-}
-
-/** Host font catalog mapping each font id a spec may reference to the CSS `font-family` string to render it with. */
-type FontListInput = Array<{
-    id: string;
-    fontFamily: string;
-}>;
-
-/** A CSS `font-style` keyword accepted by a measured font token override. */
-type FontStyle = (typeof FONT_STYLES)[number];
-
-/**
- * A structured override of a measured font token. Omitted fields keep the token's default (which
- * still cascades from the leaf tokens, e.g. `fontSizeXs`), so `{ weight: 600 }` changes only the
- * weight.
- */
-interface FontTokenOverride {
-    family?: string;
-    weight?: number;
-    style?: FontStyle;
-    size?: FontLength;
-    /** Unitless multiplier; sizes HTML line boxes (legend band). Canvas measurement ignores it. */
-    lineHeight?: number;
-}
 
 /** Page-relative cursor coordinates the push-path tooltip anchors to. */
 interface GeomHoverCursor {
@@ -3694,8 +4636,9 @@ type GeomRenderFn<G extends GeomName | string = string, C extends CoordKind = Co
 interface GeomRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> {
     layer: CompiledLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
-    isAnimated: boolean;
+    shouldAnimateTransitions: boolean;
     formattingLocale: Locale;
+    intro?: LayerIntroPlan | null;
 }
 
 /**
@@ -3709,6 +4652,50 @@ interface GeomRenderOptions {
      * renderer then supplies {@link GeomOverlayRenderInput.overlay}.
      */
     overlay: true;
+}
+
+/** Write access to the graph's spec: applying {@link Command}s and closing the runs they form. */
+interface GraphCommands {
+    /** Applies a command to the provider's live spec. */
+    dispatch: (command: Command, options?: DispatchOptions) => void;
+    /**
+     * Closes a run of `{ transient: true }` dispatches and fires `onChange` once for it. Call it when
+     * the gesture ends — pointer up, blur. Forgetting only delays the notification rather than
+     * corrupting undo: the run covers one {@link EditTarget}, and the next committed dispatch, undo,
+     * redo or external change closes it.
+     */
+    seal: () => void;
+}
+
+/**
+ * Imperative handle on a graph, for an app's key handling, toolbar or menu bar mounted above the
+ * tree the hooks can reach. Obtained through {@link GraphProviderProps.handleRef}.
+ */
+interface GraphHandle {
+    /** Write access to the graph's spec, the same surface {@link useGraphCommands} serves inside the tree. */
+    commands: GraphCommands;
+    /**
+     * Registers a listener fired on every change to the graph; returns the unsubscribe. With
+     * {@link GraphHandle.getCompiled} it is what `useSyncExternalStore` needs, so a surface outside the
+     * graph's tree stays in step with it. Subscribing before the graph compiles is valid.
+     */
+    subscribe: (onGraphChange: () => void) => () => void;
+    /** The graph's compiled spec as of now, or `null` before its first successful compile. */
+    getCompiled: () => CompiledSpec | null;
+    /**
+     * Reverse the most recent command. Returns whether the chart took the step, so a caller driving
+     * this from a keystroke can leave the key to the app when the chart has nothing to undo or the
+     * older spec no longer compiles.
+     */
+    undo: () => boolean;
+    /** Re-apply the most recently undone command. Returns whether the chart took the step. */
+    redo: () => boolean;
+    /** What the chart holds selected as of now; empty when nothing is. */
+    getSelection: () => readonly EditTarget[];
+    /** Replace what the chart holds selected. */
+    setSelection: (next: readonly EditTarget[]) => void;
+    /** Registers a listener fired on every change to the selection; returns the unsubscribe. */
+    subscribeSelection: (onSelectionChange: () => void) => () => void;
 }
 
 /**
@@ -3726,6 +4713,8 @@ type GraphMode = 'readonly' | 'editable';
  */
 interface HighlightRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInput<G, C> {
     panelRect: GraphLayout['panel'];
+    /** The full layer `layer` was filtered from — for context the subset can't see, like a stack's silhouette. */
+    sourceLayer: CompiledLayerOf<G>;
 }
 
 interface HoverCompanionsRenderInput<G extends GeomName | string = string> {
@@ -3767,15 +4756,21 @@ interface InteractiveOverlayApi {
     /** Feeds the hovered observation's identity key into the unified hover store — the push path. */
     pushHover: GeomHoverPush;
     /** The panel's on-screen rect in client pixels, so the overlay can place its marks. */
-    panelRect: PanelScreenRect;
+    panelRect: ScreenRect;
 }
 
-/**
- * The element font tokens JS measurement reproduces. Overridden structurally
- * ({@link FontTokenOverride}); the CSS variable's shorthand is serialized from the same object
- * measurement reads, so paint and layout move together.
- */
-type MeasuredFontTokenKey = 'fontDataLabel' | 'fontStackTotal' | 'fontCategoryLabel' | 'fontTickLabel' | 'fontAxisLabel' | 'fontLegendLabel' | 'fontGoalLineLabel';
+interface IntroAnimationOptions {
+    /** Whether the entrance plays at all */
+    enabled: boolean;
+    /** Multiplier applied to every entrance duration and stagger delay. */
+    durationScale: number;
+    /** Whether geoms that support staggered entrance (bars) enter staggered rather than all at once. */
+    stagger: boolean;
+    /** The order staggered point geoms enter in. Bars and slices always enter in visual order. */
+    staggerOrder: IntroStaggerOrder;
+    /** Total geom count across all layers above which the entrance is skipped entirely. */
+    maxAnimatedGeoms: number;
+}
 
 /**
  * Anchor point in normalized [0,1] coord-space where a highlight overlay marker
@@ -3790,14 +4785,6 @@ interface OverlayAnchorInput<G extends GeomName | string = string, C extends Coo
     layer: CompiledLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
     observation: Observation;
-}
-
-/** The panel's on-screen rect in client coordinates — what a fixed-position overlay aligns to. */
-interface PanelScreenRect {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
 }
 
 /** Fires on each deduped size change — the shape of `GraphRenderer`'s `onResize` callback. */
@@ -3819,6 +4806,14 @@ interface ResizeObserverState {
 interface ResolvedGeomRenderer extends GeomRenderContract {
     /** The geom name this renderer paints — the resolver dispatches on it. */
     geom: string;
+}
+
+/** An element's on-screen rect in client coordinates — what a fixed-position overlay aligns to. */
+interface ScreenRect {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
 }
 
 /**
@@ -3913,10 +4908,8 @@ const vars: {
     overlayBorderGradient: `var(--${string})`;
     graphBackground: `var(--${string})`;
     gridLineColor: `var(--${string})`;
+    axisTickColor: `var(--${string})`;
     originLineColor: `var(--${string})`;
-    targetLineColor: `var(--${string})`;
-    targetLineMarkerColor: `var(--${string})`;
-    targetLineLabelTextColor: `var(--${string})`;
     legendBackground: `var(--${string})`;
     legendBorderColor: `var(--${string})`;
     legendFocusOutlineColor: `var(--${string})`;
@@ -3927,29 +4920,20 @@ const vars: {
     trendPositiveColor: `var(--${string})`;
     trendNeutralColor: `var(--${string})`;
     defaultAnnotationArrowStroke: `var(--${string})`;
-    defaultAnnotationShapeStroke: `var(--${string})`;
     defaultAnnotationShapeFill: `var(--${string})`;
     arrowAnnotationStickerOutlineColor: `var(--${string})`;
     arrowAnnotationStickerOutlineColorInverse: `var(--${string})`;
     annotationFrameBorderColor: `var(--${string})`;
-    annotationMenuTriggerIconColor: `var(--${string})`;
+    editMenuTriggerIconColor: `var(--${string})`;
     heatmapEmptyTileBackground: `var(--${string})`;
-    dataLabelOutsideBackground: `var(--${string})`;
-    dataLabelTextColor: `var(--${string})`;
-    dataLabelInsideTextColor: `var(--${string})`;
-    stackTotalTextColor: `var(--${string})`;
-    stackTotalBackground: `var(--${string})`;
-    stackTotalStroke: `var(--${string})`;
     gridLineWidth: `var(--${string})`;
-    gridLineDash: `var(--${string})`;
-    gridLineDotted: `var(--${string})`;
     tooltipBorderRadius: `var(--${string})`;
     tooltipBorderWidth: `var(--${string})`;
     tooltipPaddingBlock: `var(--${string})`;
     tooltipPaddingInline: `var(--${string})`;
     tooltipRowGap: `var(--${string})`;
     tooltipShadow: `var(--${string})`;
-    tickLabelOffset: `var(--${string})`;
+    editorControlHeight: `var(--${string})`;
     legendItemGap: `var(--${string})`;
     legendSwatchGap: `var(--${string})`;
     legendSwatchWidth: `var(--${string})`;
@@ -3987,6 +4971,7 @@ const vars: {
     zIndexToolbar: `var(--${string})`;
     zIndexToolbarTooltip: `var(--${string})`;
     zIndexToolbarPopover: `var(--${string})`;
+    zIndexEditorPopover: `var(--${string})`;
     toolbarBackgroundColor: `var(--${string})`;
     toolbarButtonBackgroundColor: `var(--${string})`;
     toolbarButtonBackgroundColorHovered: `var(--${string})`;
@@ -4000,10 +4985,6 @@ const vars: {
     tooltipPrimaryRowColor: `var(--${string})`;
     hoverGuideLineColor: `var(--${string})`;
     hoverGuideFillColor: `var(--${string})`;
-    hoveredBarBorderColor: `var(--${string})`;
-    hoveredPointRingColor: `var(--${string})`;
-    pointStrokeColor: `var(--${string})`;
-    stackedBarHoverBorderColor: `var(--${string})`;
     fontFamilyDefault: `var(--${string})`;
     fontFamilyHeading: `var(--${string})`;
     fontWeightRegular: `var(--${string})`;
@@ -4033,11 +5014,6 @@ const vars: {
     fontLineHeightHeadingSm: `var(--${string})`;
     fontLineHeightHeadingMd: `var(--${string})`;
     fontLineHeightHeadingLg: `var(--${string})`;
-    fontTickLabel: `var(--${string})`;
-    fontAxisLabel: `var(--${string})`;
-    fontDataLabel: `var(--${string})`;
-    fontStackTotal: `var(--${string})`;
-    fontCategoryLabel: `var(--${string})`;
     fontLegendLabel: `var(--${string})`;
     fontSeriesLabel: `var(--${string})`;
     fontTooltipLabel: `var(--${string})`;
@@ -4051,7 +5027,6 @@ const vars: {
     fontTooltipCaptionSmall: `var(--${string})`;
     fontTrendTag: `var(--${string})`;
     fontTrendTagSmall: `var(--${string})`;
-    fontGoalLineLabel: `var(--${string})`;
     fontPieLabel: `var(--${string})`;
     fontPieChartTotal: `var(--${string})`;
     fontDifferenceArrowSmall: `var(--${string})`;
@@ -4083,5 +5058,9 @@ const vars: {
     fontTextEditorLink: `var(--${string})`;
     fontHighlightModeTitle: `var(--${string})`;
     fontHighlightModeSubtitle: `var(--${string})`;
+    fontEditorControlLabel: `var(--${string})`;
+    fontEditorControlValue: `var(--${string})`;
+    fontEditorSectionTitle: `var(--${string})`;
+    fontEditorCaption: `var(--${string})`;
 };
 ```

@@ -1,6 +1,6 @@
 # Mexico 68
 
-**Tier: config + theme tokens + render-only geom paint plugins.** This is the plugin-tier exemplar: the spec and theme are ordinary, and every geom's paint is replaced via `defineGeomRenderer` render-only overrides passed as `plugins` to `GraphProvider`.
+**Tier: config + stylesheet + theme tokens + render-only geom paint plugins.** This is the plugin-tier exemplar: the spec, stylesheet and theme are ordinary, and every geom's paint is replaced via `defineGeomRenderer` render-only overrides passed as `plugins` to `GraphProvider`. The chart chrome — card ground, ink baseline, engine text — is a `styles()` stylesheet on the spec (`reference/styling.md`); the theme tokens dress the HTML around it.
 
 Op-art style after the Mexico 68 Olympic identity: a hot magenta lead with orange, purple, cyan, and green radiating behind it, Righteous uppercase headlines over Rubik engine text, and no gridlines — the vibration needs quiet ground. The whole grammar is the echo: every mark is drawn as concentric outlines with no solid core. Bars radiate as arches, lines as parallel echoes with a ringed-target terminus, points as ringed targets, and polar slices as single outlines with ink echoes fanning outward.
 
@@ -40,8 +40,7 @@ export const MEXICO_PALETTE = [
   MEXICO_COLORS.green,
 ] as const;
 
-// Engine text is Rubik 500 12px; the printed value above each arch sits a touch
-// heavier and larger — the one number you read off the vibration.
+// Engine text is Rubik 500 12px.
 const engineFont: FontTokenOverride = {
   family: MEXICO_FONT_FAMILY.body,
   size: { value: 12, unit: 'px' },
@@ -49,32 +48,45 @@ const engineFont: FontTokenOverride = {
   weight: 500,
 };
 
-const valueFont: FontTokenOverride = {
-  family: MEXICO_FONT_FAMILY.body,
-  size: { value: 13, unit: 'px' },
-  lineHeight: 1.2,
-  weight: 600,
-};
-
 export const theme: ThemeOverrides = {
   textPrimary: MEXICO_COLORS.ink,
   textSecondary: MEXICO_COLORS.axisGrey,
-  gridLineColor: 'transparent', // the vibration needs quiet ground — no gridlines
   legendBackground: 'transparent',
   legendBorderColor: 'transparent',
   legendTextColor: MEXICO_COLORS.ink,
-  dataLabelTextColor: MEXICO_COLORS.ink, // values printed above each arch, in ink
   fontFamilyDefault: MEXICO_FONT_FAMILY.body,
   fontFamilyHeading: MEXICO_FONT_FAMILY.headings,
-  fontTickLabel: engineFont,
-  fontAxisLabel: engineFont,
   fontLegendLabel: engineFont,
-  fontDataLabel: valueFont,
   fontPieLabel: `500 11px/1.4 ${MEXICO_FONT_FAMILY.body}`,
 };
 ```
 
-`fontTickLabel`, `fontAxisLabel`, `fontLegendLabel`, and `fontDataLabel` are measured font tokens (structured `FontTokenOverride` objects); `fontPieLabel` is a plain CSS font shorthand string.
+These tokens dress the HTML chrome around the plot: the legend, the headline and footer, the direct series labels. `fontLegendLabel` is the measured font token and takes a structured `FontTokenOverride`; `fontPieLabel` is a plain CSS font shorthand string.
+
+## Module: `mexico68.styles.ts` (the card paint)
+
+White ground with a single 2px ink baseline as the only border edge — the arches rest on it and nothing else frames them. The bare `style.panelBorder` entry sets all four edges to nothing, then `.bottom` redeclares the one that survives; within a list, the last matching entry wins. The printed value above each arch sits a touch heavier and larger than the engine text — the one number you read off the vibration.
+
+```ts
+import { style, styles } from '@graphysdk/viz-engine';
+
+export const mexicoChromeStyles = styles({
+  defaults: [
+    style.axisLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: MEXICO_COLORS.ink }),
+    style.tickLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: MEXICO_COLORS.axisGrey }),
+    style.dataLabel({ fontSize: 13, fontWeight: 600, textColor: MEXICO_COLORS.ink }),
+    style.graph({ background: MEXICO_COLORS.card }),
+    style.tickLine({ color: 'transparent' }),
+    style.panelBorder({ strokeWidth: 0 }),
+    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: MEXICO_COLORS.ink }),
+  ],
+});
+
+// Polar cards carry no cartesian baseline — the ring is its own ground.
+export const mexicoPolarStyles = styles({ defaults: [style.panelBorder.bottom({ strokeWidth: 0 })] });
+```
+
+`strokeWidth: 0` is how a panel-border edge is silenced: it paints nothing and reserves no space. Fonts here name no `fontFamily`, so engine text inherits Rubik from the theme's `fontFamilyDefault`.
 
 ## Shared config builder and title helper
 
@@ -85,23 +97,14 @@ import type { RichTextContent } from '@graphysdk/viz-engine';
 const BAR_BAND_FRACTION = 0.5; // room for the arch to radiate inside its band
 const LINE_WIDTH = 2;
 
-// Shared frame: white ground, no grid, a single 2px ink baseline the arches rest on.
-// The y axis stays visible in the quiet grey; it is zero-based everywhere.
+// Shared frame: no grid — the vibration needs quiet ground. The y axis stays
+// visible in the quiet grey; it is zero-based everywhere.
 const createMexicoConfig = (options: { legendPosition?: 'none' | 'top' | 'bottom' } = {}) =>
   config({
     legend: { position: options.legendPosition ?? 'none' },
-    appearance: { background: { type: 'solid', color: MEXICO_COLORS.card } },
     layout: {
       padding: 32,
       gaps: { header: options.legendPosition === 'top' ? 24 : 40 },
-    },
-    panel: {
-      border: {
-        top: { isVisible: false },
-        bottom: { isVisible: true, lineStyle: 'solid', lineWidth: 2, color: MEXICO_COLORS.ink },
-        left: { isVisible: false },
-        right: { isVisible: false },
-      },
     },
     axes: {
       x: { position: 'bottom', grid: { isVisible: false }, ticks: { isVisible: false } },
@@ -109,11 +112,8 @@ const createMexicoConfig = (options: { legendPosition?: 'none' | 'top' | 'bottom
     },
   });
 
-// Polar charts carry no cartesian baseline or y axis — the ring is its own ground.
-const mexicoPolarConfig = config({
-  panel: { border: { bottom: { isVisible: false } } },
-  axes: { y: { isVisible: false } },
-});
+// Polar charts carry no y axis — the ring reads on its own.
+const mexicoPolarConfig = config({ axes: { y: { isVisible: false } } });
 
 // Headline: Righteous, uppercase, key phrase in the lead magenta.
 export const createMexicoTitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
@@ -140,6 +140,8 @@ export const createMexicoTitle = (segments: Array<{ text: string; color?: string
 ## Module: `mexico68.plugins.tsx` (render-only geom paint overrides)
 
 Four overrides, one per `(geom, coord)` pair the style repaints: `mexicoBar` (bar, cartesian) draws radiating arches, `mexicoSlice` (bar, polar) draws outlined arcs with outward ink echoes, `mexicoPoint` (point, cartesian) draws ringed targets, and `mexicoLine` (line, cartesian) draws parallel echoes with a ringed-target terminus. Each also supplies `renderHover` (redraw the hovered mark bolder, with a faint solid core — the one place the "no solid core" rule relaxes) and `renderHoverCompanions` (faint targets marking where a hovered reading lands on the other layers of a combo).
+
+Every colour these renderers draw comes from `getColor(observation)` and `getAlpha(observation)` on the render input. Those accessors expose the mapped encoding — the cascade's data tier — so the paint of a repainted layer is decided by its `color` scale, and each renderer carries its own literal fallback (`MEXICO_COLORS.ink`) for a layer that maps nothing. A render-only override sees the encoding, not resolved stylesheet entries and not the active `colorScheme`: keep the plugin's palette in its own constants, as here, and let the stylesheet own the chrome. See `reference/plugins.md`.
 
 ```tsx
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
@@ -918,11 +920,11 @@ export const mexicoPlugins = [mexicoBar, mexicoSlice, mexicoPoint, mexicoLine] a
 The spec is a plain bar spec — the arches come entirely from `mexicoBar` in the `plugins` array. One arch per quarter with its value printed above; the actual quarters take the magenta, the forecast the next palette colour.
 
 ```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
+import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 import { mexicoPlugins } from './mexico68.plugins';
+import { mexicoChromeStyles } from './mexico68.styles';
 import { MEXICO_COLORS, theme } from './mexico68.theme';
 
 const cpmData = {
@@ -941,13 +943,15 @@ const cpmSpec = pipe(
   mapping({ x: 'quarter', y: 'cpm', color: 'type' }),
   geom.bar({
     position: 'identity',
-    params: { width: BAR_BAND_FRACTION, borderRadius: 0 },
+    params: { width: BAR_BAND_FRACTION },
     dataLabels: { showDataLabels: true, position: 'outside', justify: 'end', align: 'center' },
   }),
+  styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] }),
   scale.x(),
   scale.y.continuous({ domainMin: 0, domainMax: 8 }),
   scale.color.discrete({ domain: ['actual', 'forecast'], range: [MEXICO_COLORS.pink, MEXICO_COLORS.orange] }),
   createMexicoConfig({ legendPosition: 'top' }),
+  mexicoChromeStyles,
   config({
     content: {
       title: createMexicoTitle([
@@ -967,7 +971,7 @@ export function CpmChart() {
     <GraphProvider
       data={cpmData}
       input={cpmSpec}
-      theme="light"
+      colorScheme="light"
       themeOverrides={theme}
       plugins={[...mexicoPlugins]}
     >
@@ -982,10 +986,11 @@ export function CpmChart() {
 Same spec you would write without plugins; `mexicoSlice` repaints each region as one closed outline with ink echoes fanning outward from the ring.
 
 ```tsx
-import { config, coord, createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
+import { config, coord, createSpec, geom, pipe, scale, style, styles } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
 
 import { mexicoPlugins } from './mexico68.plugins';
+import { mexicoChromeStyles, mexicoPolarStyles } from './mexico68.styles';
 import { MEXICO_COLORS, MEXICO_PALETTE, theme } from './mexico68.theme';
 
 const revenueData = {
@@ -1003,7 +1008,6 @@ const revenueDonutSpec = pipe(
   createSpec({ x: '', y: 'revenue', color: 'region' }),
   geom.bar({
     position: 'fill',
-    params: { borderRadius: 0 },
     dataLabels: {
       showDataLabels: true,
       format: 'percentage',
@@ -1013,12 +1017,15 @@ const revenueDonutSpec = pipe(
       align: 'center',
     },
   }),
+  styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] }),
   coord.polar({ theta: 'y', innerRadius: 0.55 }),
   scale.x(),
   scale.y(),
   scale.color.discrete({ domain: ['North', 'East', 'Central', 'South', 'West'], range: [...MEXICO_PALETTE] }),
   createMexicoConfig(),
+  mexicoChromeStyles,
   mexicoPolarConfig,
+  mexicoPolarStyles,
   config({
     content: {
       title: createMexicoTitle([
@@ -1037,7 +1044,7 @@ export function RevenueDonut() {
     <GraphProvider
       data={revenueData}
       input={revenueDonutSpec}
-      theme="light"
+      colorScheme="light"
       themeOverrides={theme}
       plugins={[...mexicoPlugins]}
     >

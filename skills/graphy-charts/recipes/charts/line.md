@@ -8,13 +8,14 @@
 | Smooth | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
 | Missing values | `geom.line({ params: { missingValues: 'gap' \| 'connect' \| 'zero' } })` |
 | Vertex dots | add a companion layer `geom.point({ interactive: false })` |
+| Fill beneath the line | `styles({ defaults: [style.geom.line({ fillAlpha: 0.15 })] })` |
+| One series painted differently | `geom.line({ id: 'trend' })` + `style.geom.line({ … }, { layer: 'trend' })` |
 
 ## Base: simple line
 
 ```tsx
 import { createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
 import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import '@graphysdk/react-renderer/styles.css';
 
 const data = {
   columns: [{ key: 'month' }, { key: 'revenue' }],
@@ -101,13 +102,47 @@ geom.line(),
 geom.point({ interactive: false }),
 ```
 
-## Line params
+## Geometry and paint
 
-`geom.line({ params: { ... } })`: `lineWidth` (px or `'auto'`), `interpolate` (`'linear'` default \| `'catmull-rom'`), `missingValues` (`'gap'` default \| `'connect'` \| `'zero'`), `showFill` (gradient fill beneath the line, default `false`).
+`params` carries the path geometry; the stylesheet carries the paint (`reference/styling.md`).
+
+| Surface | Key | Type | Default | Notes |
+|---|---|---|---|---|
+| `geom.line({ params })` | `interpolate` | `'linear' \| 'catmull-rom'` | `'linear'` | d3 curve family |
+| `geom.line({ params })` | `missingValues` | `'gap' \| 'connect' \| 'zero'` | `'gap'` | see above |
+| `style.geom.line` | `strokeWidth` | number (px) | `2` | |
+| `style.geom.line` | `lineType` | `'solid' \| 'dashed' \| 'dotted'` | `'solid'` | |
+| `style.geom.line` | `fillAlpha` | `0..1` | unset | peak opacity of the gradient wash beneath the path; undeclared draws no wash |
+| `style.geom.line` | `color` / `alpha` / `saturation` | | | `alpha` is the stroke's opacity, independent of `fillAlpha` |
+
+```ts
+geom.line({ params: { interpolate: 'catmull-rom' } }),
+styles({ defaults: [style.geom.line({ strokeWidth: 3, fillAlpha: 0.15 })] }),
+```
+
+Scope an entry to one series by giving the layer an id:
+
+```ts
+geom.line({ id: 'trend' }),
+styles({ overrides: [style.geom.line({ strokeWidth: 4, lineType: 'dashed' }, { layer: 'trend' })] }),
+```
+
+`strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous({ range: [1, 6] })`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous({ … })`.
+
+## Intro animation
+
+On mount the layer is revealed by a wipe travelling along the main axis; every series in the layer
+enters together. The renderer's `animation` prop tunes it:
+
+```tsx
+<GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
+```
+
+`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
 
 ## Gotchas
 
 - Wide data needs `transform.reshape` before `color` (or `lineType`) can map to the series variable.
 - `lineType` scales are discrete-only — mapping `lineType` to a numeric variable errors at compile time. Valid range values: `'solid' | 'dashed' | 'dotted'`.
-- `showFill` defaults to `false`; pass `geom.line({ params: { showFill: true } })` for a gradient fill beneath the line. The fill's 15% opacity is fixed — a mapped `alpha` dims the whole series (stroke and fill together), it cannot make the fill more opaque.
+- A mapped `alpha` dims the stroke; the wash beneath it follows `fillAlpha`, so the two are set separately.
 - Companion dot layers should set `interactive: false` so they do not compete with the line in hover hit-detection.

@@ -15,7 +15,7 @@ import {
   createGraphyKit,
   defineGeomRenderer,
   type GeomHoverPush,
-  type PanelScreenRect,
+  type ScreenRect,
 } from '@graphysdk/react-renderer';
 import type {
   CompiledGeom,
@@ -66,6 +66,8 @@ interface ForceLayoutOptions {
 interface SimulationNode extends SimulationNodeDatum {
   x: number;
   y: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 interface ForceLink {
@@ -434,7 +436,7 @@ const ForceOverlay = ({
   pushHover,
 }: {
   layer: CompiledLayer;
-  rect: PanelScreenRect;
+  rect: ScreenRect;
   pushHover: GeomHoverPush;
 }) => {
   const { nodes, edges } = useMemo(() => partition(layer.data), [layer.data]);
@@ -456,7 +458,7 @@ const ForceCanvas = ({
   edges,
   params,
 }: {
-  rect: PanelScreenRect;
+  rect: ScreenRect;
   pushHover: GeomHoverPush;
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -761,4 +763,7 @@ export const ForceDirectedChart = () => (
 
 - Tune the physics through geom params: `kit.geom.forceDirected({ params: { chargeStrength, linkDistance }, aes: { ... } })` — both are consumed render-side when the simulation is built.
 - The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }`, push identity keys through `overlay.pushHover(markId, { clientX, clientY })`, and pass `null` to clear. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
-- Requires `d3-force` (`@types/d3-force` for TypeScript). Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
+- Requires `d3-force` (`@types/d3-force` for TypeScript), both user-installed. Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at — a node's live position, which only the running simulation knows, so an anchor here is a snapshot at best — to make the marks annotatable and give the editor overlay a creation trigger on them.
+- `FALLBACK_COLOR` and the node stroke/label hex constants (`#fff`, `#333`) sit outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks and they hold their hex under `colorScheme="dark"` while the built-in layers flip. Expose them as geom params so a spec can set them per chart. See `reference/styling.md`.
+- `intro` is always `null` for a `render-hit-test` geom, so the overlay never gets an entrance plan — right for a live simulation, which settles into place under its own physics.
