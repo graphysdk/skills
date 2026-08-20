@@ -2,6 +2,7 @@ packages:
   - apps/*
 
 catalog:
+  "@graphysdk/react": 1.8.1-beta.1786952756412
   "@graphysdk/viz-engine": 1.8.1-beta.1786952756412
   "@graphysdk/react-renderer": 1.8.1-beta.1786952756412
   "@graphysdk/data-import-utils": ^1.7.2

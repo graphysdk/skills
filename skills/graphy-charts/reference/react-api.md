@@ -132,11 +132,12 @@ panel, commands/undo and programmatic editing are the **`graphy-editor`** skill.
 
 ## Related packages
 
-`@graphysdk/react` is the batteries-included wrapper around this one: the same surface, with a
-`GraphProvider` whose "Made with Graphy" provenance badge is on by default (its editing half sits at
-`@graphysdk/react/editable`). `@graphysdk/react-renderer` — this package — leaves the badge off, for
-embedders and advanced integrators. The badge reaches Header/Footer slot overrides as
-`brandMark: BrandMarkVisual`; see `reference/slots.md`.
+`@graphysdk/react` is the standard install and wraps this package: the same surface plus the spec
+builders re-exported, with a `GraphProvider` whose "Made with Graphy" provenance badge is on by
+default (its editing half sits at `@graphysdk/react/editable`). `@graphysdk/react-renderer` — this
+package — is the advanced mode: the badge is off, for embedders and advanced integrators.
+Everything this file documents applies to both; only the import specifier differs. The badge
+reaches Header/Footer slot overrides as `brandMark: BrandMarkVisual`; see `reference/slots.md`.
 
 ## Beyond rendering
 

@@ -9,6 +9,9 @@ catalogs:
     '@graphysdk/data-import-utils':
       specifier: ^1.7.2
       version: 1.7.2
+    '@graphysdk/react':
+      specifier: 1.8.1-beta.1786952756412
+      version: 1.8.1-beta.1786952756412
     '@graphysdk/react-renderer':
       specifier: 1.8.1-beta.1786952756412
       version: 1.8.1-beta.1786952756412
@@ -23,6 +26,9 @@ importers:
 
   .:
     dependencies:
+      '@graphysdk/react':
+        specifier: 'catalog:'
+        version: 1.8.1-beta.1786952756412(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
         version: 1.8.1-beta.1786952756412(5aad7dcc2d5e48e0508df442c5bbe6b3)
@@ -700,6 +706,11 @@ packages:
       '@tiptap/extensions': ^3.0.0
       '@tiptap/pm': ^3.0.0
       '@tiptap/react': ^3.0.0
+      react: ^19.0.0
+
+  '@graphysdk/react@1.8.1-beta.1786952756412':
+    resolution: {integrity: sha512-IFnShSbpH4OD1riAJw6N00JP5w3NIHBTzuzO0j5N4aUQByB8pZXcUHl/kEcfi5vBw6gtz2SEhZ0toVVE/wCtFg==}
+    peerDependencies:
       react: ^19.0.0
 
   '@graphysdk/viz-engine@1.8.1-beta.1786952756412':
@@ -3706,6 +3717,38 @@ snapshots:
     transitivePeerDependencies:
       - '@date-fns/tz'
       - '@emotion/is-prop-valid'
+      - '@types/react'
+      - babel-plugin-macros
+      - date-fns
+      - encoding
+      - immer
+      - react-dom
+      - typescript
+      - use-sync-external-store
+
+  '@graphysdk/react@1.8.1-beta.1786952756412(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+    dependencies:
+      '@graphysdk/react-renderer': 1.8.1-beta.1786952756412(5aad7dcc2d5e48e0508df442c5bbe6b3)
+      '@graphysdk/viz-engine': 1.8.1-beta.1786952756412
+      react: 19.2.7
+    transitivePeerDependencies:
+      - '@date-fns/tz'
+      - '@emotion/is-prop-valid'
+      - '@tiptap/core'
+      - '@tiptap/extension-bold'
+      - '@tiptap/extension-document'
+      - '@tiptap/extension-hard-break'
+      - '@tiptap/extension-heading'
+      - '@tiptap/extension-italic'
+      - '@tiptap/extension-link'
+      - '@tiptap/extension-paragraph'
+      - '@tiptap/extension-text'
+      - '@tiptap/extension-text-align'
+      - '@tiptap/extension-text-style'
+      - '@tiptap/extension-underline'
+      - '@tiptap/extensions'
+      - '@tiptap/pm'
+      - '@tiptap/react'
       - '@types/react'
       - babel-plugin-macros
       - date-fns

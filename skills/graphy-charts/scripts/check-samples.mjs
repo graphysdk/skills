@@ -39,6 +39,8 @@ function exportsOf(path) {
 const VE = exportsOf(dts('@graphysdk/viz-engine', 'index.d.ts'));
 const RR = exportsOf(dts('@graphysdk/react-renderer', 'index.d.ts'));
 const ED = exportsOf(dts('@graphysdk/react-renderer', 'editable.d.ts'));
+const GR = exportsOf(dts('@graphysdk/react', 'index.d.ts'));
+const GRE = exportsOf(dts('@graphysdk/react', 'editable.d.ts'));
 // A name bound by the preamble must not be bound twice.
 const seen = new Set();
 const pick = (s) => [...s].filter((n) => !seen.has(n) && (seen.add(n), true));
@@ -97,11 +99,13 @@ const files = walk(SKILL).sort();
 // Phase 1 — every specifier resolves, every named import exists.
 // Parser-only, so there are no false positives.
 // ---------------------------------------------------------------------------
-const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/react-renderer', '@graphysdk/react-renderer/editable']);
+const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/react-renderer', '@graphysdk/react-renderer/editable', '@graphysdk/react', '@graphysdk/react/editable']);
 const NAMES = {
   '@graphysdk/viz-engine': new Set([...VE.values, ...VE.types]),
   '@graphysdk/react-renderer': new Set([...RR.values, ...RR.types]),
   '@graphysdk/react-renderer/editable': new Set([...ED.values, ...ED.types]),
+  '@graphysdk/react': new Set([...GR.values, ...GR.types]),
+  '@graphysdk/react/editable': new Set([...GRE.values, ...GRE.types]),
 };
 let importProblems = 0;
 for (const file of files) {
