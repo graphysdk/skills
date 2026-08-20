@@ -7,6 +7,7 @@ Agent skills for building with [Graphy](https://graphy.dev). Install into Claude
 | Skill | What it does |
 |---|---|
 | [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Everything for building with the Graphy viz stack: installing and setting up the SDK (prerequisites, troubleshooting), then authoring graphs — grammar-of-graphics spec building (geoms, scales, transforms, coords), styling, theming, slots, plugins, and storytelling (highlights, annotations). Includes recipes for common graph types and house styles, a generated type reference, a headless spec validator, and a checker that typechecks every code sample against the installed SDK. |
+| [`graphy-editor`](./skills/graphy-editor/SKILL.md) | Editing companion to `graphy-charts`: making a rendered chart editable (`@graphysdk/react-renderer/editable`), editing it programmatically or from an agent via the serializable command system (per-layer control included), undo/redo and command history, saving and restoring edited charts, point-and-click annotation editing on the canvas, and the optional pre-built editor panel with design-system adoption. Includes worked recipes for each integration shape and its own generated type reference over the editing surface. |
 
 ## Install
 
@@ -22,7 +23,7 @@ In Claude Code:
 /reload-plugins
 ```
 
-Then prompt as you normally would (*"set up Graphy in this project"*, *"build a stacked bar graph of revenue by region"*) — Claude loads the skill and routes to the right reference. Explicit trigger: `/graphy:charts`.
+Then prompt as you normally would (*"set up Graphy in this project"*, *"build a stacked bar graph of revenue by region"*, *"make this chart editable with undo"*) — Claude loads the right skill and routes to the right reference. Explicit triggers: `/graphy:charts`, `/graphy:editor`.
 
 ### Vercel Labs `skills` CLI (cross-agent)
 
@@ -32,7 +33,7 @@ In your terminal:
 npx skills add graphysdk/skills
 ```
 
-Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make sure your target agent is checked in the picker. Skills install into your project's `.<agent>/skills/` directory; pass `--global` for `~/<agent>/skills/`. Restart your agent session, then prompt as usual. Explicit trigger: `/graphy-charts`.
+Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make sure your target agent is checked in the picker. Skills install into your project's `.<agent>/skills/` directory; pass `--global` for `~/<agent>/skills/`. Restart your agent session, then prompt as usual. Explicit triggers: `/graphy-charts`, `/graphy-editor`.
 
 ## Repo layout
 
@@ -56,6 +57,10 @@ pnpm install
 node skills/graphy-charts/scripts/validate-spec.mjs path/to/spec.mjs   # compile a spec, print diagnostics
 node skills/graphy-charts/scripts/generate-types-reference.mjs        # regenerate reference/types.md (--check for CI)
 node skills/graphy-charts/scripts/check-samples.mjs                   # verify every code sample against the installed SDK
+
+# graphy-editor helper scripts
+node skills/graphy-editor/scripts/generate-types-reference.mjs        # regenerate the editing-surface types.md (--check for CI)
+node skills/graphy-charts/scripts/check-samples.mjs skills/graphy-editor   # same sample checker, pointed at the editor skill
 ```
 
 `check-samples.mjs` is the guard against documentation drift: it resolves every `@graphysdk` import in

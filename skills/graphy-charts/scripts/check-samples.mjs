@@ -4,7 +4,8 @@
 //   Phase 1  every import specifier resolves and every named import exists
 //   Phase 2  each fenced ts/tsx block is typechecked
 // Each fenced ts/tsx block is compiled on its own, prefixed with a preamble that
-// binds every export of both packages, so fragments still resolve their builders.
+// binds every export of both packages and of the editable entry, so fragments
+// still resolve their builders.
 // Only API-shape diagnostics are reported; fragment noise is filtered out.
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -37,6 +38,7 @@ function exportsOf(path) {
 
 const VE = exportsOf(dts('@graphysdk/viz-engine', 'index.d.ts'));
 const RR = exportsOf(dts('@graphysdk/react-renderer', 'index.d.ts'));
+const ED = exportsOf(dts('@graphysdk/react-renderer', 'editable.d.ts'));
 // A name bound by the preamble must not be bound twice.
 const seen = new Set();
 const pick = (s) => [...s].filter((n) => !seen.has(n) && (seen.add(n), true));
@@ -46,6 +48,8 @@ const PREAMBLE = [
   `import type { ${pick(VE.types).join(', ')} } from '@graphysdk/viz-engine';`,
   `import { ${pick(RR.values).join(', ')} } from '@graphysdk/react-renderer';`,
   `import type { ${pick(RR.types).join(', ')} } from '@graphysdk/react-renderer';`,
+  `import { ${pick(ED.values).join(', ')} } from '@graphysdk/react-renderer/editable';`,
+  `import type { ${pick(ED.types).join(', ')} } from '@graphysdk/react-renderer/editable';`,
   `// @ts-ignore unused preamble bindings`,
 ].join('\n');
 const PREAMBLE_LINES = PREAMBLE.split('\n').length;
@@ -97,7 +101,7 @@ const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/react-renderer', '@g
 const NAMES = {
   '@graphysdk/viz-engine': new Set([...VE.values, ...VE.types]),
   '@graphysdk/react-renderer': new Set([...RR.values, ...RR.types]),
-  '@graphysdk/react-renderer/editable': (() => { const e = exportsOf(dts('@graphysdk/react-renderer', 'editable.d.ts')); return new Set([...e.values, ...e.types]); })(),
+  '@graphysdk/react-renderer/editable': new Set([...ED.values, ...ED.types]),
 };
 let importProblems = 0;
 for (const file of files) {
