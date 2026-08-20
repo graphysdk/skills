@@ -24,9 +24,7 @@
         "editor",
         "editing",
         "undo-redo"
-      ],
-      "strict": false,
-      "skills": "./plugin-skills"
+      ]
     }
   ]
 }

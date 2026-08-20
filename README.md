@@ -38,8 +38,7 @@ Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make
 ## Repo layout
 
 ```
-skills/<skill-name>/            # canonical skills — what both channels ship
-plugin-skills/                  # symlinks that expose skills to the Claude Code plugin
+skills/<skill-name>/            # canonical skills — what both channels ship (auto-discovered by the Claude Code plugin)
 .claude-plugin/marketplace.json # plugin marketplace manifest
 apps/graph-codegen/             # dev bench: agent + live preview for testing graphy-charts
 llms.txt                        # source of truth for graphy.dev/llms.txt — the agent-facing link index
