@@ -14,6 +14,7 @@
   "homepage": "https://github.com/graphysdk/skills#readme",
   "private": "true",
   "dependencies": {
+    "@graphysdk/react": "catalog:",
     "@graphysdk/react-renderer": "catalog:",
     "@graphysdk/viz-engine": "catalog:",
     "typescript": "catalog:"

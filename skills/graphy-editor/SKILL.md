@@ -83,8 +83,10 @@ persist.
 ## Hard rules
 
 - Commands come from `@graphysdk/viz-engine` (root); hooks and `GraphHandle` from
-  `@graphysdk/react-renderer` (root); components from `@graphysdk/react-renderer/editable`. A host
-  writing its own editing UI needs nothing from `./editable`.
+  `@graphysdk/react-renderer` (root); components from `@graphysdk/react-renderer/editable`. With
+  the standard `@graphysdk/react` install, all of it comes from `@graphysdk/react` and
+  `@graphysdk/react/editable` instead. A host writing its own editing UI needs nothing from
+  `./editable`.
 - Read-only embeds must never import from `./editable` — it ships TipTap, the panel and the
   rich-text editors. The 15 `@tiptap/*@^3` peers and React 19 are required (npm 7+/pnpm install
   peers automatically; Yarn users add them).

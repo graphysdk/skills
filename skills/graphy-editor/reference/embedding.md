@@ -17,6 +17,10 @@ dragging on the canvas, and in-place text editing for the title, subtitle, capti
 annotations. Its props are exactly `GraphRendererProps`; there is nothing editor-specific to
 configure on it.
 
+With the standard `@graphysdk/react` install, the same entry is `@graphysdk/react/editable` —
+identical exports. This skill's samples use the advanced-mode specifiers
+(`@graphysdk/react-renderer`, `@graphysdk/viz-engine`); swap only the specifier.
+
 Two switches, deliberately separate:
 
 - **The import decides whether editing *can* happen.** A plain `GraphRenderer` — even with

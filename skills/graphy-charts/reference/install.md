@@ -1,11 +1,12 @@
 # Install
 
-Two packages: **`@graphysdk/viz-engine`** (the engine — compiles a declarative spec plus data into a
-render-ready form, no React dependency) and **`@graphysdk/react-renderer`** (React components that
-paint the compiled graph to SVG). Install both.
+One package: **`@graphysdk/react`** — the spec builders, the `<GraphProvider>`/`<GraphRenderer>`
+components, and the hooks. This is the way to get started.
 
-**`@graphysdk/react`** is a batteries-included wrapper that re-exports the renderer. Reach for `@graphysdk/react-renderer` directly for the
-neutral layer, where the badge is off.
+Advanced mode: install the two packages it composes directly — **`@graphysdk/viz-engine`** (the
+engine — compiles a declarative spec plus data into a render-ready form, no React dependency) and
+**`@graphysdk/react-renderer`** (React components that paint the compiled graph to SVG, with the
+"Made with Graphy" badge off). For embedders who need the neutral layer or headless compiling.
 
 Don't stop at "packages installed" — the goal is a graph rendering on screen. If something blocks
 rendering, work through **Troubleshooting** below.
@@ -23,17 +24,15 @@ The packages are public on npm — no registry configuration or auth token neede
 
 ## Step 1 — install
 
-The packages publish under the `beta` dist-tag:
-
 ```bash
-pnpm add @graphysdk/viz-engine@beta @graphysdk/react-renderer@beta
+pnpm add @graphysdk/react
 # or: npm install / yarn add
 ```
 
-For the batteries-included wrapper instead:
+Advanced mode instead:
 
 ```bash
-pnpm add @graphysdk/react@beta
+pnpm add @graphysdk/viz-engine @graphysdk/react-renderer
 ```
 
 ## Step 2 — render a graph
@@ -46,14 +45,14 @@ Use the minimal chart in `SKILL.md`. Two things to know when checking the result
   needs real width and height. Use `sizing={{ mode: 'fixed', width: 640, height: 400 }}` while
   verifying, so the graph renders regardless of page layout.
 
-The editing surface lives behind `@graphysdk/react-renderer/editable` and ships its own stylesheet,
-injected the same way.
+The editing surface lives behind `@graphysdk/react/editable` (advanced mode:
+`@graphysdk/react-renderer/editable`) and ships its own stylesheet, injected the same way.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| **404 during install** | Wrong name or version. The packages publish under the `beta` dist-tag — `npm view @graphysdk/viz-engine@beta version` should print a version. Also check no stale `.npmrc` points the `@graphysdk` scope at a registry that doesn't have them. |
+| **404 during install** | Wrong name or version — `npm view @graphysdk/viz-engine version` should print one. Also check no stale `.npmrc` points the `@graphysdk` scope at a registry that doesn't have them. |
 | **`ERESOLVE` / peer error on `react`** | The project is on React 18 or older. Upgrade to React 19; there is no fallback. |
 | **Unmet peer `@tiptap/*`** | Yarn does not auto-install peers. Add the 15 `@tiptap/*` packages the renderer lists at `^3.0.0`. |
 | **Graph renders unstyled** | The bundler is not processing the CSS import inside `node_modules`. Add `css-loader` on a custom webpack setup; Vite and Next.js need no configuration. |

@@ -1,11 +1,11 @@
 ---
 name: graphy-charts
-description: Build highly expressive charts with Graphy's viz stack (@graphysdk/viz-engine, @graphysdk/react-renderer). Also covers installing and setting up the SDK in a React codebase.
+description: Build highly expressive charts with Graphy's viz stack (@graphysdk/react; advanced embedding via @graphysdk/viz-engine + @graphysdk/react-renderer). Also covers installing and setting up the SDK in a React codebase.
 ---
 
 # graphy-charts
 
-Build charts with `@graphysdk/viz-engine` (a grammar-of-graphics compiler, framework-agnostic) and `@graphysdk/react-renderer` (paints the compiled output to SVG/DOM in React).
+Build charts with **`@graphysdk/react`** — one package carrying the whole stack: the spec builders, `<GraphProvider>`/`<GraphRenderer>`, and the hooks. Under the hood it composes `@graphysdk/viz-engine` (a grammar-of-graphics compiler, framework-agnostic) and `@graphysdk/react-renderer` (paints the compiled output to SVG/DOM in React); install those two directly only for advanced embedding — see "Related packages" in `reference/react-api.md`.
 
 ## Mental model
 
@@ -24,8 +24,7 @@ Data flows one way: raw `Data` → resolved `Spec` (defaults applied, types infe
 ## Minimal chart
 
 ```tsx
-import { createSpec, pipe, mapping, geom, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+import { createSpec, pipe, mapping, geom, scale, GraphProvider, GraphRenderer } from '@graphysdk/react';
 
 const data = {
   columns: [{ key: 'month' }, { key: 'revenue' }],
@@ -50,6 +49,10 @@ export function RevenueChart() {
 This assumes the SDK is installed from npm and built by a bundler (`reference/install.md`). The
 same chart also runs on a plain HTML page with no bundler, loading the SDK from a CDN URL — only
 the imports change (`reference/cdn.md`).
+
+Reference and recipe samples import from the underlying packages (`@graphysdk/viz-engine`,
+`@graphysdk/react-renderer`). With the standard `@graphysdk/react` install, every one of those
+names comes from `'@graphysdk/react'` instead — only the specifier changes.
 
 ## The expressiveness ladder
 
