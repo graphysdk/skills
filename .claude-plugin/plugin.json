@@ -1,0 +1,23 @@
+{
+  "name": "graphy",
+  "version": "0.2.0",
+  "description": "Build graphs with the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-renderer), install or set it up in a React codebase, and make Graphy charts editable — commands, undo/redo, annotations, the optional editor panel. Activates on requests to author Graphy graphs, to install, configure or fix a Graphy install, or to embed or drive Graphy's chart editing.",
+  "author": {
+    "name": "Graphy Technologies Ltd",
+    "email": "hello@graphy.dev"
+  },
+  "homepage": "https://github.com/graphysdk/skills",
+  "repository": "https://github.com/graphysdk/skills",
+  "license": "MIT",
+  "keywords": [
+    "graphy",
+    "graphs",
+    "charts",
+    "data-viz",
+    "react",
+    "svg",
+    "editor",
+    "editing",
+    "undo-redo"
+  ]
+}

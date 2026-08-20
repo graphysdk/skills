@@ -39,6 +39,7 @@ Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make
 
 ```
 skills/<skill-name>/            # canonical skills — what both channels ship (auto-discovered by the Claude Code plugin)
+.claude-plugin/plugin.json      # Claude Code plugin manifest (skills/ is auto-discovered)
 .claude-plugin/marketplace.json # plugin marketplace manifest
 apps/graph-codegen/             # dev bench: agent + live preview for testing graphy-charts
 llms.txt                        # source of truth for graphy.dev/llms.txt — the agent-facing link index
