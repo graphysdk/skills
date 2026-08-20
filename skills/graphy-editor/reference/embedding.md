@@ -84,6 +84,10 @@ A page that only displays charts should import from the package root alone — `
 TipTap, the panel and its styles to the bundle. If the editor is only sometimes shown, load the
 `./editable` imports behind your own code-split boundary.
 
+The same split exists with no bundler: the SDK's CDN build ships a read-only bundle and an
+editable one, loaded from a jsDelivr URL — `graphy-charts/reference/cdn.md` has the URLs and the
+import map.
+
 ## Saving and restoring
 
 The save surface is one callback on `GraphProvider`:
