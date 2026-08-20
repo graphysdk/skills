@@ -1,9 +1,8 @@
 # CDN (no bundler)
 
 `@graphysdk/react` ships browser-ready bundles that load straight from jsDelivr in a
-`<script type="module">` — no bundler, no npm install, no registry auth. One URL carries the whole
-SDK: engine, renderer, spec builders, styles included. Only public versions work; jsDelivr cannot
-serve private packages.
+`<script type="module">` — no bundler, no npm install. One URL carries the whole SDK: engine,
+renderer, spec builders, styles included.
 
 ## Pick one bundle
 
@@ -35,10 +34,10 @@ one copy. The import map needs all four entries:
     <script type="importmap">
       {
         "imports": {
-          "react": "https://esm.sh/react@19.2.0",
-          "react/": "https://esm.sh/react@19.2.0/",
-          "react-dom": "https://esm.sh/react-dom@19.2.0",
-          "react-dom/": "https://esm.sh/react-dom@19.2.0/"
+          "react": "https://cdn.jsdelivr.net/npm/react@19.2.0/+esm",
+          "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
+          "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
+          "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm"
         }
       }
     </script>
@@ -90,6 +89,6 @@ unchanged; only the import URL differs.
 |---|---|
 | `Failed to resolve module specifier "react"` | The import map is missing or placed after the module script. It must come first, with all four entries. |
 | Editor components never see the chart | The page imports both bundles. Import only `editable.browser.mjs`; it includes the read-only components too. |
-| 404 from jsDelivr | The version in the URL is not public, or predates the browser bundles. Check `https://cdn.jsdelivr.net/npm/@graphysdk/react/` for available files. |
+| 404 from jsDelivr | The version in the URL does not exist, or predates the browser bundles. Check `https://cdn.jsdelivr.net/npm/@graphysdk/react/` for available files. |
 | Page broke without any change on your side | The import URL is unpinned, and a new SDK version was published. Pin `@<version>`. |
 | Graph area blank or zero height | Responsive sizing inside a parent with no height. Give the parent a height, or use fixed sizing as above. |

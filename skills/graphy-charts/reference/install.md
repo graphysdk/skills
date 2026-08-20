@@ -17,39 +17,11 @@ rendering, work through **Troubleshooting** below.
 | **React 19** | `react@^19.0.0` is a peer of the renderer. React 18 will not resolve. |
 | **A bundler that processes CSS imports from `node_modules`** | The renderer's JS entry imports its own stylesheet. Vite, Next.js and webpack + `css-loader` all do. |
 | **`@tiptap/*` v3** | The renderer declares 15 tiptap v3 packages as peers (`@tiptap/core`, `@tiptap/react`, `@tiptap/pm` and the extensions). npm 7+ and pnpm install peers automatically; Yarn does not. |
-| **An npm auth token** | Both packages are private. Installs fail with 404/403 without one. |
 | **`moduleResolution: "bundler"`** (or `node16`/`nodenext`) | The packages ship an `exports` map; the legacy `"node"` resolution misses it. |
 
-## Step 1 — registry auth
+The packages are public on npm — no registry configuration or auth token needed.
 
-Create an `.npmrc` in the repository root (or your home directory):
-
-```ini
-//registry.npmjs.org/:_authToken=${NPM_TOKEN}
-@graphysdk:registry=https://registry.npmjs.org/
-```
-
-Set `NPM_TOKEN` wherever installs run, locally and in CI. The token needs read access to the
-`@graphysdk` scope — the Graphy team provides one. Never commit a literal token; keep the
-`${NPM_TOKEN}` form.
-
-Yarn Berry (v2+) ignores `.npmrc` — use `.yarnrc.yml`:
-
-```yaml
-npmScopes:
-  graphysdk:
-    npmRegistryServer: 'https://registry.npmjs.org'
-    npmAuthToken: '${NPM_TOKEN}'
-```
-
-Verify before installing. This should print a version; a 404/403 means the token is missing, not
-exported, or lacks access:
-
-```bash
-npm view @graphysdk/viz-engine@beta version
-```
-
-## Step 2 — install
+## Step 1 — install
 
 The packages publish under the `beta` dist-tag:
 
@@ -64,7 +36,7 @@ For the batteries-included wrapper instead:
 pnpm add @graphysdk/react@beta
 ```
 
-## Step 3 — render a graph
+## Step 2 — render a graph
 
 Use the minimal chart in `SKILL.md`. Two things to know when checking the result:
 
@@ -81,7 +53,7 @@ injected the same way.
 
 | Symptom | Cause and fix |
 |---|---|
-| **404 / 403 during install** | Auth. Check the `.npmrc` from Step 1 exists (`.yarnrc.yml` for Yarn Berry), `NPM_TOKEN` is exported in the installing shell, and the token has read access to `@graphysdk`. In CI, check the secret reaches the install step. |
+| **404 during install** | Wrong name or version. The packages publish under the `beta` dist-tag — `npm view @graphysdk/viz-engine@beta version` should print a version. Also check no stale `.npmrc` points the `@graphysdk` scope at a registry that doesn't have them. |
 | **`ERESOLVE` / peer error on `react`** | The project is on React 18 or older. Upgrade to React 19; there is no fallback. |
 | **Unmet peer `@tiptap/*`** | Yarn does not auto-install peers. Add the 15 `@tiptap/*` packages the renderer lists at `^3.0.0`. |
 | **Graph renders unstyled** | The bundler is not processing the CSS import inside `node_modules`. Add `css-loader` on a custom webpack setup; Vite and Next.js need no configuration. |

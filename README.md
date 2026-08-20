@@ -6,7 +6,7 @@ Agent skills for building with [Graphy](https://graphy.dev). Install into Claude
 
 | Skill | What it does |
 |---|---|
-| [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Everything for building with the Graphy viz stack: installing and setting up the SDK (private-registry auth, prerequisites, troubleshooting), then authoring graphs — grammar-of-graphics spec building (geoms, scales, transforms, coords), styling, theming, slots, plugins, and storytelling (highlights, annotations). Includes recipes for common graph types and house styles, a generated type reference, a headless spec validator, and a checker that typechecks every code sample against the installed SDK. |
+| [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Everything for building with the Graphy viz stack: installing and setting up the SDK (prerequisites, troubleshooting), then authoring graphs — grammar-of-graphics spec building (geoms, scales, transforms, coords), styling, theming, slots, plugins, and storytelling (highlights, annotations). Includes recipes for common graph types and house styles, a generated type reference, a headless spec validator, and a checker that typechecks every code sample against the installed SDK. |
 
 ## Install
 
