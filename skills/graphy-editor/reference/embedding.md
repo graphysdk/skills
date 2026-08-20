@@ -63,9 +63,9 @@ need the canvas.
 
 ## What extra to install
 
-Nothing. The base install — registry auth, React 19, the 15 `@tiptap/*@^3` peer packages — is
-covered in `graphy-charts/reference/install.md` and already includes everything editing needs. Two
-details worth knowing:
+Nothing. The base install — React 19, the 15 `@tiptap/*@^3` peer packages — is covered in
+`graphy-charts/reference/install.md` and already includes everything editing needs. Two details
+worth knowing:
 
 - The `@tiptap/*` packages are only *loaded* when `./editable` is imported. npm 7+ and pnpm install
   them automatically; Yarn users add them by hand.
