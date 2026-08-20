@@ -64,6 +64,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 | I want to… | Read |
 |---|---|
 | Install the SDK, or fix a failed install (registry auth, 404/403, peer errors, unstyled graph) | `reference/install.md` |
+| Use the SDK on a page with no bundler or npm (`<script type="module">`, jsDelivr) | `reference/cdn.md` |
 | See the full spec builder API and every `config()` key | `reference/spec-api.md` |
 | Check the exact signature, option keys, or accepted values of an exported symbol | `reference/types.md` |
 | Filter, sort, aggregate or derive data inside the spec (`transform.*`) | `reference/spec-api.md` |
