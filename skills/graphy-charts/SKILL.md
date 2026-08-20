@@ -47,6 +47,10 @@ export function RevenueChart() {
 }
 ```
 
+This assumes the SDK is installed from npm and built by a bundler (`reference/install.md`). The
+same chart also runs on a plain HTML page with no bundler, loading the SDK from a CDN URL — only
+the imports change (`reference/cdn.md`).
+
 ## The expressiveness ladder
 
 1. **Spec + `config()`** — chart structure and chart-level options: layers, scales, coords, legend/axes settings, titles, headline numbers, number formats, layout.
