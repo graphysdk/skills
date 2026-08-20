@@ -127,7 +127,8 @@ import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
 
 The `EditorSurface` slot defaults to a no-op, so a read-only embed importing only from the package
 root bundles no editing code — keep it that way. Chart *building*, the subject of this skill, needs
-nothing from `./editable`; this file documents the read-only surface.
+nothing from `./editable`; this file documents the read-only surface. Embedding the editor, the
+panel, commands/undo and programmatic editing are the **`graphy-editor`** skill.
 
 ## Related packages
 
@@ -143,7 +144,8 @@ Exported and out of scope here, but worth knowing they exist: `GraphHandle` / `u
 `useHandleCompiled`, `useGraphCommands`, `useGraphHistory`, `useGraphHistoryShortcuts`,
 `useCompiledSelector`, `useGraphSelection`, `DevToolsPanel`, `TextMeasurerProvider` /
 `CanvasTextMeasurer` / `useTextMeasurer`, `HoverProvider` / `useHoverState`. Full signatures in
-`reference/types.md`.
+`reference/types.md`. The handle, commands, history and selection hooks are the editing surface —
+documented in the `graphy-editor` skill.
 
 ## Error handling
 
