@@ -142,10 +142,13 @@ exported from the `@graphysdk/viz-engine` root.
 
 **Chart type** — `SetChartTypeCommand` sets what the chart *is* (coord system + each
 layer's geom/position + scale shape) as one undo entry: params are
-`{ coordType: 'cartesian' | 'flip', geom, position }` or
-`{ coordType: 'polar', geom, position, theta, innerRadius }`. (There is no mapping command in the
-current SDK release — to remap a variable, rebuild the `SpecInput`; see "When no command exists"
-below.)
+`{ coordType: 'cartesian' | 'flip', geom, position }`,
+`{ coordType: 'polar', geom, position, theta, innerRadius }`, or
+`{ coordType: 'cartesian', comboType }` for the two-layer combo arm (`COMBO_TYPES`: `'grouped-bars'
+| 'stacked-bars' | 'lines'` — it names the geoms, so that arm carries no `geom`). A heatmap is
+`geom: 'tile'`, offerable only when `canBecomeHeatmap(spec)`. `readChartType(spec)` reads back what a
+chart is; `isComboChartType` narrows the combo arm. (There is no mapping command in the current SDK
+release — to remap a variable, rebuild the `SpecInput`; see "When no command exists" below.)
 
 **Layers** (see "Per-layer control" below) — `AddLayerCommand`, `RemoveLayerCommand`,
 `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`,

@@ -68,7 +68,7 @@ chart-scoped and condition-free** — they take no `where` and no `state`.
 
 | Target | Partitions | Declarations |
 |---|---|---|
-| `style.geom` | `.bar` `.line` `.area` `.point` `.rule`, plus `{ layer }` | shared: `color`, `alpha`, `saturation` |
+| `style.geom` | `.bar` `.line` `.area` `.point` `.rule`, plus `{ layer }` | shared: `color`, `alpha`, `saturation` — `tile` has no partition of its own, only these |
 | `style.geom.bar` | | + `borderRadius`, `borderColor`, `borderWidth` |
 | `style.geom.line` | | + `strokeWidth`, `lineType`, `fillAlpha` |
 | `style.geom.area` | | + `strokeWidth`, `lineType`, `strokeAlpha` |
@@ -89,6 +89,7 @@ Notes that bite:
   On `dataLabel`, `panelBorder` and `graph` it is a plain number.
 - **Hide a panel-border edge with `strokeWidth: 0`** — there is no `isVisible`.
 - `aggregate` data labels (stack totals) always sit outside, so they take no `.inside`/`.outside`.
+- **A tile has no `style.geom.tile`** — its fill comes from the `color` scale, its radius and inset are fixed.
 
 ## Colors
 

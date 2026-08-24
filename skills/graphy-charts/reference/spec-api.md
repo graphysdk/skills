@@ -122,12 +122,16 @@ pipe(
 );
 ```
 
+**`geom.tile()`** — the heatmap mark: a cell filling its `(x, y)` band on **both** axes, value on `color` rather than on a length. Default position `'identity'` and the only one accepted (`UNSUPPORTED_POSITION` otherwise); cartesian only (`UNSUPPORTED_COORD` under flip/polar). `color` is **required**. No params (`TileGeomParams` is empty) — a cell's geometry is the two bands it sits in.
+
+Defaults it brings: both position scales forced to bands with `padding: 0`; the `y` band `reverse: true` (first category at top); grid hidden on both axes; legend never suppressed; `showDataLabels` **`true`**, the one geom where it is. Declare `scale.color.continuous()` — with no color scale the engine appends the ordinal `scale.color.palette()`. Paint: **no `style.geom.tile`** — fill comes from the color scale, radius and inset fixed. Recipe: `recipes/charts/heatmap.md`.
+
 ### `dataLabels` (`DataLabelsConfig`)
 
 | Key | Default | Effect |
 |---|---|---|
-| `showDataLabels` | `false` | show value labels on the layer |
-| `format` | `'absolute'` (`'percentage'` for polar bars) | `'absolute'` or `'percentage'` |
+| `showDataLabels` | `false` (`true` on `tile`) | show value labels on the layer |
+| `format` | `'absolute'` (`'percentage'` for polar bars) | `'absolute'` or `'percentage'`; on a tile `'percentage'` falls back to absolute — no denominator |
 | `showStackTotals` | `false` | totals at stack ends (stacked/filled bars) |
 | `showCategoryLabels` | `false` | polar bars: prepend category ("Europe · 35%"); cartesian bars: second label per observation placed by the `category*` fields |
 | `position` | `'auto'` | `'auto' \| 'inside' \| 'outside'`; only `'auto'` may drop/flip/rotate |
@@ -139,7 +143,7 @@ pipe(
 | `categoryAlign` | `'center'` | cross-axis anchor |
 | `categoryOffset` | `4` | px |
 
-Label text comes from `mapping.label` when set, otherwise the layer's y value (segment magnitude for stacked positions).
+Label text comes from `mapping.label` when set, otherwise the layer's y value (segment magnitude for stacked positions), unless the geom carries its value elsewhere: a bubble labels its `size`, a tile its `color`.
 
 These keys decide *whether and where* a label sits. Its paint — font, text color, pill background, padding, border — is `style.dataLabel`, partitioned by role (`.observation`, `.category`, `.aggregate`) and, for the first two, by resolved position (`.inside` / `.outside`).
 
@@ -156,7 +160,7 @@ Method sets per aesthetic (`spec/scales/scales.ts`):
 | `size`, `alpha`, `strokeWidth` | no | `.continuous()`, `.discrete()`, `.identity()` |
 | `lineType` | no | `.discrete()`, `.identity()` (discrete-only; numeric variable errors) |
 
-**Inference** (bare call, options forwarded to the resolved type): numeric → continuous, categorical → discrete, temporal → datetime (position) / continuous (elsewhere); `{ value }` constant mappings, unmapped aesthetics, and unknown variables → continuous. Bar layers force a discrete x band scale and a zero-anchored y regardless of inference.
+**Inference** (bare call, options forwarded to the resolved type): numeric → continuous, categorical → discrete, temporal → datetime (position) / continuous (elsewhere); `{ value }` constant mappings, unmapped aesthetics, and unknown variables → continuous. Bar layers force a discrete x band scale and a zero-anchored y regardless of inference; tile layers force a band on **both** axes, and coerce a declared continuous scale back with an `UNSUPPORTED_SCALE_TYPE` warning.
 
 Options per scale type:
 
@@ -171,8 +175,8 @@ Options per scale type:
 | | `range` | size `[4, 20]`, alpha `[0.1, 1]`, strokeWidth `[1, 4]` | output range, non-positional only |
 | discrete | `domain` | data order | explicit category order and membership |
 | | `range` | palette/bands | explicit output values, in domain order |
-| | `padding` | `0.1` | band gap fraction (0 forced under polar) |
-| | `reverse` | `false` | flip band order |
+| | `padding` | `0.1` | band gap fraction; 0 forced under polar, and defaulted to 0 by a geom whose cells abut |
+| | `reverse` | `false` | flip band order; `true` on the cross axis of a geom banded on both, so a heatmap reads top-down |
 | datetime | `domainMin` / `domainMax` | data | epoch milliseconds |
 | | `nice` | `false` | rounding temporal bounds is surprising, so off by default |
 | | `reverse` / `clamp` | `false` | as continuous |
