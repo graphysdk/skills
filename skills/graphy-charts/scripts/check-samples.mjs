@@ -9,21 +9,31 @@
 // Only API-shape diagnostics are reported; fragment noise is filtered out.
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { join, resolve, relative, dirname } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const REPO = resolve(process.argv[3] ?? '/Users/roman/dev/skills');
+// scripts/ lives at <repo>/skills/<skill>/scripts, so the repo root is three levels up.
+const REPO = resolve(process.argv[3] ?? join(dirname(fileURLToPath(import.meta.url)), '../../..'));
 const ts = require(join(REPO, 'node_modules/typescript'));
 const SKILL = resolve(process.argv[2] ?? join(REPO, 'skills/graphy-charts'));
 // Must live INSIDE the repo: node module resolution for @graphysdk/* depends on it.
 const TMP = join(REPO, '.sample-typecheck');
 
 function dts(pkg, file) { return resolve(dirname(require.resolve(pkg, { paths: [REPO] })), file); }
-function exportsOf(path) {
+function exportsOf(path, seen = new Set()) {
+  if (seen.has(path)) return { values: new Set(), types: new Set() };
+  seen.add(path);
   const sf = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
   const v = new Set(), t = new Set();
   (function visit(n) {
-    if (ts.isExportDeclaration(n) && n.exportClause && ts.isNamedExports(n.exportClause))
+    // `export * from './authoring'` / from a package: an entry that is a barrel re-exports what it names.
+    if (ts.isExportDeclaration(n) && !n.exportClause && n.moduleSpecifier) {
+      const star = starExportsOf(path, n.moduleSpecifier.text, seen);
+      for (const name of star.values) v.add(name);
+      for (const name of star.types) t.add(name);
+    }
+    else if (ts.isExportDeclaration(n) && n.exportClause && ts.isNamedExports(n.exportClause))
       for (const e of n.exportClause.elements) (e.isTypeOnly ? t : v).add(e.name.text);
     else if ((ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) &&
       n.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) t.add(n.name.text);
@@ -34,6 +44,21 @@ function exportsOf(path) {
     ts.forEachChild(n, visit);
   })(sf);
   return { values: v, types: t };
+}
+
+/** Resolve one `export * from` target to its `.d.ts` and read it, relative path or package alike. */
+function starExportsOf(fromPath, specifier, seen) {
+  const empty = { values: new Set(), types: new Set() };
+  try {
+    if (specifier.startsWith('.')) {
+      const base = resolve(dirname(fromPath), specifier);
+      return exportsOf(base.endsWith('.d.ts') ? base : `${base}.d.ts`, seen);
+    }
+    const entry = require.resolve(specifier, { paths: [REPO] });
+    return exportsOf(resolve(dirname(entry), 'index.d.ts'), seen);
+  } catch {
+    return empty; // an unresolvable target is the resolver's problem, not a missing-export report
+  }
 }
 
 const VE = exportsOf(dts('@graphysdk/viz-engine', 'index.d.ts'));

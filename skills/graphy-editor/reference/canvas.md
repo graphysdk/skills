@@ -122,11 +122,12 @@ Details worth knowing:
   `DIFFERENCE_ARROW_DEFAULTS` (image has no defaults constant in the current release — give its
   fields explicitly).
 - To pin a new annotation to a hovered data point, build its anchor with
-  `buildObservationAnchor(layer, observation)`. It returns `null` when the data point has nothing
-  stable to anchor to — respect that rather than creating an annotation the next compile will
-  drop. `areObservationAnchorsEqual` / `areAnchorsEqual` compare anchors the way the compiler does
-  (an ISO string and a `Date` of the same instant match), and `findObservationAttachment` finds
-  what a data point already carries.
+  `createObservationAnchorBuilder(layer)` — the rules belong to the layer, so it resolves them once
+  and returns an `(observation) => ObservationAnchor | null` to call per data point. A `null` means
+  the data point has nothing stable to anchor to — respect it rather than creating an annotation the
+  next compile will drop. `areObservationAnchorsEqual` / `areAnchorsEqual` compare anchors the way
+  the compiler does (an ISO string and a `Date` of the same instant match), and
+  `findObservationAttachment` finds what a data point already carries.
 
 Anchors are recalculated on every compile: they follow resizes, and data-bound ones follow their
 data. An anchor that no longer resolves simply hides its annotation (no error) — it stays in the
@@ -139,4 +140,5 @@ or `x-value`. When adding highlights from your own UI, run the menu's two checks
 `findHighlightsAtObservation` to see what already covers the data point (offer removal instead),
 and `findEquivalentHighlight` to avoid creating a second, invisible copy of an existing highlight.
 Both use the compiler's own matching logic, so what you offer always agrees with what the chart
-draws.
+draws. The menu has no scope vocabulary for a `tile` layer, so it offers no highlight there;
+spec-level `highlight()` predicates still paint one.

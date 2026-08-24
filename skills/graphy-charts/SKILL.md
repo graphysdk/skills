@@ -11,7 +11,7 @@ Build charts with **`@graphysdk/react`** — one package carrying the whole stac
 
 The engine is a grammar of graphics in the ggplot2 / Vega-Lite tradition. You do not pick a chart type from a menu; you compose one from orthogonal primitives:
 
-- A **layer** = a **geom** (mark kind: `point`, `line`, `area`, `bar`, `rule`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `sum`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
+- A **layer** = a **geom** (mark kind: `point`, `line`, `area`, `bar`, `rule`, `tile`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `sum`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
 - Chart types are compositions: a pie chart is `bar` + `position: 'fill'` + `coord.polar({ theta: 'y' })`; a donut adds `innerRadius`; a horizontal bar chart is `coord.flip()`; a radar chart is `line`/`area` + `coord.polar({ theta: 'x' })`.
 - A reference line is `geom.rule()`. A trendline is `stat.smooth`. An average line is `stat.mean`.
 - **Transforms** reshape data declaratively inside the spec: `transform.filter`, `transform.sort`, `transform.aggregate`, `transform.reshape` (wide→long), `transform.constant`. Prefer them over preprocessing `rows` with vanilla JS. Full option tables in `reference/spec-api.md`.
@@ -91,6 +91,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 | Radar / spider chart | `recipes/charts/radar.md` |
 | Rose or racetrack (polar bars) | `recipes/charts/polar-bar.md` |
 | Combo chart, dual y-axes | `recipes/charts/combo.md` |
+| Heatmap, matrix, cohort grid, waffle | `recipes/charts/heatmap.md` |
 | Apply a complete house style | `recipes/themes/` — see the Themes section below |
 | Repaint a built-in geom's marks | `recipes/plugins/sketchy-bar.md` |
 | Minimal custom geom to model a new one after | `recipes/plugins/lollipop.md` |

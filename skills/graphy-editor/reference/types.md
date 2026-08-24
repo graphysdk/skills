@@ -2,7 +2,7 @@
 
 # Type reference
 
-Generated from `@graphysdk/viz-engine@1.8.1-beta.1786952756412` and `@graphysdk/react-renderer@1.8.1-beta.1786952756412` (root and `/editable` entries).
+Generated from `@graphysdk/viz-engine@1.8.1-beta.1787333039234` and `@graphysdk/react-renderer@1.8.1-beta.1787333039234` (root and `/editable` entries).
 
 > The exact public editing API, extracted verbatim (with JSDoc) from the built
 > `.d.ts` files: the command system and annotation model from
@@ -11,7 +11,7 @@ Generated from `@graphysdk/viz-engine@1.8.1-beta.1786952756412` and `@graphysdk/
 > Check precise signatures, option keys, and accepted values here; the other
 > reference files cover how the pieces compose. Every type these declarations
 > reference is defined in this file, most under "Supporting types" at the
-> end. The only opaque names are compiled/internal shapes and the authoring-side spec graph (documented in the graphy-charts skill's types.md): AesMapping, AnnotationSpecByKind, AnnotationsSpec, CompiledLayer, CompiledSpec, CompiledStat, CoreIntlProviderProps, CustomPalettesInput, Data, Dataset, Geom, GraphSlots, HighlightSpec, Observation, Predicate, RenderOnlyPlugin, Spec, SpecInput, StyleRule, StyleSelect, ThemeOverrides, VizDiagnostic, WhenClause.
+> end. The only opaque names are compiled/internal shapes and the authoring-side spec graph (documented in the graphy-charts skill's types.md): AesMapping, AnnotationSpecByKind, AnnotationsSpec, CompiledLayer, CompiledSpec, CompiledStat, CustomPalettesInput, Data, Dataset, Geom, GraphSlots, HighlightSpec, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, SpecInput, StyleRule, StyleSelect, ThemeOverrides, VizDiagnostic, WhenClause.
 >
 > Not extractable from the published d.ts (upstream bundling gap): `EditorPanel`,
 > `PanelRootProps`, `PANEL_ROOT_ATTRIBUTE` — their shapes are documented in
@@ -454,6 +454,23 @@ class SetChartTypeCommand implements Command<SetChartTypeParams> {
     apply(spec: Spec): CommandApplyResult | null;
 }
 
+/** The chart's type as a picker reads it back, or `null` for a chart no type describes. */
+const readChartType: (spec: Spec) => ChartTypeSummary | null;
+
+/**
+ * Whether the chart has the second dimension a heatmap lays out as rows: a series to pivot onto them,
+ * or spare measures to fold into them. A picker offers the type only where it holds — a chart drawing
+ * one measure against one axis has a single row, which is a strip rather than a grid.
+ */
+const canBecomeHeatmap: (spec?: Spec) => boolean;
+
+/**
+ * Whether a type is the two-layer kind, whose halves each get their own geom. Reads the summary rather
+ * than trusting its shape, since one arriving off the wire is only as good as what it names: a combo is
+ * cartesian, its halves separated onto y axes polar coords have no room for.
+ */
+const isComboChartType: (summary: ChartTypeSummary) => summary is ComboChartTypeSummary;
+
 /**
  * Adds a layer to the spec — the on direction of "show a trend line", "show an average", "add a
  * series". Carries a whole {@link LayerSpec} because that is what those toggles differ by.
@@ -540,7 +557,8 @@ class SetLayerStatCommand implements Command<SetLayerStatParams> {
  * Command that binds a layer to the primary or secondary y axis — the dual-axis control on a combo
  * chart, where a revenue line reads against the left axis and a margin line against the right.
  * Targets a specific layer by ID, or falls back to the spec's first layer, and moves that layer
- * alone; siblings keep their own binding.
+ * alone; siblings keep their own binding. The scale the second axis is drawn from moves with the
+ * binding ({@link resolveSecondaryScale}).
  * Produces a revert command that restores the previous binding for undo support, and returns
  * `null` when the layer already reads against the requested axis.
  */
@@ -1098,7 +1116,7 @@ class SetGridLineStyleCommand implements Command<SetGridLineStyleParams> {
 
 /**
  * Sets the stroke width of a grid's lines, on one axis or on `both` as a single edit, or hands it
- * back to the theme with `null`.
+ * back to the stylesheet with `null`.
  *
  * Narrows only what has no stroke to draw. Where a grid stops reading as a rule is a matter of taste
  * and belongs to the control offering the range: a bound here could not put back a wider width the
@@ -1526,18 +1544,22 @@ const clampAnnotationTranslation: (kinded: KindedAnnotation, translation: PanelT
 type PanelTranslation = PanelPoint;
 
 /**
- * The anchor that resolves back to `observation` on `layer` — the inverse of the compiler's observation
- * anchor resolution, so an annotation created on a hovered observation lands on that same observation.
+ * Builds the anchor for any observation of one layer — the inverse of the compiler's observation anchor
+ * resolution, so an annotation created on a hovered observation lands on that same observation.
  *
- * `null` when the observation carries no value on the variable anchors match against: the pair an anchor
- * is durable by does not exist, so an annotation pointing at it would be dropped at the next compile.
+ * The rules an address follows belong to the layer, so a walk over its observations resolves them once
+ * here rather than per candidate. The counterpart to {@link createObservationAnchorMatcher}.
+ *
+ * The built anchor is `null` when the observation carries no value on a variable the layer's addresses
+ * narrow by: without it the annotation would be dropped at the next compile, or land on whichever
+ * sibling the layer holds first.
  */
-const buildObservationAnchor: (layer: CompiledLayer, observation: Observation) => ObservationAnchor | null;
+const createObservationAnchorBuilder: (layer: CompiledLayer) => ((observation: Observation) => ObservationAnchor | null);
 
 /**
  * Whether two anchors address the same observation, the comparison the compiler drops a collapsed arrow
- * on. Observations of one series can share an anchor value — a scatter series with a repeated x — so a
- * candidate that would collapse the arrow is passed over for the next one rather than offered.
+ * on. A candidate that repeats an endpoint's anchor is passed over for the next one, so the walk never
+ * lands where the arrow would measure nothing.
  */
 const areAnchorsEqual: (first: ObservationAnchor, second: ObservationAnchor) => boolean;
 
@@ -1583,7 +1605,13 @@ interface RichTextContent {
  */
 const EditableGraphRenderer: ({ slots, ...rest }: GraphRendererProps) => JSX.Element;
 
-const IntlProvider: React.FC<CoreIntlProviderProps>;
+/**
+ * The translation context editor UI needs, already carrying the editing surface's wording. Mount it
+ * around a panel a host places outside the chart; `EditableGraphRenderer` mounts its own.
+ *
+ * It owns the phrase sets, so a caller cannot name one and silently leave the editor untranslated.
+ */
+const IntlProvider: ({ children, ...rest }: Omit<IntlProviderProps, "dictionaries">) => JSX.Element;
 
 /** Both axes, each switched on and off from within its own section. */
 const AxesPanel: ({ children, ...rootProps }: PanelProps) => JSX.Element;
@@ -1941,7 +1969,8 @@ const Select: ({ options, value, onChange, placeholder, isDisabled, hasError, ar
  * The value is nullable so a section can render "nothing chosen yet"; `onChange` only ever fires
  * with a real option, since clearing a required setting is not a gesture the panel offers.
  */
-interface SelectControlProps extends DiscreteControlProps<string | null> {
+interface SelectControlProps extends Omit<DiscreteControlProps<string | null>, 'onChange'> {
+    onChange: (value: string) => void;
     options: readonly ControlOption[];
     placeholder?: string;
     hasError?: boolean;
@@ -2242,12 +2271,12 @@ interface AreaGeomParams {
      */
     interpolate: InterpolateType;
     /**
-     * How to handle missing (null/undefined) values. As for line:
+     * How to handle missing (null/undefined) values:
      * - `'zero'`: nulls arrive already substituted with zero by the compiler.
-     * - `'gap'`: break the path at a null.
-     * - `'connect'`: drop nulls before pathing so the line spans the gap.
-     * @default 'gap'
-     * */
+     * - `'connect'`: drop nulls before pathing so the band spans the gap.
+     * - `'gap'`: normalised to `'zero'` — an area can't render a gap mid-stack.
+     * @default 'zero'
+     */
     missingValues: MissingValuesType;
 }
 
@@ -2318,11 +2347,8 @@ type AxisTickMode = 'auto' | 'edges';
  * lives in the stylesheet (`spec.styles`), resolved per observation by the style resolver.
  */
 interface BarGeomParams {
-    /**
-     * Bar width as a fraction of the band the discrete scale allocates to the category, in `(0, 1]`.
-     * @default 0.7
-     */
-    width: number;
+    /** Bar width as a fraction of the band the discrete scale allocates to the category, in `(0, 1]`. */
+    width?: number;
 }
 
 /**
@@ -2353,6 +2379,13 @@ type BorderRadiusToken = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
  */
 const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
 
+/**
+ * How a combo chart draws its series. The bar half's arrangement names the type, since the series
+ * drawn last is always the line; `'lines'` keeps the split without the bars, so both halves can still
+ * be bound to y axes of their own.
+ */
+const COMBO_TYPES: readonly ["grouped-bars", "stacked-bars", "lines"];
+
 interface CartesianCoordSpec {
     type: 'coord';
     coordType: 'cartesian';
@@ -2378,7 +2411,7 @@ type ChartTypeSummary = {
     position: PositionType;
     theta: PolarTheta;
     innerRadius: number;
-};
+} | ComboChartTypeSummary;
 
 type ColorInterpolationSpace = (typeof COLOR_INTERPOLATION_SPACES)[number];
 
@@ -2387,6 +2420,17 @@ type ColorScheme = 'light' | 'dark';
 
 /** Any named colour scheme accepted by a continuous colour scale. */
 type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
+
+/**
+ * A chart drawn as two layers so its halves can differ: bars under a line, or lines throughout. The
+ * geoms are the {@link ComboType}'s to name, which is why this arm carries no `geom` of its own.
+ */
+type ComboChartTypeSummary = {
+    coordType: 'cartesian';
+    comboType: ComboType;
+};
+
+type ComboType = (typeof COMBO_TYPES)[number];
 
 /**
  * Descriptor that knows how to deserialize a specific command type.
@@ -2743,8 +2787,9 @@ interface FlipCoordSpec {
  * - `'area'` — Filled area marks
  * - `'bar'` — Rectangular bar marks (cartesian) or pie wedge (polar)
  * - `'rule'` — Horizontal or vertical reference line at a constant value
+ * - `'tile'` — Rectangular cell filling a band on both axes; the heatmap mark
  */
-type GeomName = 'point' | 'line' | 'area' | 'bar' | 'rule';
+type GeomName = 'point' | 'line' | 'area' | 'bar' | 'rule' | 'tile';
 
 /**
  * Maps each geom type name to its resolved parameter type.
@@ -2755,6 +2800,7 @@ interface GeomParamsMap {
     area: AreaGeomParams;
     bar: BarGeomParams;
     rule: RuleGeomParams;
+    tile: TileGeomParams;
 }
 
 type GraphyPaletteConfig = {
@@ -3084,8 +3130,9 @@ interface NumberFormatConfig {
 /**
  * Resolved observation reference, scoped to a layer by its stable `layerId` (or unscoped).
  *
- * An observation reference survives as long as the (anchor, group) pair is
- * preserved in the dataset.
+ * An observation reference survives as long as the dataset preserves its address: the anchor value plus
+ * whatever the layer's geom narrows by — the group it belongs to, the cross axis telling apart the
+ * observations sharing its main-axis value.
  */
 interface ObservationAnchor {
     /** Stable id of the layer this reference is scoped to, when set. */
@@ -3094,18 +3141,26 @@ interface ObservationAnchor {
     anchorValue: DataValue;
     /** The group value to match if any, otherwise match any group. */
     groupValue?: DataValue;
+    /** Value on the cross axis, as on {@link ObservationAnchorInput}. */
+    crossValue?: DataValue;
     /** Which point of the matched geom's box to resolve to. Omitted means the geom-natural point. */
     align?: AnchorAlign;
 }
 
-/** Points at a single observation by its anchor value and series. */
+/** Points at a single observation by its anchor value and whatever narrows it on its layer. */
 interface ObservationAnchorInput {
-    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    /** Stable id of a layer; picks one out when several share the same address. */
     layerId?: string;
     /** Value on the main axis (x in cartesian, y in flipped). */
     anchorValue: DataValue;
     /** The group value to match if any, otherwise match any group. */
     groupValue?: DataValue;
+    /**
+     * Value on the cross axis, named by every layer whose geom places its observations in two dimensions —
+     * a heatmap's cells, a scatter's points — where a main-axis value names a whole column or cloud. Ignored
+     * on a layer whose geom does not, whatever its data holds.
+     */
+    crossValue?: DataValue;
     /** Which point of the matched geom's box to resolve to. Omitted means the geom-natural point. */
     align?: AnchorAlign;
 }
@@ -3172,7 +3227,7 @@ type Plugin = CompileDefinition | {
  * A single position, expressed as a relationship to the graph that re-resolves each compile.
  *
  * - `panel`: a fraction of the plot rect (`[0,1]`), top-left origin. Does not snap to data.
- * - `observation`: pinned to one observation by its `(anchorValue, groupValue)` pair.
+ * - `observation`: pinned to one observation by its address — see {@link ObservationAnchorInput}.
  * - `axis`: see {@link AxisAnchor}.
  * - `selection`: see {@link SelectionPointAnchor}.
  * - `annotation`: see {@link AnnotationPointAnchor}.
@@ -3184,10 +3239,11 @@ type PointAnchorInput = {
     offset?: AnchorOffset;
 } | {
     anchorType: 'observation';
-    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    /** Stable id of a layer; picks one out when several share the same address. */
     layerId?: string;
     anchorValue: DataValue;
     groupValue?: DataValue;
+    crossValue?: DataValue;
     align?: AnchorAlign;
     offset?: AnchorOffset;
 } | AxisAnchor | SelectionPointAnchor | AnnotationPointAnchor;
@@ -3454,10 +3510,10 @@ type SetBarWidthParams = {
     /** Layer to target; when omitted, the first bar layer is used. */
     layerId?: string;
     /** Fraction of the category band each bar fills, clamped to `[0.05, 1]`; the rest is the gap beside it. */
-    width: BarGeomParams['width'];
+    width?: number;
 };
 
-/** The type to set, or — on a revert — the chart as it stood, since a combo chart has no type to name. */
+/** The type to set, or — on a revert — the chart as it stood, since a chart no type describes has none to name. */
 type SetChartTypeParams = ChartTypeSummary | {
     previous: ChartTypeState;
 };
@@ -3502,7 +3558,8 @@ type SetDataLabelsFormatParams = {
 
 type SetGridLineStyleParams = {
     axis: GridAxisTarget;
-    lineStyle: PerAxisValue<LineStyleType>;
+    /** Dash pattern, or `null` to fall back to the stylesheet. */
+    lineStyle: PerAxisValue<LineStyleType | null>;
 };
 
 type SetGridLineWidthParams = {
@@ -3895,6 +3952,12 @@ interface TextAnnotationInput {
 /** A text value — plain string or structured rich text. */
 type TextContent = string | RichTextContent;
 
+/**
+ * Intentionally empty: a tile's geometry comes from its position variables and its fill from the mapped
+ * `color` aesthetic.
+ */
+type TileGeomParams = Record<string, never>;
+
 type ToggleCategoryLabelsParams = {
     /** Layer to target; when omitted, the spec's first layer is used. */
     layerId?: string;
@@ -4110,6 +4173,14 @@ type GraphSizing = {
     aspectRatio: number;
 };
 
+interface IntlProviderProps {
+    locale?: I18nLocale;
+    children: ReactNode;
+    i18nOverrides?: I18nRuntimeOverrides;
+    /** The phrase sets this tree translates against, most specific first. Defaults to the chart's own. */
+    dictionaries?: readonly PhraseSource[];
+}
+
 interface IntroAnimationOptions {
     /** Whether the entrance plays at all */
     enabled: boolean;
@@ -4135,6 +4206,9 @@ interface PanelProps extends Omit<PanelRootProps_2, 'children'> {
      */
     children?: ReactNode;
 }
+
+/** One surface's phrases, per locale. */
+type PhraseSource = Partial<Record<I18nLocale, object>>;
 
 /** Fires on each deduped size change — the shape of `GraphRenderer`'s `onResize` callback. */
 type ResizeObserverOnResize = (state: ResizeObserverState) => void;

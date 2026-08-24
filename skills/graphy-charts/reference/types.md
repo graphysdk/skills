@@ -2,7 +2,7 @@
 
 # Type reference
 
-Generated from `@graphysdk/viz-engine@1.8.1-beta.1786952756412` and `@graphysdk/react-renderer@1.8.1-beta.1786952756412`.
+Generated from `@graphysdk/viz-engine@1.8.1-beta.1787333039234` and `@graphysdk/react-renderer@1.8.1-beta.1787333039234`.
 
 > The exact public chart-authoring API, extracted verbatim (with JSDoc) from the
 > built `.d.ts` of `@graphysdk/viz-engine` and `@graphysdk/react-renderer`.
@@ -131,13 +131,14 @@ function createSpec(...items: Array<AesMapping | SpecItem>): SpecInput;
  */
 function mapping(aes: AesMapping): MappingItem;
 
-/** Factories for the geom layers a graph can draw (point, line, area, bar, rule). */
+/** Factories for the geom layers a graph can draw (point, line, area, bar, rule, tile). */
 const geom: {
     point: typeof point;
     line: typeof line;
     area: typeof area;
     bar: typeof bar;
     rule: typeof rule;
+    tile: typeof tile;
 };
 
 /**
@@ -389,8 +390,8 @@ function styles(stylesheet: Stylesheet): StylesheetInput;
  * (serialized into `when`) plus the optional `id`. `style.geom` takes the paint every kind shares;
  * `style.geom.bar` stamps `select.kind = 'bar'` and opens the bar vocabulary, and the other kinds nest
  * the same way (`style.geom.line`). Chrome targets nest by partition instead: `style.panelBorder.top`
- * stamps `select.edge`, `style.gridLine.x` stamps `select.axis` and the bare builders address the
- * whole target.
+ * stamps `select.edge`, `style.gridLine.x` stamps `select.axis`, `style.tooltip.heading` stamps
+ * `select.part`, and the bare builders address the whole target (the tooltip box, for `style.tooltip`).
  *
  * @example
  *   styles({
@@ -442,6 +443,12 @@ const style: {
         aggregate: (declarations: DataLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
     };
     graph: (declarations: GraphStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    tooltip: ((declarations: TooltipBoxStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        heading: (declarations: TooltipTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        label: (declarations: TooltipTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        value: (declarations: TooltipTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        primaryRow: (declarations: TooltipPrimaryRowStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
 };
 
 /**
@@ -590,6 +597,30 @@ type StyleRule = {
     };
     declarations: GraphStyleDeclarations;
     when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'tooltip';
+        part?: undefined;
+    };
+    declarations: TooltipBoxStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'tooltip';
+        part: 'heading' | 'label' | 'value';
+    };
+    declarations: TooltipTextStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'tooltip';
+        part: 'primaryRow';
+    };
+    declarations: TooltipPrimaryRowStyleDeclarations;
+    when?: undefined;
 };
 
 /** The declarations an entry can author, color-valued properties in any {@link StyleColorValue} form. */
@@ -602,21 +633,22 @@ type StyleProperty = keyof StyleDeclarations;
  * The structural address of a style entry — what it styles, decidable with no data.
  *
  * - `target` — the element class: `geom` or one of the chrome targets (`panelBorder`, `gridLine`,
- *   `tickLine`, `axisLabel`, `tickLabel`, `ruleLabel`, `dataLabel`, `graph`). Chrome entries are
- *   chart-scoped and condition-free — they carry no `when`.
+ *   `tickLine`, `axisLabel`, `tickLabel`, `ruleLabel`, `dataLabel`, `graph`, `tooltip`). Chrome
+ *   entries are chart-scoped and condition-free — they carry no `when`.
  * - `kind` — restrict a geom entry to one kind, and open that kind's vocabulary. Stamped by the kind
  *   builders (`style.geom.bar`). Absent, the entry applies to every layer with the shared vocabulary.
  * - `layer` — restrict a geom or ruleLabel entry to the layer with that authored id.
- * - `edge` / `axis` / `role` / `position` — restrict a chrome entry to one partition of its target: a
- *   panel-border edge, the axis a grid line, tick line, axis label or tick label belongs to, a data
- *   label's role and where it sits. Absent, the entry addresses the whole target. `position` needs a
+ * - `edge` / `axis` / `role` / `position` / `part` — restrict a chrome entry to one partition of its
+ *   target: a panel-border edge, the axis a grid line, tick line, axis label or tick label belongs
+ *   to, a data label's role and where it sits, or a tooltip part. Absent, the entry addresses the
+ *   whole target. A bare tooltip entry is the box, not a wildcard over its parts. `position` needs a
  *   role and stack totals (`aggregate`) always sit outside, so it never partitions them.
  */
 type StyleSelect = StyleRule['select'];
 
 /** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
 type ChromeStyleSelect = Extract<StyleSelect, {
-    target: 'panelBorder' | 'gridLine' | 'tickLine' | 'axisLabel' | 'tickLabel' | 'ruleLabel' | 'dataLabel' | 'graph';
+    target: 'panelBorder' | 'gridLine' | 'tickLine' | 'axisLabel' | 'tickLabel' | 'ruleLabel' | 'dataLabel' | 'graph' | 'tooltip';
 }>;
 
 /**
@@ -926,7 +958,8 @@ interface GraphSlots {
 
 /**
  * Props for the Header slot, overridable via `slots.Header` on `GraphRenderer`. Title editing in
- * `editable` mode is internal to this default; an override replacing the region opts out of it.
+ * `editable` mode is internal to this default — it hands off to the editor `/editable` supplies —
+ * and an override replacing the region opts out of it.
  */
 interface HeaderSlotProps {
     /** Forward this to the region's outer element — the layout measures the rendered DOM to reserve its space. */
@@ -946,7 +979,8 @@ interface HeaderSlotProps {
 
 /**
  * Props for the Footer slot, overridable via `slots.Footer` on `GraphRenderer`. Caption editing in
- * `editable` mode is internal to this default; an override replacing the region opts out of it.
+ * `editable` mode is internal to this default — it hands off to the editor `/editable` supplies —
+ * and an override replacing the region opts out of it.
  */
 interface FooterSlotProps {
     /** Forward this to the region's outer element — the layout measures the rendered DOM to reserve its space. */
@@ -1088,6 +1122,8 @@ abstract class Geom<TParams = Record<string, never>> {
     readonly identityKey: IdentityKey;
     /** How overlapping marks of this geom arrange when the layer omits a position (bar → dodge, area → stack). */
     readonly defaultPosition: PositionType;
+    /** Position adjustments this geom can render under; a layer position outside this set is rejected. */
+    readonly supportedPositions: readonly PositionType[];
     /** Whether layers of this geom take part in hover hit-testing by default (rule opts out). */
     readonly defaultInteractive: boolean;
     /**
@@ -1143,7 +1179,7 @@ abstract class Geom<TParams = Record<string, never>> {
      * anchor aligns to that rather than the whole band, so `align: 'left'` lands where the geoms end.
      * A geom that draws on the band centre with no width doesn't implement it.
      */
-    resolveBandFraction?: (params: LayerSpec['params']) => number;
+    resolveBandFraction?: (params: LayerSpec['params'], coordSystem: CoordSystem) => number;
     /**
      * Optional: an observation's extent box in normalised panel `[0, 1]²` space. Selection anchors fold
      * the boxes of every matched observation across layers; geoms that don't implement this are skipped,
@@ -1152,10 +1188,11 @@ abstract class Geom<TParams = Record<string, never>> {
      */
     resolveAnchorBox?: (observation: Observation, coordSystem: CoordSystem) => AnchorBox | null;
     /**
-     * Optional: the geom's bespoke default data-label source when none is mapped (point → the bound
-     * `size` variable). Returns `null` to defer to the shared segment-y default.
+     * Optional: the aesthetic carrying the value an observation stands for, where that is not its y (a
+     * tile encodes its value as `color`), for the given {@link ValueSourcePurpose}. Returns `null` to
+     * defer to the shared segment-y default.
      */
-    resolveDefaultLabelSource?: (mapping: AesMapping) => AestheticValue | null;
+    resolveValueSource?: (mapping: AesMapping, purpose: ValueSourcePurpose) => AestheticValue | null;
     /**
      * Optional: data-label defaults that depend on the layer's position adjuster (e.g. bar defaults `justify` to
      * `'center'` on stacked/filled segments). Applied over the base defaults; both the per-coord defaults and
@@ -1479,12 +1516,12 @@ interface AreaGeomParams {
      */
     interpolate: InterpolateType;
     /**
-     * How to handle missing (null/undefined) values. As for line:
+     * How to handle missing (null/undefined) values:
      * - `'zero'`: nulls arrive already substituted with zero by the compiler.
-     * - `'gap'`: break the path at a null.
-     * - `'connect'`: drop nulls before pathing so the line spans the gap.
-     * @default 'gap'
-     * */
+     * - `'connect'`: drop nulls before pathing so the band spans the gap.
+     * - `'gap'`: normalised to `'zero'` — an area can't render a gap mid-stack.
+     * @default 'zero'
+     */
     missingValues: MissingValuesType;
 }
 
@@ -1558,16 +1595,6 @@ interface AxisGridConfig {
      *   (visible unless a geom policy hides it, e.g. bar charts hide the x grid)
      */
     isVisible: boolean | null;
-    /**
-     * Line style of this axis's grid lines.
-     * @default 'dashed'
-     */
-    lineStyle: LineStyleType;
-    /**
-     * Stroke width of this axis's grid lines in px. null inherits the theme's grid line width.
-     * @default null
-     */
-    lineWidth: number | null;
 }
 
 /** Which axis something belongs to, with `ySecondary` already folded into `y`. */
@@ -1642,11 +1669,8 @@ interface AxisTicksConfig {
  * lives in the stylesheet (`spec.styles`), resolved per observation by the style resolver.
  */
 interface BarGeomParams {
-    /**
-     * Bar width as a fraction of the band the discrete scale allocates to the category, in `(0, 1]`.
-     * @default 0.7
-     */
-    width: number;
+    /** Bar width as a fraction of the band the discrete scale allocates to the category, in `(0, 1]`. */
+    width?: number;
 }
 
 /** The paint vocabulary of the bar geom — the shared paint plus corner rounding and a border. */
@@ -2449,6 +2473,11 @@ type EditTarget = {
 /** A value format with no inner lookups. Lookup cases and fallbacks are constrained to this so a `lookup` cannot nest another `lookup` at the type level. */
 type ExplicitValueFormat = TemporalValueFormat | NumericValueFormat | CurrencyValueFormat | CategoricalValueFormat;
 
+/** The whole layer fades up from transparent, every mark on one clock. */
+interface FadeIntroPlan extends IntroPlanBase {
+    type: 'fade';
+}
+
 /***************************************************************
  * Filter Transform
  ***************************************************************/
@@ -2592,8 +2621,9 @@ interface GeomMappingValidationInput {
  * - `'area'` — Filled area marks
  * - `'bar'` — Rectangular bar marks (cartesian) or pie wedge (polar)
  * - `'rule'` — Horizontal or vertical reference line at a constant value
+ * - `'tile'` — Rectangular cell filling a band on both axes; the heatmap mark
  */
-type GeomName = 'point' | 'line' | 'area' | 'bar' | 'rule';
+type GeomName = 'point' | 'line' | 'area' | 'bar' | 'rule' | 'tile';
 
 type GeomOptions<G extends GeomName> = BaseGeomOptions<GeomParamsMap[G]>;
 
@@ -2608,6 +2638,7 @@ interface GeomParamsMap {
     area: AreaGeomParams;
     bar: BarGeomParams;
     rule: RuleGeomParams;
+    tile: TileGeomParams;
 }
 
 /** The paint declarations every geom kind shares. */
@@ -2644,9 +2675,9 @@ interface GraphLayout {
 /**
  * The vocabulary of the graph target — the chart frame. The border ring draws only when both
  * `borderColor` and a positive `borderWidth` resolve; its width also shrinks the area the chart
- * lays out in.
+ * lays out in. `fontFamily` is the base family text targets inherit when they do not declare one.
  */
-interface GraphStyleDeclarations extends Pick<StyleDeclarations, 'background' | 'borderColor' | 'borderWidth'> {
+interface GraphStyleDeclarations extends Pick<StyleDeclarations, 'background' | 'borderColor' | 'borderWidth' | 'fontFamily'> {
     borderRadius?: number;
 }
 
@@ -2830,9 +2861,14 @@ interface HoverHitBase {
      * - `buckets` / `rects` / `cells`: the dataset row inside the layer's observations.
      * - `points`: the entry's position inside the layer's `points[]` (i.e. the Delaunay's array
      *   index). Diverges from the dataset row when the dataset has null x/y gaps, so callers must
-     *   read `observation` rather than indexing `data` by `pointIndex`.
+     *   read `observation`, or take the row from `readObservationIndex`.
      */
     pointIndex: number;
+    /**
+     * The row `observation` occupies in its layer's data, carried only by the index kinds whose
+     * `pointIndex` is something else — read it through `readObservationIndex`, never directly.
+     */
+    observationIndex?: number;
     /**
      * The observation being hovered over. Renderers read values from here; the engine does not format.
      */
@@ -2842,16 +2878,18 @@ interface HoverHitBase {
 /**
  * What makes "the same observation" across recompiles, for morphs and hover stability.
  *
- * Two kinds. `'index'` and `'x-group'` are *derived*: the pipeline resolves them from the layer's
- * position/mapping, so the geom names a role, not a column.
+ * Three kinds are *derived*: the pipeline resolves them from the layer's position/mapping, so the geom
+ * names a role, not a column.
  * - `'index'`: positional index into the dataset — the fallback when no field is stable.
  * - `'x-group'`: the columns backing the layer's x + group aesthetics, resolved per chart from the
  *   mapping. The default for standard cartesian geoms, which can't name those columns themselves.
+ * - `'x-y'`: the columns backing both position aesthetics, for a geom whose observations partition a
+ *   grid rather than a series — a tile's x repeats down its column, with no group to tell those apart.
  *
  * `{ variable }` is *explicit*: identity is one data column the geom owns and names directly, for a
  * geom keyed by its own id (sankey nodes, voronoi sites) where the x+series roles don't apply.
  */
-type IdentityKey = 'index' | 'x-group' | {
+type IdentityKey = 'index' | 'x-group' | 'x-y' | {
     readonly variable: string;
 };
 
@@ -3058,7 +3096,7 @@ interface LayerInputBase {
 /**
  * A layer's entrance plan, discriminated on `type`.
  */
-type LayerIntroPlan = GrowIntroPlan | WipeIntroPlan;
+type LayerIntroPlan = GrowIntroPlan | WipeIntroPlan | FadeIntroPlan;
 
 /**
  * Discriminated union of all resolved layer specs, keyed on `geom`.
@@ -3396,14 +3434,20 @@ interface NumericValueFormat {
     type: 'decimal' | 'integer' | 'percentage' | 'duration';
 }
 
-/** Points at a single observation by its anchor value and series. */
+/** Points at a single observation by its anchor value and whatever narrows it on its layer. */
 interface ObservationAnchorInput {
-    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    /** Stable id of a layer; picks one out when several share the same address. */
     layerId?: string;
     /** Value on the main axis (x in cartesian, y in flipped). */
     anchorValue: DataValue;
     /** The group value to match if any, otherwise match any group. */
     groupValue?: DataValue;
+    /**
+     * Value on the cross axis, named by every layer whose geom places its observations in two dimensions —
+     * a heatmap's cells, a scatter's points — where a main-axis value names a whole column or cloud. Ignored
+     * on a layer whose geom does not, whatever its data holds.
+     */
+    crossValue?: DataValue;
     /** Which point of the matched geom's box to resolve to. Omitted means the geom-natural point. */
     align?: AnchorAlign;
 }
@@ -3508,7 +3552,7 @@ type Plugin = CompileDefinition | {
  * A single position, expressed as a relationship to the graph that re-resolves each compile.
  *
  * - `panel`: a fraction of the plot rect (`[0,1]`), top-left origin. Does not snap to data.
- * - `observation`: pinned to one observation by its `(anchorValue, groupValue)` pair.
+ * - `observation`: pinned to one observation by its address — see {@link ObservationAnchorInput}.
  * - `axis`: see {@link AxisAnchor}.
  * - `selection`: see {@link SelectionPointAnchor}.
  * - `annotation`: see {@link AnnotationPointAnchor}.
@@ -3520,10 +3564,11 @@ type PointAnchorInput = {
     offset?: AnchorOffset;
 } | {
     anchorType: 'observation';
-    /** Stable id of a layer; picks one out when several share the same `(anchorValue, groupValue)` pair. */
+    /** Stable id of a layer; picks one out when several share the same address. */
     layerId?: string;
     anchorValue: DataValue;
     groupValue?: DataValue;
+    crossValue?: DataValue;
     align?: AnchorAlign;
     offset?: AnchorOffset;
 } | AxisAnchor | SelectionPointAnchor | AnnotationPointAnchor;
@@ -3938,6 +3983,13 @@ interface ScaleAPI {
 interface ScaleConstraints {
     /** Force this geom's band (x) scale to be discrete (e.g. a bar's categorical axis). */
     discreteMainAxis?: boolean;
+    /** Force this geom's cross (y) scale to be discrete (e.g. a tile's categorical rows). */
+    discreteCrossAxis?: boolean;
+    /**
+     * Default band padding for this geom's discrete position scales; `0` makes neighbouring cells abut.
+     * Explicit user padding always wins.
+     */
+    bandPadding?: number;
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
     zeroBaseline?: boolean;
 }
@@ -4091,7 +4143,7 @@ interface SourceContent {
  * Every shape but `'render-hit-test'` is derived from position scales at compile time, so the runtime
  * builds its index from the compiled data alone.
  */
-type SpatialKind = 'buckets' | 'rects' | 'points' | 'noop' | 'render-hit-test';
+type SpatialKind = 'buckets' | 'rects' | 'cells' | 'points' | 'noop' | 'render-hit-test';
 
 type SpecItem = LayerInput | ScaleInput | CoordInput | ConfigItem | AnyTransformInput | MappingItem | HighlightInput | AnnotationItem | StylesheetInput;
 
@@ -4163,8 +4215,9 @@ type StyleColorValue = string | LightDarkColor | StyleTokenRef;
  * - `fillAlpha` — peak opacity of the gradient wash beneath a line, `0..1`. Undeclared draws no wash.
  * - `size` — point marker diameter in pixels.
  * - `background` — the graph's background fill.
- * - `fontFamily` — the CSS family list text is drawn in. Undeclared keeps the renderer's own family,
- *   so a host font reaches text no entry names.
+ * - `fontFamily` — the CSS family list text is drawn in. On a text target, undeclared falls
+ *   through the graph entry, then the renderer's own family, so a host font reaches text no
+ *   entry names.
  * - `fontSize` — text size in pixels, before `textScale`.
  * - `fontWeight` — numeric text weight, `1..1000`.
  * - `lineHeight` — the band one line of text reserves, as a multiple of `fontSize`. Above `1` it is
@@ -4174,6 +4227,7 @@ type StyleColorValue = string | LightDarkColor | StyleTokenRef;
  * - `length` — how far a tick line reaches out from the panel edge, in pixels.
  * - `paddingInline` — horizontal padding between a label's text and its box edge, each side, in pixels.
  * - `paddingBlock` — vertical padding between a label's text and its box edge, each side, in pixels.
+ * - `shadow` — a drop shadow (`offsetX`, `offsetY`, `blur`, `color`) or `'none'` to hide it.
  */
 interface StyleDeclarationsFor<ColorValue, RadiusValue = BorderRadiusToken> {
     color?: ColorValue;
@@ -4197,7 +4251,19 @@ interface StyleDeclarationsFor<ColorValue, RadiusValue = BorderRadiusToken> {
     length?: number;
     paddingInline?: number;
     paddingBlock?: number;
+    shadow?: StyleShadowValue<ColorValue>;
 }
+
+/** A drop shadow. Offsets and blur are pixels; `color` takes the same forms as other color properties. */
+interface StyleShadow<ColorValue> {
+    offsetX: number;
+    offsetY: number;
+    blur: number;
+    color: ColorValue;
+}
+
+/** `'none'` hides the shadow; an object paints one. */
+type StyleShadowValue<ColorValue> = StyleShadow<ColorValue> | 'none';
 
 /** A named color in the stylesheet's token table: one literal or a light-dark pair. */
 type StyleTokenValue = string | LightDarkColor;
@@ -4259,6 +4325,21 @@ type TickLabelStyleDeclarations = TextStyleDeclarations & Pick<StyleDeclarations
 /** The vocabulary of the tickLine target. */
 type TickLineStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType' | 'length'>;
 
+/**
+ * Intentionally empty: a tile's geometry comes from its position variables and its fill from the mapped
+ * `color` aesthetic.
+ */
+type TileGeomParams = Record<string, never>;
+
+/**
+ * The vocabulary of a bare tooltip entry — the popover box. `paddingBlock` insets the root;
+ * `paddingInline` insets the header, comment and rows so the primary-row tint can reach the box edge.
+ * `shadow` is a drop-shadow object or `'none'`.
+ */
+interface TooltipBoxStyleDeclarations extends Pick<StyleDeclarations, 'background' | 'borderColor' | 'borderWidth' | 'paddingInline' | 'paddingBlock' | 'shadow'> {
+    borderRadius?: number;
+}
+
 /** Fully-derived tooltip content. The popover renders directly from this. */
 interface TooltipContent {
     /**
@@ -4272,9 +4353,13 @@ interface TooltipContent {
 }
 
 type TooltipContract = ReadonlyArray<{
-    readonly key: string;
+    /** Row label. When omitted, the label is resolved from the mapped variable's friendly name. */
+    readonly key?: string;
     readonly aes: string;
 }>;
+
+/** The vocabulary of the tooltip primary-row tint. */
+type TooltipPrimaryRowStyleDeclarations = Pick<StyleDeclarations, 'background'>;
 
 /**
  * One row in the chart tooltip popover. Pure projection of a `HoverHit` against the layer's
@@ -4300,10 +4385,13 @@ interface TooltipRow {
     key: string;
 }
 
+/** The vocabulary of the tooltip heading, label and value parts — the shared type. */
+type TooltipTextStyleDeclarations = TextStyleDeclarations;
+
 /**
  * Stable code for a failure the caller can fix by editing their {@link Spec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED';
 
 /**
  * The compiler-emitted descriptor of how a raw data value should be turned into a display string.
@@ -4344,6 +4432,16 @@ type ValueFormat = ExplicitValueFormat | LookupValueFormat;
 interface ValueMapping {
     value: DataValue;
 }
+
+/**
+ * What a value reading is for, which decides whether a geom's own value channel answers it.
+ *
+ * - `'label'` — a data label prints the value, with no geometry to agree with: a point's label can
+ *   print the `size` it is drawn at.
+ * - `'measurement'` — an annotation reports the value, so it must name the quantity the anchor
+ *   position expresses. A geom whose value rides on a position axis defers here, whatever it labels.
+ */
+type ValueSourcePurpose = 'label' | 'measurement';
 
 /**
  * Variable mapping - references a column in the data
@@ -4517,6 +4615,8 @@ function smooth(options: {
 function sort(options: SortOptions): SortTransformInput;
 
 function sum(): SumStatSpec;
+
+function tile(options?: GeomOptions<'tile'>): LayerInputOf<'tile'>;
 ```
 
 ## Supporting types — @graphysdk/react-renderer
@@ -4928,7 +5028,6 @@ const vars: {
     heatmapEmptyTileBackground: `var(--${string})`;
     gridLineWidth: `var(--${string})`;
     tooltipBorderRadius: `var(--${string})`;
-    tooltipBorderWidth: `var(--${string})`;
     tooltipPaddingBlock: `var(--${string})`;
     tooltipPaddingInline: `var(--${string})`;
     tooltipRowGap: `var(--${string})`;
@@ -4979,10 +5078,7 @@ const vars: {
     toolbarSeparatorColor: `var(--${string})`;
     tooltipBackground: `var(--${string})`;
     tooltipBorderColor: `var(--${string})`;
-    tooltipHeadingTextColor: `var(--${string})`;
-    tooltipLabelTextColor: `var(--${string})`;
     tooltipValueTextColor: `var(--${string})`;
-    tooltipPrimaryRowColor: `var(--${string})`;
     hoverGuideLineColor: `var(--${string})`;
     hoverGuideFillColor: `var(--${string})`;
     fontFamilyDefault: `var(--${string})`;
@@ -5016,8 +5112,6 @@ const vars: {
     fontLineHeightHeadingLg: `var(--${string})`;
     fontLegendLabel: `var(--${string})`;
     fontSeriesLabel: `var(--${string})`;
-    fontTooltipLabel: `var(--${string})`;
-    fontTooltipHeading: `var(--${string})`;
     fontTooltipFooter: `var(--${string})`;
     fontJumboTooltipLabel: `var(--${string})`;
     fontJumboTooltip: `var(--${string})`;

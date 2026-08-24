@@ -136,7 +136,7 @@ when you don't need the cascade. See `reference/styling.md`.
 
 `input.intro` is a `LayerIntroPlan | null` — the engine's plan for how this layer should enter on first mount (and on a coord change). The plan is **offered, never imposed**: nothing gates the paint, and a geom that ignores it simply appears at once.
 
-- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan, `'buckets'` under cartesian → a `wipe` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom always receives `null` — it never animates in, by design.
+- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan, `'buckets'` under cartesian → a `wipe` plan, `'cells'` → a `fade` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom always receives `null` — it never animates in, by design.
 - `LayerIntroPlan` is discriminated on `type`: `{ type: 'grow', durationSeconds, baseline, growAxis, delayByKey }` or `{ type: 'wipe', durationSeconds, axis }`, with all timings already in seconds.
 - Chart chrome (data labels) is delayed by a fixed intro delay whenever any intro plays, regardless of what the geoms do — a geom that ignores its plan still appears before the chrome.
 - The layer's row count counts toward the chart-wide `maxAnimatedGeoms` budget (`countLayerGeoms`), so a large custom layer can suppress the whole chart's intro.
@@ -205,10 +205,10 @@ Key declarations:
 | `positionRoles` | `[]` | The position columns the compile half injects and the render half reads — the cross-half contract. Roles: `point` (sources its axis aesthetic), `min`/`max` (interval ends), `scalar` (scaled in place). A role's `aes` is a plain string, so a geom can bind **custom positional aesthetics** (`'open'`, `'low'`, `'close'`) the engine trains and scales like built-in channels; a `min`/`max` role without `aes` is compile-written |
 | `aesthetics` | `[]` | Non-positional channels: `{ kind: 'visual', name }` (scaled — `color`, `size`; built-in vocabulary) or `{ kind: 'data', name }` (read raw from the mapped column, no scale — a sankey's `source`/`target`/`value`; free-form name). `required: true` enforces presence |
 | `derivedVariables` | `[]` | Names the geom computes in its own output that authors may map to (exempt from unknown-variable checks) |
-| `scaleConstraints` | unset | `{ discreteMainAxis?, zeroBaseline? }` — domain constraints the geom imposes on inferred scales |
+| `scaleConstraints` | unset | `{ discreteMainAxis?, discreteCrossAxis?, zeroBaseline?, bandPadding? }` — domain constraints the geom imposes on its position scales; a band demand coerces a declared continuous scale back (`UNSUPPORTED_SCALE_TYPE`) |
 | `supportedCoordTypes` | `['cartesian', 'flip']` | Coords the geom renders under |
-| `spatialKind` | `'points'` | Hover hit-test shape: `'points' \| 'rects' \| 'buckets' \| 'noop' \| 'render-hit-test'`. Use `'render-hit-test'` when geometry comes from a layout algorithm rather than position scales |
-| `identityKey` | `'x-group'` | What makes "the same observation" across recompiles: `'x-group'`, `'index'`, or `{ variable: 'nodeId' }` for a geom keyed by its own id column |
+| `spatialKind` | `'points'` | Hover hit-test shape: `'points' \| 'rects' \| 'cells' \| 'buckets' \| 'noop' \| 'render-hit-test'`. Use `'render-hit-test'` when geometry comes from a layout algorithm rather than position scales |
+| `identityKey` | `'x-group'` | What makes "the same observation" across recompiles: `'x-group'`, `'index'`, `'x-y'` (both position columns), or `{ variable: 'nodeId' }` for a geom keyed by its own id column |
 | `isComposite` | `false` | `true` when the geom draws one geometry per group (a line's path) rather than one mark per observation |
 | `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` (contract must supply `getOverlayAnchor`) \| `'observation-rerender'` \| `null` (opt out) |
 | `defaultPosition`, `defaultInteractive` | `'identity'`, `true` | Layer-resolution defaults |

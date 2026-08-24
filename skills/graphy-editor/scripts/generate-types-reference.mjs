@@ -118,6 +118,9 @@ const GROUPS = [
     pkg: "viz-engine",
     symbols: [
       "SetChartTypeCommand",
+      "readChartType",
+      "canBecomeHeatmap",
+      "isComboChartType",
       "AddLayerCommand",
       "AddLayerOptions",
       "LayerDraft",
@@ -224,7 +227,7 @@ const GROUPS = [
       "isAnnotationMovable",
       "clampAnnotationTranslation",
       "PanelTranslation",
-      "buildObservationAnchor",
+      "createObservationAnchorBuilder",
       "areAnchorsEqual",
       "RichTextContent",
     ],

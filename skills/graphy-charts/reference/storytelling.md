@@ -115,17 +115,18 @@ Annotations position through anchors that re-resolve every compile — they re-f
 |---|---|
 | `anchorValue` | value on the main axis (x in cartesian, y under `coord.flip()`) |
 | `groupValue` | the series to match; omitted matches any group |
-| `layerId` | a layer's authored `id`; picks one out when several layers share the same `(anchorValue, groupValue)` pair. An id no layer carries raises `UNKNOWN_LAYER_ID` and drops the annotation |
-| `align` | which point of the matched geom's box to resolve to; omitted means the geom-natural point (e.g. a bar's top-edge midpoint) |
+| `crossValue` | value on the cross (y) axis; narrows a geom indexed in two dimensions — a `tile`'s cells, a `point` layer's cloud — where `anchorValue` names a whole column. Ignored elsewhere; on a tile it replaces `groupValue` |
+| `layerId` | a layer's authored `id`; picks one out when several layers share the same address. An id no layer carries raises `UNKNOWN_LAYER_ID` and drops the annotation |
+| `align` | which point of the matched geom's box to resolve to; omitted means the geom-natural point (e.g. a bar's top-edge midpoint, a tile's centre) |
 
-**Survival semantics**: `anchorValue` and `groupValue` are re-parsed through the anchored column's `ValueFormat` before matching, so `'2024-01-05'`, a `Date`, and a stored ISO string all name the same observation. The anchor holds as long as that `(anchorValue, groupValue)` pair exists in the data — rows can be inserted, reordered, or revalued around it. It detaches only when the pair disappears.
+**Survival semantics**: the anchor's values are re-parsed through the anchored column's `ValueFormat` before matching, so `'2024-01-05'`, a `Date`, and a stored ISO string all name the same observation. The anchor holds as long as that address exists in the data — rows can be inserted, reordered, or revalued around it. It detaches only when the address disappears.
 
 **Point anchor** (`PointAnchorInput`) — a single position, five arms:
 
 | `anchorType` | Shape | Notes |
 |---|---|---|
 | `panel` | `{ x, y }` | fractions of the plot rect `[0,1]`, top-left origin; never snaps to data. Takes no `align` |
-| `observation` | `{ anchorValue, groupValue?, layerId?, align? }` | pinned to one observation, fields as above |
+| `observation` | `{ anchorValue, groupValue?, crossValue?, layerId?, align? }` | pinned to one observation, fields as above |
 | `axis` | `{ x: DataValue, y: DataValue, align? }` | a point given in **axis values**, mapped through the position scales. Dropped when either coordinate fails to map: a value outside a discrete domain, a missing scale, or a polar coord |
 | `selection` | `{ predicate, align }` | the box of **every** observation the predicate matches, reduced to the named box point. `align` is **required** here. Dropped when nothing matches |
 | `annotation` | `{ ref, align? }` | a point on another annotation's box, named by its authored id. `align` defaults to `'center'`. Resolved in the runtime pass, because text boxes are measured in the browser. Dropped on a missing ref or a reference cycle |
@@ -394,7 +395,7 @@ Mode split: **cartesian** charts show a **per-group** strip — one figure per c
 
 ## Data labels — layer `dataLabels`
 
-Per-layer config on any geom; all off by default.
+Per-layer config on any geom; defaults in the table below.
 
 ```ts
 geom.bar({
@@ -405,8 +406,8 @@ geom.bar({
 
 | Key | Values (default) | Notes |
 |---|---|---|
-| `showDataLabels` | `boolean` (`false`) | one value label per observation |
-| `format` | `'absolute' \| 'percentage'` (`'absolute'`) | |
+| `showDataLabels` | `boolean` (`false`; `true` on `tile`) | one value label per observation |
+| `format` | `'absolute' \| 'percentage'` (`'absolute'`) | on a tile `'percentage'` falls back to absolute — no denominator |
 | `position` | `'auto' \| 'inside' \| 'outside'` (`'auto'`) | `auto` fits/flips/drops/rotates as needed and ignores `justify`/`align`; explicit values render exactly as asked. Stacked/filled cartesian segments coerce `'outside'` to `'inside'` |
 | `justify` | `'start' \| 'center' \| 'end' \| 'panel-start' \| 'panel-end'` (`'end'`; `'center'` for stacked/filled bars) | anchor along the value axis; `'end'` is the value tip regardless of orientation or sign; `panel-*` pins to the panel edge |
 | `align` | `'start' \| 'center' \| 'end'` (`'center'`) | anchor across the geom: bandwidth for bars, angular for pie wedges, x for point/line/area |
