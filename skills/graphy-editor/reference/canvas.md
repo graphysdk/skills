@@ -140,5 +140,4 @@ or `x-value`. When adding highlights from your own UI, run the menu's two checks
 `findHighlightsAtObservation` to see what already covers the data point (offer removal instead),
 and `findEquivalentHighlight` to avoid creating a second, invisible copy of an existing highlight.
 Both use the compiler's own matching logic, so what you offer always agrees with what the chart
-draws. The menu has no scope vocabulary for a `tile` layer, so it offers no highlight there;
-spec-level `highlight()` predicates still paint one.
+draws.

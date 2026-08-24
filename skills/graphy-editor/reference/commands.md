@@ -145,16 +145,10 @@ layer's geom/position + scale shape) as one undo entry: params are
 `{ coordType: 'cartesian' | 'flip', geom, position }`,
 `{ coordType: 'polar', geom, position, theta, innerRadius }`, or
 `{ coordType: 'cartesian', comboType }` for the two-layer combo arm (`COMBO_TYPES`: `'grouped-bars'
-| 'stacked-bars' | 'lines'` — it names the geoms, so that arm carries no `geom`). (There is no
-mapping command in the current SDK release — to remap a variable, rebuild the `SpecInput`; see
-"When no command exists" below.)
-
-A heatmap is `{ coordType: 'cartesian', geom: 'tile', position: 'identity' }`, and the one type that
-also **pivots the mapping**: it paints its value as the cell fill, so the command exchanges `y` and
-`color` on the way in — the chart's series becomes the rows, or spare measures are folded into them —
-and back on the way out. That needs a second dimension for the rows, so call `canBecomeHeatmap(spec)`
-before offering the type. `readChartType(spec)` reads back what a chart is; `isComboChartType`
-narrows the combo arm.
+| 'stacked-bars' | 'lines'` — it names the geoms, so that arm carries no `geom`). A heatmap is
+`geom: 'tile'`, offerable only when `canBecomeHeatmap(spec)`. `readChartType(spec)` reads back what a
+chart is; `isComboChartType` narrows the combo arm. (There is no mapping command in the current SDK
+release — to remap a variable, rebuild the `SpecInput`; see "When no command exists" below.)
 
 **Layers** (see "Per-layer control" below) — `AddLayerCommand`, `RemoveLayerCommand`,
 `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`,
