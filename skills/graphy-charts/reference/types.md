@@ -2,7 +2,7 @@
 
 # Type reference
 
-Generated from `@graphysdk/viz-engine@1.8.1-beta.1787333039234` and `@graphysdk/react-renderer@1.8.1-beta.1787333039234`.
+Generated from `@graphysdk/viz-engine@1.9.0-beta.1788548769329` and `@graphysdk/react-renderer@1.9.0-beta.1788548769329`.
 
 > The exact public chart-authoring API, extracted verbatim (with JSDoc) from the
 > built `.d.ts` of `@graphysdk/viz-engine` and `@graphysdk/react-renderer`.
@@ -214,7 +214,7 @@ function highlight(predicate: Predicate, options?: HighlightBuilderOptions): Hig
  * spec feature (geoms, scales, highlights). Multiple calls of the same kind accumulate.
  *
  * @example
- *   import { pipe, createSpec, geom, scale, annotation } from '@graphysdk/viz-engine';
+ *   import { pipe, createSpec, geom, scale, annotation, style, styles } from '@graphysdk/viz-engine';
  *
  *   pipe(
  *     createSpec({ x: 'month', y: 'revenue', color: 'region' }),
@@ -227,11 +227,8 @@ function highlight(predicate: Predicate, options?: HighlightBuilderOptions): Hig
  *       end: { anchorValue: 'Jun', groupValue: 'North' },
  *       label: 'relative-difference',
  *     }),
- *     annotation.shape({
- *       region: { anchorType: 'panel', x: 0, y: 0.7, width: 1, height: 0.3 },
- *       fillColor: '#e15759',
- *       fillOpacity: 0.12,
- *     }),
+ *     annotation.shape({ id: 'forecast', region: { anchorType: 'panel', x: 0, y: 0.7, width: 1, height: 0.3 } }),
+ *     styles({ overrides: [style.annotation.shape({ color: '#e15759', alpha: 0.12 }, { annotation: 'forecast' })] }),
  *   );
  */
 const annotation: {
@@ -392,6 +389,8 @@ function styles(stylesheet: Stylesheet): StylesheetInput;
  * the same way (`style.geom.line`). Chrome targets nest by partition instead: `style.panelBorder.top`
  * stamps `select.edge`, `style.gridLine.x` stamps `select.axis`, `style.tooltip.heading` stamps
  * `select.part`, and the bare builders address the whole target (the tooltip box, for `style.tooltip`).
+ * Annotations nest by kind like geoms: `style.annotation.shape` stamps `select.kind = 'shape'`, and the
+ * `annotation` option narrows an annotation entry to one annotation, by id.
  *
  * @example
  *   styles({
@@ -448,6 +447,40 @@ const style: {
         label: (declarations: TooltipTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
         value: (declarations: TooltipTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
         primaryRow: (declarations: TooltipPrimaryRowStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    headline: (declarations: HeadlineStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    headlineItem: {
+        number: ((declarations: HeadlineItemTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+            center: (declarations: HeadlineItemTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        };
+        caption: (declarations: HeadlineItemTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        label: (declarations: HeadlineItemTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        swatch: (declarations: HeadlineItemSwatchStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        trend: ((declarations: HeadlineItemTextStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+            up: (declarations: HeadlineItemTrendColorStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+            down: (declarations: HeadlineItemTrendColorStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+            flat: (declarations: HeadlineItemTrendColorStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+        };
+    };
+    legend: (declarations: LegendStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    legendItem: ((declarations: LegendItemStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule) & {
+        swatch: (declarations: LegendItemSwatchStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    };
+    directLabel: (declarations: DirectLabelStyleDeclarations, options?: ChromeStyleEntryOptions) => StyleRule;
+    annotation: ((declarations: AnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule) & {
+        shape: (declarations: ShapeAnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        arrow: (declarations: ArrowAnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        differenceArrow: ((declarations: DifferenceArrowAnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule) & {
+            label: (declarations: DifferenceArrowLabelStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        };
+        text: (declarations: TextAnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        image: (declarations: ImageAnnotationStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        pinnedNumber: ((declarations: CalloutMarkerStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule) & {
+            label: (declarations: CalloutLabelStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        };
+        comment: ((declarations: CalloutMarkerStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule) & {
+            label: (declarations: CalloutLabelStyleDeclarations, options?: AnnotationStyleEntryOptions) => StyleRule;
+        };
     };
 };
 
@@ -621,7 +654,104 @@ type StyleRule = {
     };
     declarations: TooltipPrimaryRowStyleDeclarations;
     when?: undefined;
-};
+} | {
+    id?: string;
+    select: {
+        target: 'headline';
+    };
+    declarations: HeadlineStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'headlineItem';
+        part: 'number' | 'numberCenter' | 'caption' | 'label' | 'trend';
+    };
+    declarations: HeadlineItemTextStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'headlineItem';
+        part: 'swatch';
+    };
+    declarations: HeadlineItemSwatchStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'headlineItem';
+        part: 'trendUp' | 'trendDown' | 'trendFlat';
+    };
+    declarations: HeadlineItemTrendColorStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'legend';
+    };
+    declarations: LegendStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'legendItem';
+        part?: undefined;
+    };
+    declarations: LegendItemStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'legendItem';
+        part: 'swatch';
+    };
+    declarations: LegendItemSwatchStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'directLabel';
+    };
+    declarations: DirectLabelStyleDeclarations;
+    when?: undefined;
+} | {
+    id?: string;
+    select: {
+        target: 'annotation';
+        kind?: undefined;
+        part?: undefined;
+        annotation?: string;
+    };
+    declarations: AnnotationStyleDeclarations;
+    when?: undefined;
+} | {
+    [K in keyof AnnotationKindStyleDeclarationsMap]: {
+        id?: string;
+        select: {
+            target: 'annotation';
+            kind: K;
+            part?: undefined;
+            annotation?: string;
+        };
+        declarations: AnnotationKindStyleDeclarationsMap[K];
+        when?: undefined;
+    };
+}[keyof AnnotationKindStyleDeclarationsMap] | {
+    [K in keyof AnnotationPartStyleDeclarationsMap]: {
+        [P in keyof AnnotationPartStyleDeclarationsMap[K]]: {
+            id?: string;
+            select: {
+                target: 'annotation';
+                kind: K;
+                part: P;
+                annotation?: string;
+            };
+            declarations: AnnotationPartStyleDeclarationsMap[K][P];
+            when?: undefined;
+        };
+    }[keyof AnnotationPartStyleDeclarationsMap[K]];
+}[keyof AnnotationPartStyleDeclarationsMap];
 
 /** The declarations an entry can author, color-valued properties in any {@link StyleColorValue} form. */
 type StyleDeclarations = StyleDeclarationsFor<StyleColorValue>;
@@ -633,22 +763,25 @@ type StyleProperty = keyof StyleDeclarations;
  * The structural address of a style entry — what it styles, decidable with no data.
  *
  * - `target` — the element class: `geom` or one of the chrome targets (`panelBorder`, `gridLine`,
- *   `tickLine`, `axisLabel`, `tickLabel`, `ruleLabel`, `dataLabel`, `graph`, `tooltip`). Chrome
- *   entries are chart-scoped and condition-free — they carry no `when`.
- * - `kind` — restrict a geom entry to one kind, and open that kind's vocabulary. Stamped by the kind
- *   builders (`style.geom.bar`). Absent, the entry applies to every layer with the shared vocabulary.
+ *   `tickLine`, `axisLabel`, `tickLabel`, `ruleLabel`, `dataLabel`, `graph`, `tooltip`, `headline`,
+ *   `headlineItem`, `legend`, `legendItem`, `directLabel`, `annotation`).
+ *   Chrome entries are chart-scoped and condition-free — they carry no `when`.
+ * - `kind` — restrict a geom or annotation entry to one kind, and open that kind's vocabulary. Stamped
+ *   by the kind builders (`style.geom.bar`, `style.annotation.shape`). Absent, the entry applies to
+ *   every layer, or every annotation, with the shared vocabulary.
  * - `layer` — restrict a geom or ruleLabel entry to the layer with that authored id.
+ * - `annotation` — restrict an annotation entry to the annotation with that id.
  * - `edge` / `axis` / `role` / `position` / `part` — restrict a chrome entry to one partition of its
  *   target: a panel-border edge, the axis a grid line, tick line, axis label or tick label belongs
- *   to, a data label's role and where it sits, or a tooltip part. Absent, the entry addresses the
- *   whole target. A bare tooltip entry is the box, not a wildcard over its parts. `position` needs a
- *   role and stack totals (`aggregate`) always sit outside, so it never partitions them.
+ *   to, a data label's role and where it sits, a tooltip part, a legend-item part, or an annotation's
+ *   label. Absent, the entry addresses the whole target. `position` needs a role and stack totals
+ *   (`aggregate`) always sit outside, so it never partitions them.
  */
 type StyleSelect = StyleRule['select'];
 
 /** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
 type ChromeStyleSelect = Extract<StyleSelect, {
-    target: 'panelBorder' | 'gridLine' | 'tickLine' | 'axisLabel' | 'tickLabel' | 'ruleLabel' | 'dataLabel' | 'graph' | 'tooltip';
+    target: 'panelBorder' | 'gridLine' | 'tickLine' | 'axisLabel' | 'tickLabel' | 'ruleLabel' | 'dataLabel' | 'graph' | 'tooltip' | 'headline' | 'headlineItem' | 'legend' | 'legendItem' | 'directLabel' | 'annotation';
 }>;
 
 /**
@@ -679,7 +812,7 @@ interface LightDarkColor {
 }
 
 /**
- * The engine's built-in stylesheet: the look of a geom or chrome element when nothing else decides.
+ * The engine's built-in stylesheet: the look of every style target when nothing else decides.
  * It is the implicit base of every stylesheet — entries sit below the authored `defaults`, tokens
  * merge under the authored table, so redefining a token restyles the default it backs.
  * Colors are never palette lookups — scales only speak for mapped aesthetics.
@@ -744,12 +877,12 @@ type PaletteOverridesInput = Record<number, {
 type CustomPalettesInput = Record<string, CustomPaletteColor[]>;
 
 /** The hues available as a base for monochrome palettes, in pick order. */
-const MONO_BASES: readonly ["grey", "red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"];
+const MONO_BASES: readonly ["brick", "grey", "red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"];
 
 /** The hues available as a base for neon palettes, in pick order. */
 const NEON_BASES: readonly ["cyan", "pink", "purple", "red", "orange", "yellow", "green", "blue"];
 
-/** Series colors used when a chart specifies no palette. Cycled in order as series count grows. */
+/** Group colors when a graph specifies no palette and its geoms don't touch. Cycled in order as groups grow. */
 const DEFAULT_COLOR_PALETTE: [string, ...string[]];
 
 /** A normalized colour ramp: maps `t ∈ [0, 1]` to a colour string. */
@@ -830,7 +963,10 @@ interface GraphProviderProps {
 interface GraphRendererProps {
     /** Controls how the graph responds to its container size. Defaults to filling the parent container. */
     sizing?: GraphSizing;
-    /** Callback invoked when the graph's container is resized. Fires in every sizing mode. */
+    /**
+     * Callback invoked when the graph's container is resized. Fires in every sizing mode. Reports the
+     * container, not the panel.
+     */
     onResize?: ResizeObserverOnResize;
     /**
      * Animation settings. A boolean disables/enables animations globally, an object tunes the intro
@@ -1029,6 +1165,11 @@ interface HeadlineSlotProps {
     resolvedSize: ResolvedHeadlineSize;
     /** Leading strip items to paint; the rest are hidden because they would overflow the band. */
     visibleItemCount: number;
+    /**
+     * Whether this figure sits in the donut hole. Strip polar totals reuse the grand-total class, so
+     * paint cannot infer the hole from CSS — only the placement input knows.
+     */
+    isInDonutHole?: boolean;
 }
 
 /**
@@ -1066,6 +1207,8 @@ interface SwatchSlotProps {
     lineType?: LineStyleType;
     width?: number;
     height?: number;
+    /** Line/area stroke width. Absent, {@link DefaultSwatch} draws at 2. */
+    strokeWidth?: number;
 }
 
 /** Props the renderer passes to the editor layer filling the `EditorSurface` slot. */
@@ -1180,13 +1323,6 @@ abstract class Geom<TParams = Record<string, never>> {
      * A geom that draws on the band centre with no width doesn't implement it.
      */
     resolveBandFraction?: (params: LayerSpec['params'], coordSystem: CoordSystem) => number;
-    /**
-     * Optional: an observation's extent box in normalised panel `[0, 1]²` space. Selection anchors fold
-     * the boxes of every matched observation across layers; geoms that don't implement this are skipped,
-     * matching {@link resolveAnchorPosition}'s skip semantics. Return `null` when there is no
-     * panel-space box (polar stores angles/radii).
-     */
-    resolveAnchorBox?: (observation: Observation, coordSystem: CoordSystem) => AnchorBox | null;
     /**
      * Optional: the aesthetic carrying the value an observation stands for, where that is not its y (a
      * tile encodes its value as `color`), for the given {@link ValueSourcePurpose}. Returns `null` to
@@ -1328,17 +1464,6 @@ type AggregationFunction = 'count' | 'sum' | 'mean' | 'median' | 'mode' | 'min' 
 type AnchorAlign = 'center' | 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 /**
- * A target's bounding box in normalized panel space `[0, 1]²`, data-up (`yMax` is the top edge),
- * matching the resolved-anchor convention.
- */
-interface AnchorBox {
-    xMin: number;
-    xMax: number;
-    yMin: number;
-    yMax: number;
-}
-
-/**
  * What a geom reads besides the observation itself to place an anchor. `position` is the sole
  * authority on whether the value columns hold cumulative stack bounds; the measurement half reads it
  * too (`resolveSegmentYSource`), so both halves of an anchor agree on what the columns mean.
@@ -1365,7 +1490,11 @@ interface AnchorOffset {
     unit?: 'panel' | 'px';
 }
 
-/** A per-observation anchor position in normalised panel `[0, 1]` space (annotation anchoring). */
+/**
+ * A per-observation anchor position in a normalised `[0, 1]²` frame (annotation anchoring). Which
+ * `AnchorFrame` follows from the coord system, so a position carries none itself: callers that turn
+ * one into a resolved point stamp it via `resolveGeomAnchorFrame`.
+ */
 interface AnchorPosition {
     x: number;
     y: number;
@@ -1450,6 +1579,30 @@ type AnnotationItem = {
     annotation: CommentAnnotationInput;
 };
 
+/** Each annotation kind's vocabulary, keyed by the kind name a `select.kind` can carry. */
+interface AnnotationKindStyleDeclarationsMap {
+    shape: ShapeAnnotationStyleDeclarations;
+    arrow: ArrowAnnotationStyleDeclarations;
+    differenceArrow: DifferenceArrowAnnotationStyleDeclarations;
+    text: TextAnnotationStyleDeclarations;
+    image: ImageAnnotationStyleDeclarations;
+    pinnedNumber: CalloutMarkerStyleDeclarations;
+    comment: CalloutMarkerStyleDeclarations;
+}
+
+/** Each annotation part's vocabulary, keyed by the kind and then the part name a `select.part` can carry. */
+interface AnnotationPartStyleDeclarationsMap {
+    differenceArrow: {
+        label: DifferenceArrowLabelStyleDeclarations;
+    };
+    pinnedNumber: {
+        label: CalloutLabelStyleDeclarations;
+    };
+    comment: {
+        label: CalloutLabelStyleDeclarations;
+    };
+}
+
 /**
  * A point on the box of the annotation with id `ref`, reduced to the box-point named by `align`.
  * Dropped on a missing ref or a reference cycle. Nothing to resolve, so the input and resolved unions
@@ -1471,6 +1624,15 @@ interface AnnotationRegionAnchor {
     anchorType: 'annotation';
     /** Explicit id of the target annotation. */
     ref: string;
+}
+
+/** What a bare `style.annotation` entry declares. Each kind reads only the properties its own vocabulary carries. */
+type AnnotationStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha'>;
+
+/** The options the annotation builders take: `annotation` narrows the entry to one annotation, by id. */
+interface AnnotationStyleEntryOptions {
+    annotation?: string;
+    id?: string;
 }
 
 /**
@@ -1532,6 +1694,12 @@ interface AreaGeomParams {
 type AreaStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation' | 'strokeWidth' | 'lineType' | 'strokeAlpha'>;
 
 /**
+ * The paint vocabulary of an arrow annotation. `color`, `strokeWidth` and `lineType` draw the line and
+ * its arrowheads; `borderColor`, `borderWidth` and `shadow` draw an outline and a drop shadow around it.
+ */
+type ArrowAnnotationStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth' | 'lineType' | 'borderColor' | 'borderWidth' | 'shadow'>;
+
+/**
  * Arrow annotation. Each endpoint is a {@link PointAnchorInput}, so it can float in
  * panel fractions or pin to an observation. Distinct from {@link DifferenceArrowInput},
  * which reads the measured gap between two observations.
@@ -1542,21 +1710,9 @@ interface ArrowInput {
     start: PointAnchorInput;
     /** Head endpoint. */
     end: PointAnchorInput;
-    /** null falls back to the theme `defaultAnnotationArrowStroke`. */
-    color?: string | null;
-    thickness?: ArrowThickness;
     startArrowheadStyle?: ArrowheadStyle;
     endArrowheadStyle?: ArrowheadStyle;
-    lineStyle?: ArrowLineStyle;
-    /** Render with a raised, outlined sticker-like appearance. */
-    hasStickerStyle?: boolean;
 }
-
-/** Whether an arrow's line is drawn solid or dashed. */
-type ArrowLineStyle = 'solid' | 'dashed';
-
-/** Preset stroke weight for an arrow annotation. */
-type ArrowThickness = 'thin' | 'medium' | 'thick';
 
 /** Whether an arrow end carries an arrowhead. */
 type ArrowheadStyle = 'none' | 'line-arrow';
@@ -1715,6 +1871,14 @@ interface BaseGeomOptions<T extends GeomParams> {
 type BorderRadiusToken = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 /**
+ * The words of text set in a box: the shared type, the box paddings and the box paint. What the
+ * dataLabel target, a difference arrow's label, a text annotation and a callout's label speak.
+ */
+interface BoxedTextStyleDeclarations extends TextStyleDeclarations, Pick<StyleDeclarations, 'paddingInline' | 'paddingBlock' | 'background' | 'borderColor' | 'borderWidth'> {
+    borderRadius?: number;
+}
+
+/**
  * The "Made with Graphy" provenance badge. A discovery signal (not a lock) — distinct from
  * `source`, which is the user's own attribution.
  */
@@ -1742,6 +1906,16 @@ const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
 
 /** Every {@link CoordType}, for validation and diagnostics. */
 const COORD_TYPES: readonly ["cartesian", "polar", "flip"];
+
+/** The vocabulary of the label beside a pinned number's or a comment's marker: the boxed-text words plus `shadow`. */
+interface CalloutLabelStyleDeclarations extends BoxedTextStyleDeclarations, Pick<StyleDeclarations, 'shadow'> {
+}
+
+/**
+ * The paint vocabulary of a callout's marker, the dot at the anchored observation. `size` is its
+ * diameter, `borderColor` and `borderWidth` its outline; an undeclared `color` takes the observation's.
+ */
+type CalloutMarkerStyleDeclarations = Pick<StyleDeclarations, 'color' | 'size' | 'borderColor' | 'borderWidth' | 'shadow'>;
 
 interface CartesianCoordInput {
     type: 'coord';
@@ -2154,12 +2328,10 @@ type DataLabelPlacement = 'auto' | 'inside' | 'outside';
 type DataLabelPosition = (typeof DATA_LABEL_POSITIONS)[number];
 
 /**
- * The vocabulary of the dataLabel target and each of its roles: the shared type, the box
- * paddings and the box paint. A label draws its background only where one resolves.
+ * The vocabulary of the dataLabel target and each of its roles. A label draws its background only
+ * where one resolves.
  */
-interface DataLabelStyleDeclarations extends TextStyleDeclarations, Pick<StyleDeclarations, 'paddingInline' | 'paddingBlock' | 'background' | 'borderColor' | 'borderWidth'> {
-    borderRadius?: number;
-}
+type DataLabelStyleDeclarations = BoxedTextStyleDeclarations;
 
 /**
  * Resolved data-labels config carried per-layer.
@@ -2329,9 +2501,13 @@ interface DiagnosticsSink {
     addError: (issue: UserInputIssue) => void;
 }
 
+/** The paint vocabulary of a difference arrow's line and arrowhead. */
+type DifferenceArrowAnnotationStyleDeclarations = Pick<StyleDeclarations, 'color' | 'strokeWidth'>;
+
 /**
- * User-facing difference-arrow input. `size`, `color` and `labelCrossPosition`
- * are defaulted by the resolver.
+ * User-facing difference-arrow input. `labelCrossPosition` is defaulted by the resolver. Its paint
+ * comes from the stylesheet: `style.annotation.differenceArrow(...)` for every arrow,
+ * `style.annotation.differenceArrow.label(...)` for the label, `{ annotation: id }` for this one.
  */
 interface DifferenceArrowInput {
     /** Stable id; generated by the resolver when omitted. */
@@ -2342,9 +2518,6 @@ interface DifferenceArrowInput {
     end: ObservationAnchorInput;
     /** What the arrow's label measures (raw gap, relative change, or share). */
     label: DifferenceArrowLabelKind;
-    /** null falls back to a theme default. */
-    color?: string | null;
-    size?: DifferenceArrowSize;
     /** AnchorOffset of the label along the arrow, as a fraction of the arrow's length. */
     labelCrossPosition?: number;
 }
@@ -2352,8 +2525,14 @@ interface DifferenceArrowInput {
 /** What a difference arrow's label measures: the raw gap, the relative change, or one value as a share of the other. */
 type DifferenceArrowLabelKind = 'absolute-difference' | 'relative-difference' | 'proportion';
 
-/** Preset visual scale for a difference arrow. */
-type DifferenceArrowSize = 'small' | 'medium' | 'large';
+/** The vocabulary of a difference arrow's label. */
+type DifferenceArrowLabelStyleDeclarations = BoxedTextStyleDeclarations;
+
+/**
+ * The vocabulary of the directLabel target — series-end type plus the overlap connector. `textColor`
+ * styles the label; `strokeWidth` and `lineType` style the connector.
+ */
+type DirectLabelStyleDeclarations = TextStyleDeclarations & Pick<StyleDeclarations, 'strokeWidth' | 'lineType'>;
 
 interface DiscreteScaleInput {
     type: 'scale';
@@ -2550,7 +2729,7 @@ interface FormattedHeadlineComparison {
 }
 
 /**
- * A single headline figure: its name, formatted value, observation label and optional trend
+ * A single headline figure: its name, formatted value, caption and optional trend
  * comparison. Every string field is final and display-ready (English-only — the aggregate prefix,
  * name, figure, and trend are already composed); render them verbatim, do not recompose or relocalize.
  */
@@ -2561,8 +2740,8 @@ interface FormattedHeadlineItem {
     label: string;
     /** Formatted aggregate figure; null when the group had no numeric values. */
     value: string | null;
-    /** Formatted main-axis label: a point ("3") or a first–last range ("Jan 2025 – Mar 2025"). */
-    observationLabel: string | null;
+    /** Formatted main-axis caption: a point ("3") or a first–last range ("Jan 2025 – Mar 2025"). */
+    caption: string | null;
     /** Formatted trend, or null when no comparison applies. */
     comparison: FormattedHeadlineComparison | null;
 }
@@ -2643,6 +2822,9 @@ interface GeomParamsMap {
 
 /** The paint declarations every geom kind shares. */
 type GeomStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'saturation'>;
+
+/** Style readers for a layer of unknown kind — only the shared paint is guaranteed to resolve. */
+type GeomStyleReaders = StyleReadersFor<SharedBuiltinBackedStyleProperty>;
 
 /** Output of the layout computation. */
 interface GraphLayout {
@@ -2770,6 +2952,15 @@ interface HeadlineGroupSwatch {
     geom: string;
 }
 
+/** The vocabulary of `style.headlineItem.swatch`. */
+type HeadlineItemSwatchStyleDeclarations = Pick<StyleDeclarations, 'size'>;
+
+/** The vocabulary of a headlineItem text part — the shared type. */
+type HeadlineItemTextStyleDeclarations = TextStyleDeclarations;
+
+/** The vocabulary of `style.headlineItem.trend.up` / `.down` / `.flat` — colour only. */
+type HeadlineItemTrendColorStyleDeclarations = Pick<StyleDeclarations, 'textColor'>;
+
 /**
  * Placement of headline numbers
  * - 'above': Display above the chart (default, in the header region)
@@ -2795,6 +2986,9 @@ type HeadlineShow = 'total' | 'average' | 'current' | 'conversion' | 'none';
  * - 'large': Prominent display
  */
 type HeadlineSize = 'auto' | 'small' | 'medium' | 'large';
+
+/** The vocabulary of the headline target — the strip of cards, not the figure. `gap` only. */
+type HeadlineStyleDeclarations = Pick<StyleDeclarations, 'gap'>;
 
 /**
  * Direction of a headline's trend, and the sole source of the comparison's sign — drive both the
@@ -2913,7 +3107,8 @@ type ImageAnnotationFit = 'fill' | 'contain' | 'cover';
 
 /**
  * Image annotation. Its area is positioned by a {@link RegionAnchorInput} so it
- * re-resolves each compile (re-flows on resize, tracks data when bound).
+ * re-resolves each compile (re-flows on resize, tracks data when bound). Its paint comes from the
+ * stylesheet: `style.annotation.image(...)` for every image, `{ annotation: id }` for this one.
  */
 interface ImageAnnotationInput {
     id?: string;
@@ -2925,8 +3120,11 @@ interface ImageAnnotationInput {
     region: RegionAnchorInput;
     /** How the image scales inside its box. */
     fit?: ImageAnnotationFit;
-    /** Opacity, 0 (transparent) to 1 (opaque). */
-    opacity?: number;
+}
+
+/** The vocabulary of an image annotation: its opacity and the rounding of its corners, in pixels. */
+interface ImageAnnotationStyleDeclarations extends Pick<StyleDeclarations, 'alpha'> {
+    borderRadius?: number;
 }
 
 interface InferredScaleInput {
@@ -3230,6 +3428,17 @@ interface LegendItem {
 }
 
 /**
+ * The vocabulary of a bare legendItem entry — the pill: shared type plus the box. A swatch is a
+ * `part`; a bare entry is not a wildcard over it.
+ */
+interface LegendItemStyleDeclarations extends TextStyleDeclarations, Pick<StyleDeclarations, 'paddingInline' | 'paddingBlock' | 'background' | 'borderColor' | 'borderWidth'> {
+    borderRadius?: number;
+}
+
+/** The vocabulary of `style.legendItem.swatch` — a square glyph box and the line in a line/area swatch. */
+type LegendItemSwatchStyleDeclarations = Pick<StyleDeclarations, 'size' | 'strokeWidth'>;
+
+/**
  * Visual values produced by a legend's scales, keyed by aesthetic.
  */
 interface LegendItemVisual {
@@ -3269,6 +3478,9 @@ type LegendPosition = 'auto' | 'right' | 'left' | 'top' | 'bottom' | 'none';
  * - `'whenStackedVertical'`: moves to the side only for vertically-stacked layers (bar).
  */
 type LegendSidePlacement = 'never' | 'whenCrowded' | 'whenStackedVertical';
+
+/** The vocabulary of the legend target — the pill row, not the pill. `gap` only. */
+type LegendStyleDeclarations = Pick<StyleDeclarations, 'gap'>;
 
 /**
  * Line-specific parameters.
@@ -3670,13 +3882,17 @@ type PositionAxis = 'x' | 'y';
  *
  * `aes` names the aesthetic the mapper sources the role from — a plain `string`, so a geom may bind
  * a **custom positional aesthetic** (`'open'`, `'low'`) the engine then trains and scales like a
- * built-in channel. A `min`/`max` role without `aes` is compile-written (e.g. a bar's
- * `yMin = 0`); a `scalar` role scales its `aes` column in place into the aesthetic-named column.
+ * built-in channel. A `point` role sources its axis aesthetic implicitly — authors should not
+ * declare `aes` on it (the axis is the aesthetic). If `aes` is present, {@link deriveDeclaredAesthetics}
+ * still credits it; ignoring point-role `aes` would be a separate change. A `min`/`max` role without `aes`
+ * is compile-written (e.g. a bar's `yMin = 0`); a `scalar` role scales its `aes` column in place into
+ * the aesthetic-named column.
  */
 interface PositionRole {
     readonly axis: PositionAxis;
     readonly role: PositionRoleKind;
-    readonly valueKind: 'value';
+    /** Always `'value'`. May be omitted. */
+    readonly valueKind?: 'value';
     readonly aes?: string;
 }
 
@@ -3835,6 +4051,12 @@ interface ReshapeTransformInput {
 type ResolvedHeadlineSize = Exclude<HeadlineSize, 'auto'>;
 
 /**
+ * The declarations shape after resolution: every color is a single CSS color — light-dark pairs picked
+ * for the active scheme, token references already inlined by the compile stage.
+ */
+type ResolvedStyleDeclarations = StyleDeclarationsFor<string>;
+
+/**
  * TipTap-compatible rich text node (no tiptap dependency).
  */
 interface RichTextContent {
@@ -3905,7 +4127,7 @@ const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma"
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
  *
- * - `dimmed` — de-emphasized: a highlight matched elsewhere, or the pointer hovers another element.
+ * - `dimmed` — de-emphasized: a highlight matched elsewhere or the pointer hovers another element.
  * - `hovered` — the pointer is on the element.
  */
 const STYLE_STATES: readonly ["dimmed", "hovered"];
@@ -3979,7 +4201,7 @@ interface ScaleAPI {
     lineType: CategoricalScaleMethods<LineStyleType>;
 }
 
-/** Scale-domain constraints a geom imposes on the inferred position scales. */
+/** Scale-domain constraints a geom imposes on the scales it draws against. */
 interface ScaleConstraints {
     /** Force this geom's band (x) scale to be discrete (e.g. a bar's categorical axis). */
     discreteMainAxis?: boolean;
@@ -3992,6 +4214,11 @@ interface ScaleConstraints {
     bandPadding?: number;
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
     zeroBaseline?: boolean;
+    /**
+     * Infer this geom's colour scale from the column behind it — a ramp for a measure — instead of the
+     * default palette. What a geom drawing its value as colour (a tile) asks for.
+     */
+    inferredColor?: boolean;
 }
 
 /**
@@ -4052,15 +4279,24 @@ interface SelectionRegionAnchor {
     anchorType: 'selection';
     predicate: Predicate;
     /**
-     * Padding around the box: a number pads both axes in panel fractions, an {@link AnchorOffset} pads
-     * each axis in its `unit` (`px` padding is applied by the runtime resolution pass).
+     * Padding around the box: a number pads both axes in fractions of the frame the box resolved in
+     * (the panel, or the square the disk is inscribed in under polar), an {@link AnchorOffset} pads each
+     * axis in its `unit` (`px` padding is applied by the runtime resolution pass).
      */
     padding?: number | AnchorOffset;
 }
 
 /**
+ * The paint vocabulary of a shape annotation. `color` fills the shape and, unless `borderColor` is
+ * declared, colors its border; `borderWidth: 0` draws no border; a stroke-only shape declares
+ * `color: 'transparent'`.
+ */
+type ShapeAnnotationStyleDeclarations = Pick<StyleDeclarations, 'color' | 'alpha' | 'borderColor' | 'borderWidth'>;
+
+/**
  * Rectangle annotation. Its area is positioned by a {@link RegionAnchorInput} so it
- * re-resolves each compile (re-flows on resize, tracks data when bound).
+ * re-resolves each compile (re-flows on resize, tracks data when bound). Its paint comes from the
+ * stylesheet: `style.annotation.shape(...)` for every shape, `{ annotation: id }` for this one.
  */
 interface ShapeInput {
     id?: string;
@@ -4069,17 +4305,13 @@ interface ShapeInput {
     zOrder?: AnnotationZOrder;
     /** The area this shape fills. */
     region: RegionAnchorInput;
-    /** null falls back to the theme `defaultAnnotationShapeFill`; omitting it leaves the shape unfilled. */
-    fillColor?: string | null;
-    /** Fill alpha, 0 (transparent) to 1 (opaque). */
-    fillOpacity?: number;
-    strokeWidth?: number;
-    /** null falls back to the theme `defaultAnnotationShapeStroke`. */
-    strokeColor?: string | null;
 }
 
 /** The geometry a shape annotation draws. */
 type ShapeKind = 'rectangle';
+
+/** The properties the built-in stylesheet backs on every geom kind. */
+type SharedBuiltinBackedStyleProperty = 'color' | 'alpha';
 
 /**
  * User-facing input for the `smooth` stat (params optional).
@@ -4224,6 +4456,7 @@ type StyleColorValue = string | LightDarkColor | StyleTokenRef;
  *   leading around the text, which stays the size `fontSize` names.
  * - `textColor` — the color text is painted in, as opposed to `color`, which fills a shape.
  * - `offset` — pixels a text target sits away from what it annotates; the band it reserves grows with it.
+ * - `gap` — pixels between sibling items of a chrome container.
  * - `length` — how far a tick line reaches out from the panel edge, in pixels.
  * - `paddingInline` — horizontal padding between a label's text and its box edge, each side, in pixels.
  * - `paddingBlock` — vertical padding between a label's text and its box edge, each side, in pixels.
@@ -4248,10 +4481,24 @@ interface StyleDeclarationsFor<ColorValue, RadiusValue = BorderRadiusToken> {
     lineHeight?: number;
     textColor?: ColorValue;
     offset?: number;
+    gap?: number;
     length?: number;
     paddingInline?: number;
     paddingBlock?: number;
     shadow?: StyleShadowValue<ColorValue>;
+}
+
+/**
+ * Style readers for one layer. `get` resolves a property for an observation through the cascade:
+ * override → data → default. A read with a state first consults the entries scoped to that state,
+ * above the whole stateless cascade.
+ *
+ * Omitting the observation answers for the layer as a whole: `where`-scoped entries are skipped
+ * rather than guessed at, and the encoding is not consulted — an editing control opens on the
+ * layer's declared paint, not on one observation's.
+ */
+interface StyleReadersFor<BuiltinBacked extends StyleProperty> {
+    get: (<Property extends BuiltinBacked>(property: Property, observation?: Observation, state?: StyleState) => NonNullable<ResolvedStyleDeclarations[Property]>) & (<Property extends StyleProperty>(property: Property, observation?: Observation, state?: StyleState) => ResolvedStyleDeclarations[Property] | undefined);
 }
 
 /** A drop shadow. Offsets and blur are pixels; `color` takes the same forms as other color properties. */
@@ -4288,12 +4535,11 @@ interface TemporalValueFormat {
     dateFormat?: string;
 }
 
-/** How a text annotation's background fill is applied: faded into the plot or fully opaque. */
-type TextAnnotationBackgroundColorStyle = 'fade' | 'opaque';
-
 /**
  * Rich-text annotation positioned by a {@link PointAnchorInput}; `width` is a fraction of the plot
- * rect and the height is intrinsic to the rendered content.
+ * rect and the height is intrinsic to the rendered content. Its box and base type come from the
+ * stylesheet: `style.annotation.text(...)` for every text annotation, `{ annotation: id }` for this
+ * one; the content's own marks paint over the base type.
  */
 interface TextAnnotationInput {
     id?: string;
@@ -4305,10 +4551,15 @@ interface TextAnnotationInput {
     width: number;
     /** Which point of the text's own box sits at `at`. Defaults to `center`. */
     align?: AnchorAlign;
-    /** null falls back to a transparent background. */
-    backgroundColor?: string | null;
-    /** Whether the background fill fades into the plot or is fully opaque. */
-    backgroundColorStyle?: TextAnnotationBackgroundColorStyle;
+}
+
+/**
+ * The vocabulary of a text annotation.
+ *
+ * Rich-text marks in the content paint over the base type;
+ * `background: 'transparent'` draws no box.
+ */
+interface TextAnnotationStyleDeclarations extends BoxedTextStyleDeclarations, Pick<StyleDeclarations, 'alpha'> {
 }
 
 /** A text value — plain string or structured rich text. */
@@ -4667,6 +4918,18 @@ interface GeomOverlayRenderInput<G extends GeomName | string = string, C extends
 }
 
 /**
+ * The cascade paint context every geom render handler receives. Visual readers such as `getColor`
+ * see the data tier only; plugin paint should read {@link GeomPaintInput.styleReaders} so tokens,
+ * overrides, and the built-in default reach the mark.
+ */
+interface GeomPaintInput {
+    /** The provider's colour scheme — pass to `createStyleResolver` when a plugin needs readers beyond this layer. */
+    colorScheme: ColorScheme;
+    /** Cascade readers for this layer: override → data → default, resolved for {@link GeomPaintInput.colorScheme}. */
+    styleReaders: GeomStyleReaders;
+}
+
+/**
  * A geom's `render`: either a plain panel-SVG paint function, or an overlay-hosted one paired with
  * `options` — so a geom that must paint into the interactive overlay declares
  * `{ fn, options: { overlay: true } }` without a second render entry point. The
@@ -4720,10 +4983,11 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
      * Render-side spatial query for a `'render-hit-test'` layer whose geometry is precomputed into the
      * compiled spec (sankey ribbons, treemap tiles, voronoi cells). A
      * **factory**: given the render input it returns the per-cursor {@link RenderHitTester};
-     * the renderer memoizes the factory on `layer.data`, so the read runs once per data change and the
-     * per-move query allocates nothing. The author writes no hook; the renderer registers the tester on its
-     * behalf. The cursor arrives in panel-local `[0,1]` with a top-left origin — the frame the geom paints
-     * in. Returns the declared identity key of the observation under the cursor, or `null` for a miss.
+     * the renderer memoizes the factory on `layer.data` and the panel pixel frame, so the read runs once
+     * per data or panel-size change and the per-move query allocates nothing. The author writes no hook;
+     * the renderer registers the tester on its behalf. The cursor arrives in panel-local `[0,1]` with a
+     * top-left origin — the frame the geom paints in. Returns the declared identity key of the observation
+     * under the cursor, or `null` for a miss.
      */
     hitTest?: (input: GeomRenderInput<G, C>) => RenderHitTester;
     /** Panel-space anchor for a matched observation; required when the def highlights via overlay-anchor. */
@@ -4733,12 +4997,18 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
 /** A geom's panel-SVG paint function — the plain `render` form. */
 type GeomRenderFn<G extends GeomName | string = string, C extends CoordKind = CoordKind> = (input: GeomRenderInput<G, C>) => ReactNode;
 
-interface GeomRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> {
+interface GeomRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomPaintInput {
     layer: CompiledLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
     shouldAnimateTransitions: boolean;
     formattingLocale: Locale;
     intro?: LayerIntroPlan | null;
+    /**
+     * The panel's pixel rect — the data rectangle geoms paint into, already inset from axes and chrome.
+     * Same frame hover and highlight receive. Width and height are the paint size; x/y are already
+     * applied by the geom-layers SVG, so marks are placed in local `0…width` / `0…height`.
+     */
+    panelRect: GraphLayout['panel'];
 }
 
 /**
@@ -4807,17 +5077,16 @@ type GraphMode = 'readonly' | 'editable';
 
 /**
  * The input a geom's {@link GeomRenderContract.renderHighlight} receives: the matched-subset layer plus
- * the panel rect, so a geom that repaints matched observations in absolute panel pixels (bars drawing
- * isolated stack segments) has the frame it needs. A superset of {@link GeomRenderInput}, so a geom that
- * doesn't override `renderHighlight` still paints through the plain `render`.
+ * the full source layer (context the subset can't see, like a stack's silhouette). A superset of
+ * {@link GeomRenderInput}, so a geom that doesn't override `renderHighlight` still paints through the
+ * plain `render`.
  */
 interface HighlightRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInput<G, C> {
-    panelRect: GraphLayout['panel'];
     /** The full layer `layer` was filtered from — for context the subset can't see, like a stack's silhouette. */
     sourceLayer: CompiledLayerOf<G>;
 }
 
-interface HoverCompanionsRenderInput<G extends GeomName | string = string> {
+interface HoverCompanionsRenderInput<G extends GeomName | string = string> extends GeomPaintInput {
     layer: CompiledLayerOf<G>;
     primary: HoverHit;
     related: HoverHit[];
@@ -4838,7 +5107,7 @@ interface HoverCompanionsRenderInput<G extends GeomName | string = string> {
  */
 type HoverGuideMode = 'crosshair' | 'band';
 
-interface HoverRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> {
+interface HoverRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomPaintInput {
     layer: CompiledLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
     primary: HoverHit;
@@ -4855,7 +5124,10 @@ interface HoverRenderInput<G extends GeomName | string = string, C extends Coord
 interface InteractiveOverlayApi {
     /** Feeds the hovered observation's identity key into the unified hover store — the push path. */
     pushHover: GeomHoverPush;
-    /** The panel's on-screen rect in client pixels, so the overlay can place its marks. */
+    /**
+     * The panel's on-screen rect in client pixels, so the overlay can place its marks. Distinct from
+     * {@link GeomRenderInput.panelRect} (layout pixels).
+     */
     panelRect: ScreenRect;
 }
 
@@ -5014,15 +5286,6 @@ const vars: {
     legendBorderColor: `var(--${string})`;
     legendFocusOutlineColor: `var(--${string})`;
     legendTextColor: `var(--${string})`;
-    dimmedSeriesLabelTextColor: `var(--${string})`;
-    dimmedSeriesLabelLineColor: `var(--${string})`;
-    trendNegativeColor: `var(--${string})`;
-    trendPositiveColor: `var(--${string})`;
-    trendNeutralColor: `var(--${string})`;
-    defaultAnnotationArrowStroke: `var(--${string})`;
-    defaultAnnotationShapeFill: `var(--${string})`;
-    arrowAnnotationStickerOutlineColor: `var(--${string})`;
-    arrowAnnotationStickerOutlineColorInverse: `var(--${string})`;
     annotationFrameBorderColor: `var(--${string})`;
     editMenuTriggerIconColor: `var(--${string})`;
     heatmapEmptyTileBackground: `var(--${string})`;
@@ -5033,15 +5296,11 @@ const vars: {
     tooltipRowGap: `var(--${string})`;
     tooltipShadow: `var(--${string})`;
     editorControlHeight: `var(--${string})`;
-    legendItemGap: `var(--${string})`;
     legendSwatchGap: `var(--${string})`;
-    legendSwatchWidth: `var(--${string})`;
-    legendSwatchHeight: `var(--${string})`;
     legendPillPaddingInline: `var(--${string})`;
     legendPillPaddingBlock: `var(--${string})`;
     legendPillBorderWidth: `var(--${string})`;
     headlineRowGap: `var(--${string})`;
-    headlineItemGap: `var(--${string})`;
     canvasDefault: `var(--${string})`;
     canvasBlue: `var(--${string})`;
     canvasCyan: `var(--${string})`;
@@ -5088,7 +5347,6 @@ const vars: {
     fontWeightSemibold: `var(--${string})`;
     fontWeightBold: `var(--${string})`;
     fontWeightExtraBold: `var(--${string})`;
-    fontWeightBlack: `var(--${string})`;
     textScale: `var(--${string})`;
     fontSizeXxs: `var(--${string})`;
     fontSizeXs: `var(--${string})`;
@@ -5112,20 +5370,8 @@ const vars: {
     fontLineHeightHeadingLg: `var(--${string})`;
     fontLegendLabel: `var(--${string})`;
     fontSeriesLabel: `var(--${string})`;
-    fontTooltipFooter: `var(--${string})`;
-    fontJumboTooltipLabel: `var(--${string})`;
-    fontJumboTooltip: `var(--${string})`;
-    fontMiniTooltipLabel: `var(--${string})`;
-    fontMiniTooltipFooter: `var(--${string})`;
-    fontTooltipCaption: `var(--${string})`;
-    fontTooltipCaptionSmall: `var(--${string})`;
-    fontTrendTag: `var(--${string})`;
-    fontTrendTagSmall: `var(--${string})`;
     fontPieLabel: `var(--${string})`;
     fontPieChartTotal: `var(--${string})`;
-    fontDifferenceArrowSmall: `var(--${string})`;
-    fontDifferenceArrowMedium: `var(--${string})`;
-    fontDifferenceArrowLarge: `var(--${string})`;
     fontButton: `var(--${string})`;
     fontInput: `var(--${string})`;
     fontInputLabel: `var(--${string})`;

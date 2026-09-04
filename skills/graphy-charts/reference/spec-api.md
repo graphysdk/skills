@@ -323,7 +323,7 @@ The panel's frame is drawn from `style.panelBorder({ color, strokeWidth, lineTyp
 |---|---|---|---|
 | `textScale` | `number` | `1` | multiplier on every text element |
 
-Frame paint — background, border ring, corner rounding — is `style.graph({ background, borderColor, borderWidth, borderRadius })`. Highlight de-emphasis is the `dimmed` state: `style.geom({ alpha: 0.4 }, { state: 'dimmed' })` is the built-in; `style.geom({ saturation: 0 }, { state: 'dimmed' })` gives a desaturated fade.
+Frame paint — background, border ring, corner rounding — is `style.graph({ background, borderColor, borderWidth, borderRadius, fontFamily })`; `fontFamily` is the base family every text target inherits. Highlight de-emphasis is the `dimmed` state: `style.geom({ alpha: 0.4 }, { state: 'dimmed' })` is the built-in; `style.geom({ saturation: 0 }, { state: 'dimmed' })` gives a desaturated fade.
 
 ### `layout`
 

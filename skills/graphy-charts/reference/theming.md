@@ -162,9 +162,10 @@ A stylesheet `overrides` entry declaring `color` beats the palette — see `refe
 
 ## Custom fonts
 
-Set families through tokens: `fontFamilyDefault` / `fontFamilyHeading` for the chrome, the `family`
-field of `fontLegendLabel` for the legend, and `style.<textTarget>({ fontFamily })` for anything the
-plot draws. Fonts must be loaded (`@font-face` + `document.fonts`) before the chart measures text, or
+Chart text never inherits the container's font — every text node carries an inline family. Set it
+with `style.graph({ fontFamily })` (base for every text target), `style.<textTarget>({ fontFamily })`
+for one target, or the `fontFamilyDefault` / `fontFamilyHeading` / `fontLegendLabel.family` tokens.
+The `--typography-chart-font-family` CSS variable repaints only, not measurement — avoid it. Fonts must be loaded (`@font-face` + `document.fonts`) before the chart measures text, or
 layout uses fallback-font metrics.
 
 ## Building a theme (checklist)

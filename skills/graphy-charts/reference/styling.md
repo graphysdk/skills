@@ -81,7 +81,7 @@ chart-scoped and condition-free** — they take no `where` and no `state`.
 | `style.tickLabel` | `.x` `.y` | text + `offset` |
 | `style.dataLabel` | `.observation` / `.category` (each `.inside` `.outside`), `.aggregate` | text + `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderWidth`, `borderRadius` |
 | `style.panelBorder` | `.top` `.right` `.bottom` `.left` | `color`, `strokeWidth`, `lineType` (+ `borderRadius` on the bare builder) |
-| `style.graph` | | `background`, `borderColor`, `borderWidth`, `borderRadius` |
+| `style.graph` | | `background`, `borderColor`, `borderWidth`, `borderRadius`, `fontFamily` (base family for every text target) |
 
 Notes that bite:
 
@@ -90,6 +90,8 @@ Notes that bite:
 - **Hide a panel-border edge with `strokeWidth: 0`** — there is no `isVisible`.
 - `aggregate` data labels (stack totals) always sit outside, so they take no `.inside`/`.outside`.
 - **A tile has no `style.geom.tile`** — its fill comes from the `color` scale, its radius and inset are fixed.
+- **Chart text never inherits the container's font** — every text node carries an inline family. Use
+  `style.graph({ fontFamily })`; a target's own `fontFamily` overrides it.
 
 ## Colors
 
