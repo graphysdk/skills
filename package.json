@@ -15,8 +15,8 @@
   "private": "true",
   "dependencies": {
     "@graphysdk/react": "catalog:",
-    "@graphysdk/react-renderer": "catalog:",
-    "@graphysdk/viz-engine": "catalog:",
+    "@graphysdk/react-renderer": "1.9.0-beta.1788548769329",
+    "@graphysdk/viz-engine": "1.9.0-beta.1788548769329",
     "typescript": "catalog:"
   },
   "pnpm": {
