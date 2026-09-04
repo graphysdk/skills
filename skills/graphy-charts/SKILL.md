@@ -70,6 +70,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 
 | I want to… | Read |
 |---|---|
+| Official website, docs, or Discord support | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) · [Discord](https://discord.gg/yGmYCjkSr) |
 | Install the SDK, or fix a failed install (peer errors, unstyled graph, missing types) | `reference/install.md` |
 | Use the SDK on a page with no bundler or npm (`<script type="module">`, jsDelivr) | `reference/cdn.md` |
 | See the full spec builder API and every `config()` key | `reference/spec-api.md` |
@@ -131,3 +132,9 @@ node scripts/validate-spec.mjs path/to/my-spec.mjs
 - Everything the chart draws — geoms, grid, tick lines, panel border, graph background, axis/tick/data-label type — is painted from the spec stylesheet (`styles`), varying per observation via `style.geom(decls, { where })` and per series via `{ layer }`. `themeOverrides` governs the surrounding HTML chrome: legend, tooltip, headline, footer.
 - Geom `params` merge without validation, so a key the geom does not declare is accepted and ignored. A declaration that has no visible effect is usually one the stylesheet should have carried.
 - Each entry point injects its own CSS; there is nothing to import. Editing lives behind the `@graphysdk/react-renderer/editable` entry point (`EditableGraphRenderer`, `EditorPanel`) — `mode="editable"` on a plain `GraphRenderer` renders no editor surface. Making charts editable, editing them programmatically, and the editor panel are the `graphy-editor` skill.
+
+## Resources
+
+- [Website](https://graphy.dev)
+- [Docs](https://docs.graphy.dev)
+- [Discord](https://discord.gg/yGmYCjkSr)
