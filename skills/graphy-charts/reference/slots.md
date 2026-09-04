@@ -96,6 +96,9 @@ interface TooltipContent {
 rich text and `header` is `null`. Handle both or comment bubbles paint empty. `TooltipRow` carries
 `label`, `value` (formatted strings), `swatchColor`, `swatchLineType`, `geom`, `isPrimary`, `key`.
 
+Rows follow legend order. The hovered row is the one with `isPrimary` set, not the first; emphasise
+it in place rather than sorting it to the top.
+
 Content arrives fully formatted by the viz-engine runtime. Hit-testing, open/close, cursor tracking,
 pinned anchors, and positioning stay in the internal wrapper — the override paints the body only.
 
@@ -196,7 +199,10 @@ const CustomTooltip = ({ content }: TooltipSlotProps) => (
     {content.comment !== null && <div style={{ marginBottom: 6 }}>{textOf(content.comment)}</div>}
     {content.header !== null && <div style={{ fontWeight: 700, marginBottom: 6 }}>{content.header}</div>}
     {content.rows.map((row) => (
-      <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+      <div
+        key={row.key}
+        style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontWeight: row.isPrimary ? 700 : 400 }}
+      >
         <span style={{ opacity: 0.8 }}>{row.label}</span>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
       </div>
