@@ -103,7 +103,7 @@ const createFinancialTimesTitle = (segments: Array<{ text: string; color?: strin
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? FT_COLORS.black, fontFamily: FT_FONT_FAMILY.body, fontSize: '18px' },
+            attrs: { color: color ?? FT_COLORS.black, fontFamily: FT_FONT_FAMILY.body, fontSize: 18 },
           },
         ],
       })),

@@ -34,7 +34,7 @@ const input = pipe(
   geom.point({ interactive: false }),
   coord.polar({ theta: 'x' }),
   scale.x.discrete(),
-  scale.y({ zero: true }),
+  scale.y({ domainMin: 0 }),
   scale.color.palette(),
   config({ legend: { position: 'top' } })
 );
@@ -73,8 +73,8 @@ styles({
 
 ## Gotchas
 
-- Always pass `scale.y({ zero: true })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences.
+- Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences.
 - The filled variant needs `position: 'identity'` — `geom.area` defaults to `'stack'`, which would pile the series' radii on top of each other instead of overlapping them.
 - Use `scale.x.discrete()` explicitly for the spokes; under `coord.polar` the compiler zeroes discrete-scale padding so the spokes distribute evenly around the full circle.
 - Mark the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the dots.
-- The intro animation reaches the vertex dots (they pop in staggered, tuned by `animation` on `GraphRenderer`); a polar line or area polygon has no entrance of its own. `maxAnimatedGeoms` (default `1500`) counts geoms across all layers.
+- The intro animation reaches the vertex dots (they pop in staggered, tuned by `animation` on `GraphRenderer`); a polar line or area polygon has no entrance of its own. `animation.maxAnimatedGeoms` (default `1500`) counts geoms across all layers.

@@ -127,7 +127,7 @@ const createBraunTitle = (text: string): RichTextContent => ({
           marks: [
             {
               type: 'textStyle',
-              attrs: { color: BRAUN_COLORS.ink, fontFamily: BRAUN_FONT_FAMILY.body, fontSize: '16px' },
+              attrs: { color: BRAUN_COLORS.ink, fontFamily: BRAUN_FONT_FAMILY.body, fontSize: 16 },
             },
           ],
         },

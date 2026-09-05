@@ -65,7 +65,7 @@ Every prop is optional.
 |---|---|---|
 | `sizing` | `GraphSizing` | How the chart claims space. Default `{ mode: 'responsive' }` (fill the parent). |
 | `onResize` | `ResizeObserverOnResize` | `(state: ResizeObserverState) => void`, i.e. `{ width, height, isDefault }`. Fires in every sizing mode. |
-| `animation` | `GraphAnimation` | `boolean \| { intro?, transitions? }`. Default: everything on. See below. |
+| `animation` | `GraphAnimation` | `boolean \| { intro?, transitions?, maxAnimatedGeoms? }`. Default: everything on. See below. |
 | `showTooltips` | `boolean` | Hover tooltips. Default `true`. |
 | `mode` | `GraphMode` (`'readonly' \| 'editable'`) | Default `'readonly'`, which is what chart building wants. `'editable'` takes effect only when the `EditorSurface` slot is filled — see "Editing" below. |
 | `slots` | `GraphSlots` | Per-region component overrides (header, footer, legend, tooltip, …); unspecified regions render their default. See `reference/slots.md`. |
@@ -94,12 +94,17 @@ interface GraphAnimationProps {
   intro?: boolean | Partial<IntroAnimationOptions>;
   /** Whether geoms animate to new positions when the data changes. */
   transitions?: boolean;
+  /** Geom count across all layers above which nothing animates. Default 1500. */
+  maxAnimatedGeoms?: number;
 }
 ```
 
-`IntroAnimationOptions` fields: `enabled`, `durationScale`, `stagger`, `staggerOrder`,
-`maxAnimatedGeoms`. The two kinds are independent — turning one off leaves the other running. A
-viewer's reduced-motion preference disables all animation whatever you pass.
+`IntroAnimationOptions` fields: `enabled`, `durationScale`, `stagger`, `staggerOrder`. The two
+kinds are independent — turning one off leaves the other running. A viewer's reduced-motion
+preference disables all animation whatever you pass.
+
+Live data: push new `data` and keep `input` the same object, since a new `input` reference forces a
+full compile. Pass `{ transitions: false }` when pushes come faster than a spring settles.
 
 ```tsx
 <GraphRenderer animation={false} />

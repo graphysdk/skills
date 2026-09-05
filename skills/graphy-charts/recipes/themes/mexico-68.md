@@ -128,7 +128,7 @@ export const createMexicoTitle = (segments: Array<{ text: string; color?: string
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? MEXICO_COLORS.ink, fontFamily: MEXICO_FONT_FAMILY.headings, fontSize: '22px' },
+            attrs: { color: color ?? MEXICO_COLORS.ink, fontFamily: MEXICO_FONT_FAMILY.headings, fontSize: 22 },
           },
         ],
       })),

@@ -10,7 +10,7 @@ Highlights, annotations, reference lines, trendlines, headline numbers, and data
 | Show the change between two observations | `annotation.differenceArrow` (labels the measured gap) |
 | Mark a threshold or target | `geom.rule()` with a constant value |
 | Show the average | `geom.rule({ stat: stat.mean() })` |
-| Shade a band or era | `annotation.shape` with `zOrder: 'background'` and a `fillColor` |
+| Shade a band or era | `annotation.shape` with `zOrder: 'background'`, washed by `style.annotation.shape({ color, alpha })` |
 | Box the marks a predicate matches | `annotation.shape` over a `selection` region |
 | Emphasize one series among many | `highlight(predicate, { scope: 'series' })` |
 | Emphasize one time slice across series | `highlight(predicate, { scope: 'x-value' })` |
@@ -86,16 +86,18 @@ Eight kinds, all built with the `annotation` factory and piped into the spec. Mu
 
 | Kind | Builder | Positioned by | Required input | Optional input → default |
 |---|---|---|---|---|
-| `differenceArrow` | `annotation.differenceArrow` | `start` + `end`: observation anchors | `start`, `end`, `label` | `color` → `null` (theme); `size` → `'small'`; `labelCrossPosition` → `0.5` |
-| `shape` | `annotation.shape` | `region`: region anchor | `region` | `kind` → `'rectangle'`; `zOrder` → `'foreground'`; `fillColor` → `'transparent'`; `fillOpacity` → `1`; `strokeWidth` → `1`; `strokeColor` → `null` (theme) |
-| `arrow` | `annotation.arrow` | `start` + `end`: point anchors | `start`, `end` | `color` → `null` (theme); `thickness` → `'medium'`; `startArrowheadStyle` → `'none'`; `endArrowheadStyle` → `'line-arrow'`; `lineStyle` → `'solid'`; `hasStickerStyle` → `false` |
-| `text` | `annotation.text` | `at`: point anchor | `content`, `at`, `width` | `align` → `'center'`; `backgroundColor` → `null` (transparent); `backgroundColorStyle` → `'opaque'` |
-| `image` | `annotation.image` | `region`: region anchor | `src`, `region` | `zOrder` → `'foreground'`; `fit` → `'contain'`; `opacity` → `1` |
+| `differenceArrow` | `annotation.differenceArrow` | `start` + `end`: observation anchors | `start`, `end`, `label` | `labelCrossPosition` → `0.5` |
+| `shape` | `annotation.shape` | `region`: region anchor | `region` | `kind` → `'rectangle'`; `zOrder` → `'foreground'` |
+| `arrow` | `annotation.arrow` | `start` + `end`: point anchors | `start`, `end` | `startArrowheadStyle` → `'none'`; `endArrowheadStyle` → `'line-arrow'` |
+| `text` | `annotation.text` | `at`: point anchor | `content`, `at`, `width` | `align` → `'center'` |
+| `image` | `annotation.image` | `region`: region anchor | `src`, `region` | `zOrder` → `'foreground'`; `fit` → `'contain'` |
 | `sticker` | `annotation.sticker` | `at`: point anchor | `at`, `sticker` | `id` only |
 | `pinnedNumber` | `annotation.pinnedNumber` | `at`: observation anchor | `at` | `id` only |
 | `comment` | `annotation.comment` | `at`: observation anchor | `at`, `content` | `id` only |
 
 Serialized on the spec they sit in `annotations` buckets whose names are not a mechanical transform of the kind: `differenceArrows`, `shapes`, `arrows`, `textAnnotations`, `images`, `stickers`, `pinnedNumbers`, `comments`.
+
+**Paint lives in the stylesheet, not on the annotation.** An annotation input carries its identity, its anchors and its content, nothing else. Colour, opacity, stroke and type come from `style.annotation.<kind>(declarations, { annotation: id })` in `styles({ overrides })`; leave `annotation` out to style every annotation of that kind. `differenceArrow`, `pinnedNumber` and `comment` also take `.label(...)` for the box beside the line or dot. The targets and their declarations are listed in `reference/styling.md`.
 
 **One attachment per observation.** `sticker`, `pinnedNumber`, `comment` and `image` form the observation-attachment family, and an observation carries **at most one** of them: adding a second through `AddAnnotationCommand` displaces the incumbent rather than stacking. The rule lives in the command path, not the resolver — a hand-authored spec that breaks it paints both. `image` belongs to the family by intent only; its region anchor has no observation form, so an image neither displaces nor is displaced.
 
@@ -172,14 +174,19 @@ Reads the gap between two observations and labels it. Distinct from `arrow`, whi
 
 ```ts
 annotation.differenceArrow({
+  id: 'eu-lift',
   start: { anchorValue: 'Jan', groupValue: 'EU' },
   end: { anchorValue: 'Apr', groupValue: 'EU' },
   label: 'relative-difference', // 'absolute-difference' (raw gap) | 'relative-difference' (% change) | 'proportion' (one value as a share of the other)
-  size: 'small',                // 'small' | 'medium' | 'large'
-  color: null,                  // null → theme default
   labelCrossPosition: 0.5,      // label position along the arrow, fraction of its length
 });
+
+// Its paint, in styles({ overrides }): the line, then the label box.
+style.annotation.differenceArrow({ color: '#e15759', strokeWidth: 2 }, { annotation: 'eu-lift' });
+style.annotation.differenceArrow.label({ fontSize: 12, fontWeight: 600 }, { annotation: 'eu-lift' });
 ```
+
+The built-in arrow is the theme's arrow colour at `strokeWidth: 2`, its label a small boxed number.
 
 **Endpoints must be comparable.** A difference only means something when both ends measure one quantity, so the two observations must sit on the **same y scale** (primary or secondary, not one of each) **and** carry the **same value format** — currency compared including its `iso`, so `$` and `€` do not match either. Anything else raises `INCOMPARABLE_ARROW_ENDPOINTS` and the arrow is dropped.
 
@@ -189,32 +196,33 @@ Overflow past the panel edge is governed by `config({ panel: { overflow: { diffe
 
 ### `annotation.shape` — band, box or outline
 
-A rectangle over a region. Left alone it is an unfilled, 1 px-stroked rectangle drawn **on top of** the geoms — a shaded band behind them needs `zOrder` and `fillColor` set explicitly.
+A rectangle over a region. Left alone it is a translucent box in the theme's shape colour with a 1 px border, drawn **on top of** the geoms — a shaded band behind them sets `zOrder` and takes its wash from the stylesheet.
 
 ```ts
 annotation.shape({
+  id: 'h2-band',
   region: { anchorType: 'panel', x: 0, y: 0.7, width: 1, height: 0.3 }, // full-width horizontal band
   zOrder: 'background',       // 'foreground' (default, over the geoms) | 'background' (beneath them)
-  fillColor: '#e15759',
-  fillOpacity: 0.12,          // 0..1
-  strokeWidth: 0,             // border width; strokeColor: null → theme default
 });
+
+style.annotation.shape({ color: '#e15759', alpha: 0.12, borderWidth: 0 }, { annotation: 'h2-band' });
 ```
 
-`fillColor` is a tri-state: omit it and the shape is unfilled; `null` takes the theme's `defaultAnnotationShapeFill`; a string paints that colour. `kind` is `'rectangle'`, the only shape.
+`color` fills the shape and, unless `borderColor` is declared, draws its border too; `alpha` is the fill's opacity alone. `borderWidth: 0` draws no border and `alpha: 0` no fill, so an outline-only box declares both `alpha: 0` and a `borderWidth`. `kind` is `'rectangle'`, the only shape.
 
 A `selection` region wraps whatever the predicate matches, so the box tracks the data instead of a fixed rect:
 
 ```ts
 annotation.shape({
+  id: 'eu-box',
   region: {
     anchorType: 'selection',
     predicate: { variable: 'region', eq: 'EU' },
     padding: { x: 12, y: 12, unit: 'px' },
   },
-  fillColor: null,
-  strokeWidth: 2,
 });
+
+style.annotation.shape({ alpha: 0, borderWidth: 2 }, { annotation: 'eu-box' });
 ```
 
 ### `annotation.arrow` — free-form arrow
@@ -223,23 +231,25 @@ Each endpoint is a point anchor, so an arrow can float in panel space, pin both 
 
 ```ts
 annotation.arrow({
+  id: 'launch-arrow',
   start: { anchorType: 'panel', x: 0.15, y: 0.2 },
   end: { anchorType: 'observation', anchorValue: 'Q3', groupValue: 'EU', align: 'top' },
-  thickness: 'medium',              // 'thin' | 'medium' | 'thick'
   startArrowheadStyle: 'none',      // 'none' | 'line-arrow'
   endArrowheadStyle: 'line-arrow',
-  lineStyle: 'solid',               // 'solid' | 'dashed'
-  color: null,                      // null → theme default
-  hasStickerStyle: false,           // raised, outlined sticker look
 });
+
+style.annotation.arrow({ color: '#e15759', strokeWidth: 4, lineType: 'solid' }, { annotation: 'launch-arrow' });
 ```
+
+The built-in arrow is the theme's arrow colour, `strokeWidth: 4`, solid, no border. For the raised sticker look, add a `borderWidth: 2` and a `shadow` such as `{ offsetX: 0, offsetY: 1.15, blur: 1.15, color: 'rgba(0, 0, 0, 0.16)' }`.
 
 ### `annotation.text` — rich-text label
 
-The text's box is centred on its point anchor: `align` names which point of that box sits at `at`, and defaults to `'center'` — pass `'top-left'` to put the box's corner on the anchor. `width` is a fraction of plot width; height is intrinsic to the content. `content` is a TipTap-compatible tree (`RichTextContent`): nodes with `type`, `content`, `text`, `marks`, `attrs`. Recognized attrs: `heading.level` (1–3), `paragraph.textAlign`; on the `textStyle` mark: `color`, `font`, `fontSize` (number read as n/10 em).
+The text's box is centred on its point anchor: `align` names which point of that box sits at `at`, and defaults to `'center'` — pass `'top-left'` to put the box's corner on the anchor. `width` is a fraction of plot width; height is intrinsic to the content. `content` is a TipTap-compatible tree (`RichTextContent`): nodes with `type`, `content`, `text`, `marks`, `attrs`. Recognized attrs: `heading.level` (1–3), `paragraph.textAlign`; on the `textStyle` mark: `color`, `font`, `fontSize`. `fontSize` is a number of pixels, scaled with the graph's text like every other `fontSize` in the API; a string is ignored.
 
 ```ts
 annotation.text({
+  id: 'launch-note',
   at: { anchorType: 'panel', x: 0.55, y: 0.08 },
   width: 0.3,
   align: 'center',                // which point of the text's own box sits at `at`
@@ -249,25 +259,31 @@ annotation.text({
       {
         type: 'paragraph',
         attrs: { textAlign: 'left' },
-        content: [{ type: 'text', text: 'Launch quarter', marks: [{ type: 'bold' }] }],
+        content: [
+          { type: 'text', text: 'Launch quarter', marks: [{ type: 'bold' }] },
+          { type: 'text', text: ' — Q3', marks: [{ type: 'textStyle', attrs: { fontSize: 12, color: '#6b7280' } }] },
+        ],
       },
     ],
   },
-  backgroundColor: null,          // null → transparent
-  backgroundColorStyle: 'opaque', // 'opaque' | 'fade'
 });
+
+// A faded plate behind the words; the built-in background is transparent and `alpha` dims the plate alone.
+style.annotation.text({ background: '#ffffff', alpha: 0.5 }, { annotation: 'launch-note' });
 ```
 
 ### `annotation.image`
 
 ```ts
 annotation.image({
+  id: 'logo',
   src: 'data:image/png;base64,...', // URL or data URI
   region: { anchorType: 'panel', x: 0.7, y: 0.05, width: 0.2, height: 0.3 },
   fit: 'contain',       // 'fill' (stretch) | 'contain' (letterbox) | 'cover' (crop to fill)
-  opacity: 1,
   zOrder: 'foreground',
 });
+
+style.annotation.image({ alpha: 0.8, borderRadius: 8 }, { annotation: 'logo' });
 ```
 
 ### `annotation.sticker` — built-in reaction image
