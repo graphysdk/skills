@@ -160,7 +160,7 @@ Method sets per aesthetic (`spec/scales/scales.ts`):
 | `size`, `alpha`, `strokeWidth` | no | `.continuous()`, `.discrete()`, `.identity()` |
 | `lineType` | no | `.discrete()`, `.identity()` (discrete-only; numeric variable errors) |
 
-**Inference** (bare call, options forwarded to the resolved type): numeric → continuous, categorical → discrete, temporal → datetime (position) / continuous (elsewhere); `{ value }` constant mappings, unmapped aesthetics, and unknown variables → continuous. Bar layers force a discrete x band scale and a zero-anchored y regardless of inference; tile layers force a band on **both** axes, and coerce a declared continuous scale back with an `UNSUPPORTED_SCALE_TYPE` warning.
+**Inference** (bare call, options forwarded to the resolved type): numeric → continuous, categorical → discrete, temporal → datetime (position) / continuous (elsewhere); `{ value }` constant mappings, unmapped aesthetics, and unknown variables → continuous. Bar layers force a discrete x band scale and a zero-anchored y regardless of inference; tile layers force a band on **both** axes. A declared continuous or datetime scale on a banded axis is replaced by the band, with an `UNSUPPORTED_SCALE_TYPE` warning.
 
 Options per scale type:
 
@@ -197,7 +197,7 @@ Options per scale type:
 `size.continuous` defaults `transform: 'sqrt'` so value maps to mark **area**, not radius.
 
 ```ts
-scale.y.continuous({ zero: true, domainMax: 100 });
+scale.y.continuous({ domainMin: 0, domainMax: 100 });
 scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
 scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
 scale.lineType.discrete({ domain: ['actual', 'forecast'], range: ['solid', 'dashed'] });

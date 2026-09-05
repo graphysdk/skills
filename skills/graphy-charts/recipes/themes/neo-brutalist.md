@@ -140,7 +140,7 @@ const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string 
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? NB_COLORS.body, fontFamily: NB_FONT_FAMILY.heading, fontSize: '24px' },
+            attrs: { color: color ?? NB_COLORS.body, fontFamily: NB_FONT_FAMILY.heading, fontSize: 24 },
           },
         ],
       })),
@@ -160,7 +160,7 @@ const createNeoBrutalistSubtitle = (segments: Array<{ text: string; color?: stri
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? NB_COLORS.secondary, fontFamily: NB_FONT_FAMILY.heading, fontSize: '10px' },
+            attrs: { color: color ?? NB_COLORS.secondary, fontFamily: NB_FONT_FAMILY.heading, fontSize: 10 },
           },
         ],
       })),

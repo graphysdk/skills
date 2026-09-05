@@ -128,7 +128,7 @@ export const createInternationalTitle = (
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? INTL_COLORS.heading, fontFamily: INTL_FONT_FAMILY.heading, fontSize: '20px' },
+            attrs: { color: color ?? INTL_COLORS.heading, fontFamily: INTL_FONT_FAMILY.heading, fontSize: 20 },
           },
         ],
       })),

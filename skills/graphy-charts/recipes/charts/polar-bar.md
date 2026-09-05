@@ -36,7 +36,6 @@ const input = pipe(
   geom.bar({ position: 'dodge' }),
   coord.polar({ theta: 'x' }),
   scale.x.discrete(),
-  scale.y({ zero: true }),
   scale.color.palette(),
   config({ legend: { position: 'top' } })
 );
@@ -95,7 +94,7 @@ The renderer's `animation` prop tunes both:
 
 ## Gotchas
 
-- Pass `scale.y({ zero: true })` so petal length / arc sweep is proportional from zero; a data-min domain start makes the smallest value vanish into the center.
+- Bars hold zero on their value axis, so petal length / arc sweep is proportional from zero without asking.
 - Under `coord.polar` the compiler zeroes discrete-scale padding automatically — spoke bands span the full circle; control gaps via the bar `width` param instead. A `width` outside `(0, 1]` renders with a substitute (`1` above `1`, otherwise `0.7`) and an `INVALID_GEOM_PARAM` warning; a too-wide band overlaps its neighbours around the circle.
 - `startAngle` is in degrees and rotates where the first discrete spoke lands (rose) or where arcs begin sweeping (racetrack).
 - Unlike pie/donut (which never draw axes), these charts keep a real categorical `x` mapping, so both axes render by default; hide or tune them via `config({ axes: { x: { isVisible: false } } })` etc.

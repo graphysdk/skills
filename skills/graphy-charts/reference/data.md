@@ -23,9 +23,10 @@ const data: Data = {
 |---|---|---|
 | `columns[].key` | `string` | Unique, stable identifier; the name you use in `mapping()` and transforms. |
 | `columns[].label` | `string?` | Friendly display name. Falls back to `key`. |
+| `columns[].valueFormat` | `ExplicitValueFormat?` | How to read the cells when you know better than inference, e.g. `{ type: 'integer' }`, `{ type: 'text' }`, `{ type: 'currency', iso: 'usd' }`. A declared column skips inference. |
 | `rows` | `Array<Record<string, DataValue>>` | One object per row; keys match `columns[].key`. |
 
-Those three fields are the whole authorable surface. The object and each column also carry an internal `_metadata` block (`parsingLocale`, `isHidden`, `aggregation`, sort/filter state) that the editor writes and the engine reads; it is absent from the exported `Data` type, so treat it as read-only host state.
+Those four fields are the whole authorable surface. The object and each column also carry an internal `_metadata` block (`parsingLocale`, `isHidden`, `aggregation`, sort/filter state) that the editor writes and the engine reads; it is absent from the exported `Data` type, so treat it as read-only host state.
 
 **Reference columns by `key`, never by `label`.** Every `mapping()`, transform and aesthetic takes the key; a label used as a variable name fails compilation with `UNKNOWN_VARIABLE`. When you didn't author the dataset yourself, read its `columns` array first and take the keys from there.
 
@@ -49,9 +50,10 @@ Numeric date order is the trap: `'en-US'` reads `01/02/2022` as Jan 2 (month-day
 Per column, the engine:
 
 1. Skips the column if `_metadata.isHidden` is set, or if it has no non-empty cell (the column is dropped).
-2. **Year pass** — scans the first 5 non-empty rows; the first column where ≥ 2 non-empty values are all years 1900–2199 (e.g. `2021`, `'2022'`) becomes `{ type: 'year' }` (temporal).
-3. Otherwise, the **first non-empty cell alone** decides the column's `ValueFormat`, tried in order: number → date string (locale-aware format list) → weekly date range (`'Jan 1 – Jan 7'`) → `Date` object / unix timestamp → percentage (`'12%'`) → currency (`'$5'`, `'€5'`, …) → `text` (catch-all).
-4. Every cell in the column is then parsed with that one format. **Cells that don't fit become `null` silently** — no error.
+2. **Declared format** — a column with `valueFormat` takes it as is; the two passes below never run for it.
+3. **Year pass** — scans the first 5 non-empty rows; the first undeclared column where ≥ 2 non-empty values are all whole-number years 1900–2199 (e.g. `2021`, `'2022'`) becomes `{ type: 'year' }` (temporal).
+4. Otherwise, the **first non-empty cell alone** decides the column's `ValueFormat`, tried in order: number → date string (locale-aware format list) → weekly date range (`'Jan 1 – Jan 7'`) → `Date` object / unix timestamp → percentage (`'12%'`) → currency (`'$5'`, `'€5'`, …) → `text` (catch-all).
+5. Every cell in the column is then parsed with that one format. **Cells that don't fit become `null` silently** — no error.
 
 Parsing details:
 
@@ -154,7 +156,8 @@ With all defaults, `transform.reshape()` melts every numeric column and keeps th
 
 - **Month names are dates, not categories.** A column of `'Jan'`, `'Feb'`, … infers as temporal `month` and each cell parses to a real date, then picks up a synthetic year in row order (see *Chronological years for year-less dates* — that is why `Jan` after `Dec` lands a year later instead of wrapping). A stray non-month cell like `'Total'` or `'Avg'` becomes `null` — filter summary rows out before charting. Short and long forms (`'Feb'`/`'February'`) can be mixed.
 - **Mixed-type columns fail silently.** Only the first non-empty cell picks the format; every later cell that doesn't parse under it becomes `null`. `['12', 'n/a', '15']` keeps two values; `['n/a', '12', '15']` makes the whole column `text`.
-- **Bare 4-digit numbers are decimals, not years** — unless the whole column passes the year pass (≥ 2 values, all 1900–2199). One `'2022'` in a decimal column is the number 2022, and a y-axis over years like 2020–2023 will show `2,020`.
+- **Bare 4-digit numbers are decimals, not years** — unless the whole column passes the year pass (≥ 2 whole numbers, all 1900–2199). One `'2022'` in a decimal column is the number 2022, and a y-axis over years like 2020–2023 will show `2,020`.
+- **Inference cannot read intent; declare the column.** A count column whose values sit in 1900–2199 (headcount 2010, 2050, 2100) is read as years unless it declares `{ type: 'integer' }`; digit-string ids meant as categories want `{ type: 'text' }`. A year column belongs on `scale.x.datetime()`; `scale.x.continuous()` over it fails with `INCOMPATIBLE_TYPE`.
 - **Numeric dates depend on locale.** `'01/02/2022'` flips month/day between `'en-US'` and the `'en-GB'` default. Unambiguous forms (`'2022-02-01'`, `'Feb 1, 2022'`, `Date` objects) are locale-proof.
 - **Column keys must match row keys exactly.** A `columns` entry whose key appears in no row is dropped (no non-empty cell), and mapping to it fails downstream.
 - **`'-'` means empty**, not a minus sign or a category.

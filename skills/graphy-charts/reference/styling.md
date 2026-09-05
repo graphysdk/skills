@@ -64,7 +64,9 @@ State-scoped entries (`{ state: 'hovered' | 'dimmed' }`) sit above the whole sta
 ## Targets
 
 `style.<target>(declarations, options?)`. Geom targets take `options`; **chrome targets are
-chart-scoped and condition-free** — they take no `where` and no `state`.
+chart-scoped and condition-free** — they take no `where` and no `state`. Annotation targets take one
+option, `{ annotation: id }`, which addresses a single annotation; without it the entry styles every
+annotation of that kind.
 
 | Target | Partitions | Declarations |
 |---|---|---|
@@ -82,6 +84,13 @@ chart-scoped and condition-free** — they take no `where` and no `state`.
 | `style.dataLabel` | `.observation` / `.category` (each `.inside` `.outside`), `.aggregate` | text + `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderWidth`, `borderRadius` |
 | `style.panelBorder` | `.top` `.right` `.bottom` `.left` | `color`, `strokeWidth`, `lineType` (+ `borderRadius` on the bare builder) |
 | `style.graph` | | `background`, `borderColor`, `borderWidth`, `borderRadius`, `fontFamily` (base family for every text target) |
+| `style.annotation` | `.shape` `.arrow` `.differenceArrow` `.text` `.image` `.pinnedNumber` `.comment`, plus `{ annotation: id }` | shared: `color`, `alpha` |
+| `style.annotation.shape` | | `color`, `alpha` (fill only), `borderColor`, `borderWidth` |
+| `style.annotation.arrow` | | `color`, `strokeWidth`, `lineType`, `borderColor`, `borderWidth`, `shadow` |
+| `style.annotation.differenceArrow` | `.label` | `color`, `strokeWidth`; label: text + `background`, `borderColor`, `borderWidth`, `borderRadius`, `paddingInline`, `paddingBlock` |
+| `style.annotation.text` | | text + `background`, `alpha` (background only), `borderColor`, `borderWidth`, `borderRadius`, `paddingInline`, `paddingBlock` |
+| `style.annotation.image` | | `alpha`, `borderRadius` |
+| `style.annotation.pinnedNumber` / `.comment` | `.label` | marker: `color`, `size`, `borderColor`, `borderWidth`, `shadow`; label: text + box + `shadow` |
 
 Notes that bite:
 
