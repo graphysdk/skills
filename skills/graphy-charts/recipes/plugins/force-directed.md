@@ -22,13 +22,13 @@ import type {
   CompiledLayer,
   Dataset,
   GeomCompilerInput,
+  GeomStyleReaders,
   IdentityKey,
 } from '@graphysdk/viz-engine';
 import {
   createDatasetFromKindPartitions,
   extractVariableName,
   Geom,
-  getColor,
   readAuthoredNumber,
   readAuthoredString,
 } from '@graphysdk/viz-engine';
@@ -364,7 +364,6 @@ const MAX_NODE_RADIUS = 20;
 const MIN_EDGE_WIDTH = 1.5;
 const MAX_EDGE_WIDTH = 6;
 const EDGE_HIT_WIDTH = 14;
-const FALLBACK_COLOR = '#888888';
 
 interface GraphNode {
   markId: string;
@@ -377,7 +376,7 @@ interface GraphEdge {
   markId: string;
   label: string;
   value: number;
-  /** The edge's fill — its source node's resolved colour. */
+  /** The edge's fill — its source node's colour, read through the style cascade. */
   color: string;
   sourceIndex: number;
   targetIndex: number;
@@ -395,8 +394,12 @@ interface Focus {
   edges: Set<number> | null;
 }
 
-/** Splits the mixed node/edge dataset into the two mark sets, dispatching on `kind`. */
-function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
+/**
+ * Splits the mixed node/edge dataset into the two mark sets, dispatching on `kind`. Paint comes from
+ * `styleReaders` (this layer's cascade, resolved for the active scheme), not `getColor`, which sees the
+ * data tier only and is `undefined` whenever `color` is unmapped.
+ */
+function partition(data: Dataset, styleReaders: GeomStyleReaders): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
 
@@ -407,7 +410,7 @@ function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
           markId: readAuthoredString(observation, FORCE_COLUMNS.markId),
           label: readAuthoredString(observation, FORCE_COLUMNS.label),
           value: readAuthoredNumber(observation, FORCE_COLUMNS.value),
-          color: getColor(observation) ?? FALLBACK_COLOR,
+          color: styleReaders.get('color', observation),
         });
         break;
       case 'edge':
@@ -415,7 +418,7 @@ function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
           markId: readAuthoredString(observation, FORCE_COLUMNS.markId),
           label: readAuthoredString(observation, FORCE_COLUMNS.label),
           value: readAuthoredNumber(observation, FORCE_COLUMNS.value),
-          color: getColor(observation) ?? FALLBACK_COLOR,
+          color: styleReaders.get('color', observation),
           sourceIndex: readAuthoredNumber(observation, FORCE_COLUMNS.sourceIndex),
           targetIndex: readAuthoredNumber(observation, FORCE_COLUMNS.targetIndex),
         });
@@ -432,14 +435,16 @@ function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
  */
 const ForceOverlay = ({
   layer,
+  styleReaders,
   rect,
   pushHover,
 }: {
   layer: CompiledLayer;
+  styleReaders: GeomStyleReaders;
   rect: ScreenRect;
   pushHover: GeomHoverPush;
 }) => {
-  const { nodes, edges } = useMemo(() => partition(layer.data), [layer.data]);
+  const { nodes, edges } = useMemo(() => partition(layer.data, styleReaders), [layer.data, styleReaders]);
   const params = layer.params as unknown as ForceDirectedParams;
   return <ForceCanvas rect={rect} pushHover={pushHover} nodes={nodes} edges={edges} params={params} />;
 };
@@ -710,10 +715,11 @@ export const kit = createGraphyKit({
       // The live, draggable simulation must own its pointer events, so `render` is overlay-hosted:
       // the renderer mounts it in a screen portal above the capture layer and supplies `overlay`
       // ({ panelRect, pushHover }). The central hover layer contributes nothing; the tooltip is
-      // driven through the push path.
+      // driven through the push path. An overlay-hosted geom is skipped by the panel-SVG paint and
+      // the highlight repaint (hence `highlightStrategy = null`), and is handed no intro plan.
       render: {
-        fn: ({ layer, overlay }) => (
-          <ForceOverlay layer={layer} rect={overlay.panelRect} pushHover={overlay.pushHover} />
+        fn: ({ layer, styleReaders, overlay }) => (
+          <ForceOverlay layer={layer} styleReaders={styleReaders} rect={overlay.panelRect} pushHover={overlay.pushHover} />
         ),
         options: { overlay: true },
       },
@@ -762,8 +768,9 @@ export const ForceDirectedChart = () => (
 ## Adapting
 
 - Tune the physics through geom params: `kit.geom.forceDirected({ params: { chargeStrength, linkDistance }, aes: { ... } })` — both are consumed render-side when the simulation is built.
-- The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }`, push identity keys through `overlay.pushHover(markId, { clientX, clientY })`, and pass `null` to clear. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
+- The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` clears this layer's hover only, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
+- Two diagnostics define this shape. `OVERLAY_REQUIRES_RENDER_HIT_TEST`: an overlay render on a layer whose `spatialKind` is not `'render-hit-test'` — `pushHover` then resolves against no index — which is why the geom declares `'render-hit-test'`. `CONFLICTING_RENDER_HIT_TEST`: declaring both a `hitTest` factory and an overlay render; the overlay wins. An overlay-hosted geom is skipped by the panel-SVG paint and the highlight repaint, hence `highlightStrategy = null`; the hover dim the renderer applies to panel-SVG layers does not reach the overlay, so the neighbourhood fade here is the geom's own de-emphasis.
 - Requires `d3-force` (`@types/d3-force` for TypeScript), both user-installed. Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at — a node's live position, which only the running simulation knows, so an anchor here is a snapshot at best — to make the marks annotatable and give the editor overlay a creation trigger on them.
-- `FALLBACK_COLOR` and the node stroke/label hex constants (`#fff`, `#333`) sit outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks and they hold their hex under `colorScheme="dark"` while the built-in layers flip. Expose them as geom params so a spec can set them per chart. See `reference/styling.md`.
-- `intro` is always `null` for a `render-hit-test` geom, so the overlay never gets an entrance plan — right for a live simulation, which settles into place under its own physics.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom): a pixel position `(px, py)` in the overlay becomes `{ x: px / width, y: 1 - py / height }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`. A node's live position is known only to the running simulation, so an anchor here is a snapshot at best.
+- Node and edge fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the node stroke and label colours (`#fff`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
+- An overlay-hosted render is not handed an intro plan at all (`input.intro` is `undefined`), and a `render-hit-test` layer has no plan anyway (`null`) — right for a live simulation, which settles into place under its own physics.

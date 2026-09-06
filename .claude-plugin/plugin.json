@@ -1,7 +1,7 @@
 {
   "name": "graphy",
-  "version": "0.2.0",
-  "description": "Build graphs with the Graphy SDK (@graphysdk/viz-engine + @graphysdk/react-renderer), install or set it up in a React codebase, and make Graphy charts editable — commands, undo/redo, annotations, the optional editor panel. Activates on requests to author Graphy graphs, to install, configure or fix a Graphy install, or to embed or drive Graphy's chart editing.",
+  "version": "0.3.0",
+  "description": "Build charts with the Graphy SDK (@graphysdk/react; advanced embedding via @graphysdk/viz-engine + @graphysdk/react-renderer): install or set it up in a React codebase, author grammar-of-graphics specs, style them from the spec stylesheet, add annotations and highlights, and make charts editable — commands, undo/redo, annotations, the optional editor panel. Activates on requests to author or style Graphy charts, to install, configure or fix a Graphy install, or to embed or drive Graphy's chart editing.",
   "author": {
     "name": "Graphy Technologies Ltd",
     "email": "hello@graphy.dev"

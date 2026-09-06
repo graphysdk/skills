@@ -1,6 +1,6 @@
 # Neo Brutalist
 
-Technique: config + stylesheet + theme tokens (no plugins). One optional `Swatch` slot for hollow-forecast legend keys. Everything the chart *draws* — sheet, frame, grid, engine text, bar borders — is a `styles()` entry; config only decides what exists and where it sits. See `reference/styling.md` for the cascade.
+Technique: config + stylesheet + theme tokens (no plugins). One optional `Swatch` slot for hollow-forecast legend keys. Everything the chart *draws* — sheet, frame, grid, engine text, bar borders, legend pills, tooltip — is a `styles()` entry; config only decides what exists and where it sits, and theme tokens dress only the header and footer type. See `reference/styling.md` for the cascade.
 
 Near-black sheets (`#171717`, square corners) framed by a 1px dashed border, with acid `#C8FF00` reserved strictly for data — chrome stays grey. Cartesian bar charts trade the dashed bottom edge for a solid 2px acid baseline the bars sit on; gridlines are solid 1px grey rows. All engine text is Space Grotesk 500 at 10px; titles are uppercase rich text with acid accent words.
 
@@ -38,36 +38,23 @@ export const NB_DONUT_RAMP = [
 
 ## Theme
 
-Theme tokens dress the HTML chrome around the plot — the legend, the direct series labels, the pie labels, and the default families everything inherits. `fontLegendLabel` is the measured font token and takes a structured `FontTokenOverride`; `fontPieLabel` and `fontSeriesLabel` take CSS shorthand strings.
+The stylesheet paints the plot and the tooltip, legend pills and direct series labels; theme tokens are left with the HTML header and footer — title, subtitle, caption, source — and the base families. Pie labels are data labels and take the `style.dataLabel` entry below.
 
 ```ts
-import { type FontTokenOverride, type ThemeOverrides } from '@graphysdk/react-renderer';
-
-// Engine text is Space Grotesk 500.
-const engineText: FontTokenOverride = {
-  family: NB_FONT_FAMILY.heading,
-  size: { value: 10, unit: 'px' },
-  lineHeight: 1.4,
-  weight: 500,
-};
+import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const neoBrutalistTheme: ThemeOverrides = {
+  // Header and footer text: title/subtitle in body white, caption and source in grey.
   textPrimary: NB_COLORS.body,
   textSecondary: NB_COLORS.secondary,
-  legendBackground: 'transparent',
-  legendBorderColor: 'transparent',
-  legendTextColor: NB_COLORS.body,
   fontFamilyDefault: NB_FONT_FAMILY.body,
   fontFamilyHeading: NB_FONT_FAMILY.heading,
-  fontLegendLabel: engineText,
-  fontPieLabel: `500 10px/14px ${NB_FONT_FAMILY.heading}`,
-  fontSeriesLabel: `500 11px/14px ${NB_FONT_FAMILY.heading}`,
 };
 ```
 
 ## Shared stylesheet builder
 
-The sheet paint: square corners, chrome-grey dashed frame, solid grid rows, and Space Grotesk 500 at 10px across axis, tick and data labels. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
+The sheet paint: square corners, chrome-grey dashed frame, solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
@@ -75,27 +62,32 @@ import { style, styles } from '@graphysdk/viz-engine';
 const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =>
   styles({
     defaults: [
-      style.axisLabel({
-        fontFamily: NB_FONT_FAMILY.heading,
+      // Space Grotesk for every text target: axis, ticks, data and direct labels, legend, tooltip.
+      style.graph({ background: NB_COLORS.surface, borderRadius: 0, fontFamily: NB_FONT_FAMILY.heading }),
+      style.axisLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
+      style.tickLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.secondary }),
+      style.dataLabel({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
+      style.directLabel({ fontSize: 11, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
+      // Legend as plain swatch + label, no pill chrome.
+      style.legendItem({
+        background: 'transparent',
+        borderColor: 'transparent',
         fontSize: 10,
         fontWeight: 500,
         lineHeight: 1.4,
         textColor: NB_COLORS.body,
       }),
-      style.tickLabel({
-        fontFamily: NB_FONT_FAMILY.heading,
-        fontSize: 10,
-        fontWeight: 500,
-        lineHeight: 1.4,
-        textColor: NB_COLORS.secondary,
+      // Tooltip on the sheet: surface ground, square, chrome-grey ring, no shadow.
+      style.tooltip({
+        background: NB_COLORS.surface,
+        borderColor: NB_COLORS.chrome,
+        borderWidth: 1,
+        borderRadius: 0,
+        shadow: 'none',
       }),
-      style.dataLabel({
-        fontFamily: NB_FONT_FAMILY.heading,
-        fontSize: 10,
-        fontWeight: 500,
-        textColor: NB_COLORS.body,
-      }),
-      style.graph({ background: NB_COLORS.surface, borderRadius: 0 }),
+      style.tooltip.heading({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
+      style.tooltip.label({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.secondary }),
+      style.tooltip.value({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
       style.gridLine({ lineType: 'solid', strokeWidth: 1, color: NB_COLORS.chrome }),
       style.tickLine({ color: NB_COLORS.chrome }),
       style.panelBorder({ lineType: 'dashed', strokeWidth: 1, color: NB_COLORS.chrome, borderRadius: 0 }),
@@ -328,7 +320,7 @@ Only needed when a series colour is `transparent` and the legend is visible.
 
 ## Fonts
 
-Space Grotesk must be loaded by the host page (Inter is the fallback base):
+`style.graph({ fontFamily })` applies Space Grotesk to the chart text and `fontFamilyDefault` sets the header/footer base (Inter); neither loads a font — the host page must load Space Grotesk:
 
 ```html
 <link

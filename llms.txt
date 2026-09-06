@@ -35,7 +35,7 @@ export function RevenueChart() {
 }
 ```
 
-Rules that prevent the most common mistakes: mappings and transforms reference columns by `key`, never by `label`; every `GraphRenderer` must be wrapped in a `GraphProvider`; everything the chart draws is styled from the spec stylesheet (`styles({ ... })`), while `themeOverrides` only governs the HTML chrome around the plot (legend, tooltip, headline, footer).
+Rules that prevent the most common mistakes: mappings and transforms reference columns by `key`, never by `label`; every `GraphRenderer` must be wrapped in a `GraphProvider`; everything the chart draws — marks, chrome, tooltip, legend, headline — is styled from the spec stylesheet (`styles({ ... })`); `themeOverrides` only reaches the header/footer type and a few HTML details around the plot.
 
 ## Agent skills
 
@@ -53,8 +53,7 @@ Two skills (https://github.com/graphysdk/skills) teach a coding agent to work wi
 - [types.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/types.md): generated type reference — exact signatures, option keys, accepted values
 - [data.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/data.md): the `Data` format, parsing, value formats, wide→long reshape
 - [react-api.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/react-api.md): provider/renderer props, sizing, locales, error handling
-- [styling.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/styling.md): the spec stylesheet — recoloring geoms, grid, tick lines, panel border, background, label typography
-- [theming.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/theming.md): theme tokens for the legend, tooltip, headline, and footer chrome
+- [styling.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/styling.md): the spec stylesheet — recoloring geoms, grid, tick lines, panel border, background, text, tooltip, legend pills, headline cards; fonts, palettes, and the residual theme tokens
 - [slots.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/slots.md): replacing the header, footer, tooltip, legend, grid, or axis ticks with your own components
 - [storytelling.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/storytelling.md): highlights, annotations, reference lines, trendlines, headline numbers, difference arrows
 - [plugins.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/plugins.md): repainting built-in geoms and defining new geoms/stats

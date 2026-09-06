@@ -10,6 +10,8 @@
 | Vertex dots | add a companion layer `geom.point({ interactive: false })` |
 | Fill beneath the line | `styles({ defaults: [style.geom.line({ fillAlpha: 0.15 })] })` |
 | One series painted differently | `geom.line({ id: 'trend' })` + `style.geom.line({ … }, { layer: 'trend' })` |
+| Trend overlay | second `geom.line({ stat: stat.smooth({ method: 'linear' }), interactive: false })` |
+| Radar | append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
 
 ## Base: simple line
 
@@ -102,6 +104,16 @@ geom.line(),
 geom.point({ interactive: false }),
 ```
 
+## Trend overlay
+
+A second line layer with a `smooth` stat draws a regression over the data (`stat` is exported from `@graphysdk/viz-engine`); a non-numeric `x` raises `INCOMPATIBLE_TYPE`:
+
+```ts
+geom.line(),
+geom.line({ id: 'trend', stat: stat.smooth({ method: 'linear' }), interactive: false }),
+styles({ overrides: [style.geom.line({ lineType: 'dashed' }, { layer: 'trend' })] }),
+```
+
 ## Geometry and paint
 
 `params` carries the path geometry; the stylesheet carries the paint (`reference/styling.md`).
@@ -112,7 +124,7 @@ geom.point({ interactive: false }),
 | `geom.line({ params })` | `missingValues` | `'gap' \| 'connect' \| 'zero'` | `'gap'` | see above |
 | `style.geom.line` | `strokeWidth` | number (px) | `2` | |
 | `style.geom.line` | `lineType` | `'solid' \| 'dashed' \| 'dotted'` | `'solid'` | |
-| `style.geom.line` | `fillAlpha` | `0..1` | unset | peak opacity of the gradient wash beneath the path; undeclared draws no wash |
+| `style.geom.line` | `fillAlpha` | `0..1` | unset | peak opacity of the gradient wash beneath the path; undeclared draws no wash. Cartesian/flipped lines only — inert on a radar |
 | `style.geom.line` | `color` / `alpha` / `saturation` | | | `alpha` is the stroke's opacity, independent of `fillAlpha` |
 
 ```ts
@@ -127,18 +139,23 @@ geom.line({ id: 'trend' }),
 styles({ overrides: [style.geom.line({ strokeWidth: 4, lineType: 'dashed' }, { layer: 'trend' })] }),
 ```
 
-`strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous({ range: [1, 6] })`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous({ … })`.
+The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries.
+
+`strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous({ range: [1, 6] })`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous({ … })`. Default ranges: `strokeWidth` `[1, 4]`, `alpha` `[0.1, 1]`, `size` `[4, 20]` (for a companion point layer).
+
+Line's default position is `identity`. Data labels: `geom.line({ dataLabels: { showDataLabels: true } })`, offset `8` px from the vertex.
 
 ## Intro animation
 
-On mount the layer is revealed by a wipe travelling along the main axis; every series in the layer
-enters together. The renderer's `animation` prop tunes it:
+On mount, under cartesian or flipped coords, the layer is revealed by a wipe travelling along the
+main axis; every series in the layer enters together. A polar line (radar) has no entrance. The
+renderer's `animation` prop tunes it:
 
 ```tsx
 <GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
 ```
 
-`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
 
 ## Gotchas
 

@@ -11,6 +11,8 @@
 | Single bar | one row, `geom.bar({ position: 'identity' })` |
 | Count stat | `mapping({ x: 'category' })` only (no `y`), `geom.bar({ stat: 'count' })` |
 | Pill bars | `styles({ defaults: [style.geom.bar({ borderRadius: 'full' })] })` |
+| Data labels | `geom.bar({ dataLabels: { showDataLabels: true } })` — see below |
+| Polar | append `coord.polar()` — `recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md` |
 
 ## Base: simple bar
 
@@ -64,6 +66,8 @@ const input = pipe(
 );
 ```
 
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so those charts get the single-hue `brick` mono ramp, while dodged bars (nothing touches) get the 8-colour multicolour set. `scale.color.palette({ palette: { type: 'graphy' } })` forces the multicolour set.
+
 Data already in long form (a series column per row) skips the reshape — map `color` directly:
 
 ```ts
@@ -111,10 +115,10 @@ config({ axes: { y: { label: 'Count' } } })
 
 | Surface | Key | Type | Default | Notes |
 |---|---|---|---|---|
-| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` | fraction of the category band |
+| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` (`1` under `coord.polar`) | fraction of the category band |
 | `style.geom.bar` | `borderRadius` | `'none' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl' \| 'full'` | `'sm'` | `'full'` = pill; a stack rounds the outer corners of the whole column |
-| `style.geom.bar` | `borderColor` | color | unset | the border draws once this resolves |
-| `style.geom.bar` | `borderWidth` | number | `1` | takes effect alongside `borderColor` |
+| `style.geom.bar` | `borderColor` | color | `token('geomBorder')` | translucent ink, light/dark aware — the border is drawn by default |
+| `style.geom.bar` | `borderWidth` | number | `1` | `0` removes the border |
 
 ```ts
 geom.bar({ params: { width: 0.5 } }),
@@ -123,6 +127,23 @@ styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: '#1e293b
 
 `style.geom.bar` also takes the shared `color`, `alpha` and `saturation`, and scopes to one layer or
 one data subset via `{ layer }` / `{ where }`.
+
+The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in hovered state is `style.geom.bar({ borderColor: token('hoverAffordance') }, { state: 'hovered' })`.
+
+Stats available on a bar layer: `'count' | 'sum' | 'mean' | 'smooth'`. Bars also render under `coord.polar` (`recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md`), where the `width` default becomes `1`.
+
+## Data labels
+
+```ts
+geom.bar({
+  position: 'stack',
+  dataLabels: { showDataLabels: true, showStackTotals: true, showCategoryLabels: true, position: 'inside', justify: 'center', align: 'center', offset: 4 },
+}),
+```
+
+- Stacked/filled segments coerce `position: 'outside'` to `'inside'` (`DATA_LABEL_PLACEMENT_COERCED`) — every segment edge borders a neighbour; use `showStackTotals` for stack-end totals.
+- `showStackTotals` on anything but a stacked cartesian bar warns `DATA_LABEL_SETTING_IGNORED`.
+- `justify` defaults to `'end'`, `'center'` on stacked/filled bars; `offset` defaults to `4`.
 
 ## Intro animation
 
@@ -133,7 +154,7 @@ segments of one stack share a delay so the column rises as one. The renderer's `
 <GraphRenderer animation={{ intro: { stagger: false, durationScale: 0.5 } }} />
 ```
 
-`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
 
 ## Gotchas
 

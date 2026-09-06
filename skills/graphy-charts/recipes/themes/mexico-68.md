@@ -1,6 +1,6 @@
 # Mexico 68
 
-**Tier: config + stylesheet + theme tokens + render-only geom paint plugins.** This is the plugin-tier exemplar: the spec, stylesheet and theme are ordinary, and every geom's paint is replaced via `defineGeomRenderer` render-only overrides passed as `plugins` to `GraphProvider`. The chart chrome — card ground, ink baseline, engine text — is a `styles()` stylesheet on the spec (`reference/styling.md`); the theme tokens dress the HTML around it.
+**Tier: config + stylesheet + theme tokens + render-only geom paint plugins.** This is the plugin-tier exemplar: the spec, stylesheet and theme are ordinary, and every geom's paint is replaced via `defineGeomRenderer` render-only overrides passed as `plugins` to `GraphProvider`. The chart chrome — card ground, ink baseline, engine text, legend, tooltip — is a `styles()` stylesheet on the spec (`reference/styling.md`); the theme tokens dress only the header and footer type.
 
 Op-art style after the Mexico 68 Olympic identity: a hot magenta lead with orange, purple, cyan, and green radiating behind it, Righteous uppercase headlines over Rubik engine text, and no gridlines — the vibration needs quiet ground. The whole grammar is the echo: every mark is drawn as concentric outlines with no solid core. Bars radiate as arches, lines as parallel echoes with a ringed-target terminus, points as ringed targets, and polar slices as single outlines with ink echoes fanning outward.
 
@@ -9,7 +9,7 @@ The overrides replace only the paint half of each built-in geom for one coordina
 ## Module: `mexico68.theme.ts` (constants + theme overrides)
 
 ```ts
-import type { FontTokenOverride, ThemeOverrides } from '@graphysdk/react-renderer';
+import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const MEXICO_FONT_FAMILY = {
   headings: "'Righteous', 'Rubik', sans-serif",
@@ -40,42 +40,45 @@ export const MEXICO_PALETTE = [
   MEXICO_COLORS.green,
 ] as const;
 
-// Engine text is Rubik 500 12px.
-const engineFont: FontTokenOverride = {
-  family: MEXICO_FONT_FAMILY.body,
-  size: { value: 12, unit: 'px' },
-  lineHeight: 1.4,
-  weight: 500,
-};
-
 export const theme: ThemeOverrides = {
+  // Header and footer text: title/subtitle in ink, caption and source in the quiet grey.
   textPrimary: MEXICO_COLORS.ink,
   textSecondary: MEXICO_COLORS.axisGrey,
-  legendBackground: 'transparent',
-  legendBorderColor: 'transparent',
-  legendTextColor: MEXICO_COLORS.ink,
   fontFamilyDefault: MEXICO_FONT_FAMILY.body,
   fontFamilyHeading: MEXICO_FONT_FAMILY.headings,
-  fontLegendLabel: engineFont,
-  fontPieLabel: `500 11px/1.4 ${MEXICO_FONT_FAMILY.body}`,
 };
 ```
 
-These tokens dress the HTML chrome around the plot: the legend, the headline and footer, the direct series labels. `fontLegendLabel` is the measured font token and takes a structured `FontTokenOverride`; `fontPieLabel` is a plain CSS font shorthand string.
+These tokens dress only the HTML header and footer — title, subtitle, caption, source — and give the measurement fallback its family. Everything else the chart shows, legend pills and tooltip included, belongs to the stylesheet below.
 
 ## Module: `mexico68.styles.ts` (the card paint)
 
-White ground with a single 2px ink baseline as the only border edge — the arches rest on it and nothing else frames them. The bare `style.panelBorder` entry sets all four edges to nothing, then `.bottom` redeclares the one that survives; within a list, the last matching entry wins. The printed value above each arch sits a touch heavier and larger than the engine text — the one number you read off the vibration.
+White ground with a single 2px ink baseline as the only border edge — the arches rest on it and nothing else frames them. The bare `style.panelBorder` entry sets all four edges to nothing, then `.bottom` redeclares the one that survives; within a list, the last matching entry wins. The printed value above each arch sits a touch heavier and larger than the engine text — the one number you read off the vibration; pie labels are data labels and take the same entry. The legend is a bare key + label, and the tooltip a small white card with a hairline ink ring.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
 
 export const mexicoChromeStyles = styles({
   defaults: [
+    // Rubik for every text target: axis, ticks, data and direct labels, legend, tooltip.
+    style.graph({ background: MEXICO_COLORS.card, fontFamily: MEXICO_FONT_FAMILY.body }),
     style.axisLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: MEXICO_COLORS.ink }),
     style.tickLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: MEXICO_COLORS.axisGrey }),
     style.dataLabel({ fontSize: 13, fontWeight: 600, textColor: MEXICO_COLORS.ink }),
-    style.graph({ background: MEXICO_COLORS.card }),
+    style.directLabel({ fontSize: 12, fontWeight: 500, textColor: MEXICO_COLORS.ink }),
+    // Legend as plain key + label, no pill chrome.
+    style.legendItem({
+      background: 'transparent',
+      borderColor: 'transparent',
+      fontSize: 12,
+      fontWeight: 500,
+      lineHeight: 1.4,
+      textColor: MEXICO_COLORS.ink,
+    }),
+    // Tooltip as a small card: white ground, hairline ink ring, square.
+    style.tooltip({ background: MEXICO_COLORS.card, borderColor: MEXICO_COLORS.ink, borderWidth: 1, borderRadius: 0 }),
+    style.tooltip.heading({ textColor: MEXICO_COLORS.ink }),
+    style.tooltip.value({ textColor: MEXICO_COLORS.ink }),
     style.tickLine({ color: 'transparent' }),
     style.panelBorder({ strokeWidth: 0 }),
     style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: MEXICO_COLORS.ink }),
@@ -86,7 +89,7 @@ export const mexicoChromeStyles = styles({
 export const mexicoPolarStyles = styles({ defaults: [style.panelBorder.bottom({ strokeWidth: 0 })] });
 ```
 
-`strokeWidth: 0` is how a panel-border edge is silenced: it paints nothing and reserves no space. Fonts here name no `fontFamily`, so engine text inherits Rubik from the theme's `fontFamilyDefault`.
+`strokeWidth: 0` is how a panel-border edge is silenced: it paints nothing and reserves no space. The text entries name no `fontFamily` of their own — `style.graph({ fontFamily })` gives every stylesheet text target Rubik, and the theme's `fontFamilyDefault` carries the header and footer.
 
 ## Shared config builder and title helper
 
@@ -141,7 +144,7 @@ export const createMexicoTitle = (segments: Array<{ text: string; color?: string
 
 Four overrides, one per `(geom, coord)` pair the style repaints: `mexicoBar` (bar, cartesian) draws radiating arches, `mexicoSlice` (bar, polar) draws outlined arcs with outward ink echoes, `mexicoPoint` (point, cartesian) draws ringed targets, and `mexicoLine` (line, cartesian) draws parallel echoes with a ringed-target terminus. Each also supplies `renderHover` (redraw the hovered mark bolder, with a faint solid core — the one place the "no solid core" rule relaxes) and `renderHoverCompanions` (faint targets marking where a hovered reading lands on the other layers of a combo).
 
-Every colour these renderers draw comes from `getColor(observation)` and `getAlpha(observation)` on the render input. Those accessors expose the mapped encoding — the cascade's data tier — so the paint of a repainted layer is decided by its `color` scale, and each renderer carries its own literal fallback (`MEXICO_COLORS.ink`) for a layer that maps nothing. A render-only override sees the encoding, not resolved stylesheet entries and not the active `colorScheme`: keep the plugin's palette in its own constants, as here, and let the stylesheet own the chrome. See `reference/plugins.md`.
+Every colour and opacity these renderers draw is read through `styleReaders` on the render input — this layer's full cascade (override → data → default), resolved for the provider's `colorScheme`. `styleReaders.get('color', observation)` returns the mapped series colour where the `color` scale decided it, a user's `overrides` entry where one matches, and otherwise the built-in `geom` token — so a stylesheet, `{ light, dark }` colours and the dark scheme all reach the marks. The bare `getColor(observation)` / `getAlpha(observation)` accessors see the data tier only and would miss all of that. The ink echo halos behind a slice are the one literal left (`MEXICO_COLORS.ink`): they are the grammar, not the mark's colour. `renderHover` and `renderHoverCompanions` carry the same `styleReaders`; companion targets on the other layers of a combo are read through this layer's readers, which still lands their mapped colour — a plugin that needs another layer's own stylesheet defaults builds readers with `createStyleResolver({ colorScheme }).geomReaders(otherLayer)`. Inside a component rendered under the provider, `useStyleReaders(layer)` is the exported hook form. See `reference/plugins.md` → Paint and the style cascade.
 
 ```tsx
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
@@ -151,6 +154,7 @@ import type {
   CartesianCoordSystem,
   CompiledLayer,
   CompiledLayerFor,
+  GeomStyleReaders,
   HoverHit,
   MainAxis,
   Observation,
@@ -159,10 +163,8 @@ import type {
 import {
   buildPolarBarArcPath,
   createStableKeyGenerator,
-  getAlpha,
   getAngleExtent,
   getBarRectBounds,
-  getColor,
   getGroup,
   getRadiusExtent,
   getStackRole,
@@ -323,8 +325,13 @@ const buildArchPath = (centerX: number, baselineY: number, capCenterY: number, r
   return `M ${left} ${baselineY} L ${left} ${capCenterY} A ${radius} ${radius} 0 0 1 ${right} ${capCenterY} L ${right} ${baselineY}`;
 };
 
-/** An arch's geometry, colour, and stack role from its normalized bar rect. */
-const toArchSegment = (observation: Observation, mainAxis: MainAxis, key: string): ArchSegment | null => {
+/** An arch's geometry, colour, and stack role from its normalized bar rect. Paint reads the cascade. */
+const toArchSegment = (
+  observation: Observation,
+  mainAxis: MainAxis,
+  key: string,
+  styleReaders: GeomStyleReaders,
+): ArchSegment | null => {
   const bounds = getBarRectBounds(mainAxis, observation);
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) return null;
   return {
@@ -333,8 +340,8 @@ const toArchSegment = (observation: Observation, mainAxis: MainAxis, key: string
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    color: getColor(observation) ?? MEXICO_COLORS.ink,
-    opacity: getAlpha(observation) ?? 1,
+    color: styleReaders.get('color', observation),
+    opacity: styleReaders.get('alpha', observation),
     cap: getStackRole(observation),
   };
 };
@@ -407,9 +414,11 @@ const byDescendingHeight = (first: ArchSegment, second: ArchSegment): number => 
 const MexicoArchBars = ({
   layer,
   coordSystem,
+  styleReaders,
 }: {
   layer: CompiledLayer;
   coordSystem: CartesianCoordSystem;
+  styleReaders: GeomStyleReaders;
 }): ReactNode => {
   const { ref, size } = usePanelSize();
 
@@ -417,11 +426,11 @@ const MexicoArchBars = ({
     const generateKey = createStableKeyGenerator(layer.data, layer.mapping, layer.id);
     const collected: ArchSegment[] = [];
     for (const observation of layer.data) {
-      const segment = toArchSegment(observation, coordSystem.mainAxis, generateKey(observation));
+      const segment = toArchSegment(observation, coordSystem.mainAxis, generateKey(observation), styleReaders);
       if (segment) collected.push(segment);
     }
     return collected.sort(byDescendingHeight);
-  }, [layer.data, layer.mapping, layer.id, coordSystem.mainAxis]);
+  }, [layer.data, layer.mapping, layer.id, coordSystem.mainAxis, styleReaders]);
 
   return (
     <g ref={ref} data-geom="bar">
@@ -435,14 +444,16 @@ const MexicoArchHover = ({
   observations,
   mainAxis,
   size,
+  styleReaders,
 }: {
   observations: Observation[];
   mainAxis: MainAxis;
   size: PixelSize;
+  styleReaders: GeomStyleReaders;
 }): ReactNode => {
   const segments: ArchSegment[] = [];
   observations.forEach((observation, index) => {
-    const segment = toArchSegment(observation, mainAxis, `hover-${index}`);
+    const segment = toArchSegment(observation, mainAxis, `hover-${index}`, styleReaders);
     if (segment) segments.push(segment);
   });
   if (size.width <= 0 || segments.length === 0) return null;
@@ -471,7 +482,7 @@ interface SliceArc {
 }
 
 /** A slice's angle/radius extents from its observation, scaled into the echo-safe radius band. */
-const toSliceArc = (observation: Observation, key: string): SliceArc | null => {
+const toSliceArc = (observation: Observation, key: string, styleReaders: GeomStyleReaders): SliceArc | null => {
   const { startAngle, endAngle } = getAngleExtent(observation);
   const { innerRadius, outerRadius } = getRadiusExtent(observation);
   if (startAngle === null || endAngle === null || innerRadius === null || outerRadius === null) return null;
@@ -481,8 +492,8 @@ const toSliceArc = (observation: Observation, key: string): SliceArc | null => {
     endAngle,
     innerRadius: innerRadius * SLICE_RADIUS_SCALE,
     outerRadius: outerRadius * SLICE_RADIUS_SCALE,
-    color: getColor(observation) ?? MEXICO_COLORS.ink,
-    opacity: getAlpha(observation) ?? 1,
+    color: styleReaders.get('color', observation),
+    opacity: styleReaders.get('alpha', observation),
   };
 };
 
@@ -556,7 +567,13 @@ const SliceShape = ({
   );
 };
 
-const MexicoSlices = ({ layer }: { layer: CompiledLayerFor<'bar'> }): ReactNode => {
+const MexicoSlices = ({
+  layer,
+  styleReaders,
+}: {
+  layer: CompiledLayerFor<'bar'>;
+  styleReaders: GeomStyleReaders;
+}): ReactNode => {
   const { ref, size } = usePanelSize();
   const minSide = Math.min(size.width, size.height);
   const unitsPerPx = minSide > 0 ? 2 / minSide : 0;
@@ -565,11 +582,11 @@ const MexicoSlices = ({ layer }: { layer: CompiledLayerFor<'bar'> }): ReactNode 
     const generateKey = createStableKeyGenerator(layer.data, layer.mapping, layer.id);
     const result: SliceArc[] = [];
     for (const observation of layer.data) {
-      const slice = toSliceArc(observation, generateKey(observation));
+      const slice = toSliceArc(observation, generateKey(observation), styleReaders);
       if (slice) result.push(slice);
     }
     return result;
-  }, [layer.data, layer.mapping, layer.id]);
+  }, [layer.data, layer.mapping, layer.id, styleReaders]);
 
   return (
     <g ref={ref} data-geom="bar">
@@ -585,8 +602,16 @@ const MexicoSlices = ({ layer }: { layer: CompiledLayerFor<'bar'> }): ReactNode 
 };
 
 /** The hovered slice redrawn bold with a faint body, from `primary.observation` and the panel rect. */
-const MexicoSliceHover = ({ observation, size }: { observation: Observation; size: PixelSize }): ReactNode => {
-  const slice = toSliceArc(observation, 'hover');
+const MexicoSliceHover = ({
+  observation,
+  size,
+  styleReaders,
+}: {
+  observation: Observation;
+  size: PixelSize;
+  styleReaders: GeomStyleReaders;
+}): ReactNode => {
+  const slice = toSliceArc(observation, 'hover', styleReaders);
   const minSide = Math.min(size.width, size.height);
   if (!slice || minSide <= 0) return null;
   return (
@@ -609,7 +634,7 @@ interface TargetPoint {
 }
 
 /** A ringed target's position/colour from its observation, in normalized [0,1] panel space. */
-const toTargetPoint = (observation: Observation, key: string): TargetPoint | null => {
+const toTargetPoint = (observation: Observation, key: string, styleReaders: GeomStyleReaders): TargetPoint | null => {
   const x = getX(observation);
   const y = getY(observation);
   if (x === null || y === null) return null;
@@ -617,23 +642,23 @@ const toTargetPoint = (observation: Observation, key: string): TargetPoint | nul
     key,
     x: toViewBoxX(x),
     y: toViewBoxY(y),
-    color: getColor(observation) ?? MEXICO_COLORS.ink,
-    opacity: getAlpha(observation) ?? 1,
+    color: styleReaders.get('color', observation),
+    opacity: styleReaders.get('alpha', observation),
   };
 };
 
-const MexicoPoints = ({ layer }: { layer: CompiledLayer }): ReactNode => {
+const MexicoPoints = ({ layer, styleReaders }: { layer: CompiledLayer; styleReaders: GeomStyleReaders }): ReactNode => {
   const { ref, size } = usePanelSize();
 
   const points = useMemo<TargetPoint[]>(() => {
     const generateKey = createStableKeyGenerator(layer.data, layer.mapping, layer.id);
     const result: TargetPoint[] = [];
     for (const observation of layer.data) {
-      const point = toTargetPoint(observation, generateKey(observation));
+      const point = toTargetPoint(observation, generateKey(observation), styleReaders);
       if (point) result.push(point);
     }
     return result;
-  }, [layer.data, layer.mapping, layer.id]);
+  }, [layer.data, layer.mapping, layer.id, styleReaders]);
 
   return (
     <g ref={ref} data-geom="point">
@@ -648,9 +673,17 @@ const MexicoPoints = ({ layer }: { layer: CompiledLayer }): ReactNode => {
 };
 
 /** Faint ringed targets marking where a hovered reading lands on this (non-focal) layer. */
-const CompanionTargets = ({ hits, size }: { hits: HoverHit[]; size: PixelSize }): ReactNode =>
+const CompanionTargets = ({
+  hits,
+  size,
+  styleReaders,
+}: {
+  hits: HoverHit[];
+  size: PixelSize;
+  styleReaders: GeomStyleReaders;
+}): ReactNode =>
   hits.map((hit, index) => {
-    const point = toTargetPoint(hit.observation, `companion-${hit.layerId}-${index}`);
+    const point = toTargetPoint(hit.observation, `companion-${hit.layerId}-${index}`, styleReaders);
     if (!point) return null;
     return (
       <g key={point.key} opacity={COMPANION_OPACITY}>
@@ -664,27 +697,35 @@ const MexicoPointHover = ({
   observation,
   companions,
   size,
+  styleReaders,
 }: {
   observation: Observation;
   companions: HoverHit[];
   size: PixelSize;
+  styleReaders: GeomStyleReaders;
 }): ReactNode => {
-  const point = toTargetPoint(observation, 'hover');
+  const point = toTargetPoint(observation, 'hover', styleReaders);
   if (size.width <= 0) return null;
   return (
     <g data-geom="point">
-      <CompanionTargets hits={companions} size={size} />
+      <CompanionTargets hits={companions} size={size} styleReaders={styleReaders} />
       {point && <RingedTarget cx={point.x * size.width} cy={point.y * size.height} color={point.color} isEmphasized />}
     </g>
   );
 };
 
 /** Cross-layer companion targets — the path with no `panelRect`, so it measures the panel itself. */
-const MexicoCompanionLayer = ({ related }: { related: HoverHit[] }): ReactNode => {
+const MexicoCompanionLayer = ({
+  related,
+  styleReaders,
+}: {
+  related: HoverHit[];
+  styleReaders: GeomStyleReaders;
+}): ReactNode => {
   const { ref, size } = usePanelSize();
   return (
     <g ref={ref} data-geom="point">
-      {size.width > 0 && <CompanionTargets hits={related} size={size} />}
+      {size.width > 0 && <CompanionTargets hits={related} size={size} styleReaders={styleReaders} />}
     </g>
   );
 };
@@ -707,7 +748,7 @@ interface LineTrace {
 }
 
 /** A trace's points/colour from an ordered run of observations, in normalized [0,1] space. */
-const toLineTrace = (observations: Observation[], key: string): LineTrace | null => {
+const toLineTrace = (observations: Observation[], key: string, styleReaders: GeomStyleReaders): LineTrace | null => {
   const points: LinePoint[] = [];
   for (const observation of observations) {
     const x = getX(observation);
@@ -720,8 +761,8 @@ const toLineTrace = (observations: Observation[], key: string): LineTrace | null
   return {
     key,
     points,
-    color: getColor(first) ?? MEXICO_COLORS.ink,
-    opacity: getAlpha(first) ?? 1,
+    color: styleReaders.get('color', first),
+    opacity: styleReaders.get('alpha', first),
   };
 };
 
@@ -774,7 +815,13 @@ const LineEchoTrace = ({
   );
 };
 
-const MexicoLines = ({ layer }: { layer: CompiledLayerFor<'line'> }): ReactNode => {
+const MexicoLines = ({
+  layer,
+  styleReaders,
+}: {
+  layer: CompiledLayerFor<'line'>;
+  styleReaders: GeomStyleReaders;
+}): ReactNode => {
   const { ref, size } = usePanelSize();
 
   const traces = useMemo<LineTrace[]>(() => {
@@ -783,11 +830,11 @@ const MexicoLines = ({ layer }: { layer: CompiledLayerFor<'line'> }): ReactNode 
     layer.data.groupBy(GROUP_VARIABLES.group).forEach((groupData) => {
       const observations = prepareLineObservations([...groupData], layer.params.missingValues);
       const first = observations[0];
-      const trace = first && toLineTrace(observations, generateKey(first));
+      const trace = first && toLineTrace(observations, generateKey(first), styleReaders);
       if (trace) result.push(trace);
     });
     return result;
-  }, [layer.data, layer.mapping, layer.id, layer.params.missingValues]);
+  }, [layer.data, layer.mapping, layer.id, layer.params.missingValues, styleReaders]);
 
   return (
     <g ref={ref} data-geom="line">
@@ -802,11 +849,13 @@ const MexicoLineHover = ({
   observation,
   companions,
   size,
+  styleReaders,
 }: {
   layer: CompiledLayerFor<'line'>;
   observation: Observation;
   companions: HoverHit[];
   size: PixelSize;
+  styleReaders: GeomStyleReaders;
 }): ReactNode => {
   const primaryGroup = getGroup(observation);
   const seriesObservations = useMemo(() => {
@@ -814,11 +863,11 @@ const MexicoLineHover = ({
     return prepareLineObservations([...matching], layer.params.missingValues);
   }, [layer.data, layer.params.missingValues, primaryGroup]);
 
-  const trace = toLineTrace(seriesObservations, 'hover');
+  const trace = toLineTrace(seriesObservations, 'hover', styleReaders);
   if (size.width <= 0) return null;
   return (
     <g data-geom="line">
-      <CompanionTargets hits={companions} size={size} />
+      <CompanionTargets hits={companions} size={size} styleReaders={styleReaders} />
       {trace && <LineEchoTrace trace={trace} size={size} isEmphasized />}
     </g>
   );
@@ -827,9 +876,10 @@ const MexicoLineHover = ({
 // ─── Plugin registrations ─────────────────────────────────────────────────────
 // Render-only overrides by name: each replaces the paint half of a built-in geom
 // for one coordinate system, reusing the unchanged compile/scale/layout half.
-// Hover keeps the same grammar and turns the vibration up on the hovered mark,
-// while the base layer dims itself; companions mark where the reading lands on the
-// other layers of a combo.
+// Every handler forwards its input's `styleReaders`, so the marks read the same
+// cascade the built-in renderer would. Hover keeps the same grammar and turns the
+// vibration up on the hovered mark, while the base layer dims itself; companions
+// mark where the reading lands on the other layers of a combo.
 
 const rectSize = (panelRect: { width: number; height: number }): PixelSize => ({
   width: panelRect.width,
@@ -840,11 +890,11 @@ export const mexicoBar = defineGeomRenderer('bar', {
   coord: 'cartesian',
   guideMode: 'band',
   swatchShape: 'square',
-  render: ({ layer, coordSystem }) => {
+  render: ({ layer, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <MexicoArchBars layer={layer} coordSystem={coordSystem} />;
+    return <MexicoArchBars layer={layer} coordSystem={coordSystem} styleReaders={styleReaders} />;
   },
-  renderHover: ({ coordSystem, primary, group, panelRect }) => {
+  renderHover: ({ coordSystem, primary, group, panelRect, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
     // `group` carries the hovered column's other stacked segments, so the whole two-tone arch
     // lifts together rather than a single segment floating out of its column.
@@ -853,6 +903,7 @@ export const mexicoBar = defineGeomRenderer('bar', {
         observations={[primary.observation, ...group.map((hit) => hit.observation)]}
         mainAxis={coordSystem.mainAxis}
         size={rectSize(panelRect)}
+        styleReaders={styleReaders}
       />
     );
   },
@@ -863,13 +914,15 @@ export const mexicoSlice = defineGeomRenderer('bar', {
   coord: 'polar',
   guideMode: 'band',
   swatchShape: 'slice',
-  render: ({ layer, coordSystem }) => {
+  render: ({ layer, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'polar') return null;
-    return <MexicoSlices layer={layer as CompiledLayerFor<'bar'>} />;
+    return <MexicoSlices layer={layer as CompiledLayerFor<'bar'>} styleReaders={styleReaders} />;
   },
-  renderHover: ({ coordSystem, primary, panelRect }) => {
+  renderHover: ({ coordSystem, primary, panelRect, styleReaders }) => {
     if (coordSystem.type !== 'polar') return null;
-    return <MexicoSliceHover observation={primary.observation} size={rectSize(panelRect)} />;
+    return (
+      <MexicoSliceHover observation={primary.observation} size={rectSize(panelRect)} styleReaders={styleReaders} />
+    );
   },
   renderHoverCompanions: () => null,
 });
@@ -877,28 +930,31 @@ export const mexicoSlice = defineGeomRenderer('bar', {
 export const mexicoPoint = defineGeomRenderer('point', {
   coord: 'cartesian',
   swatchShape: 'circle',
-  render: ({ layer, coordSystem }) => {
+  render: ({ layer, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <MexicoPoints layer={layer} />;
+    return <MexicoPoints layer={layer} styleReaders={styleReaders} />;
   },
-  renderHover: ({ primary, group, related, panelRect }) => (
+  renderHover: ({ primary, group, related, panelRect, styleReaders }) => (
     <MexicoPointHover
       observation={primary.observation}
       companions={[...group, ...related]}
       size={rectSize(panelRect)}
+      styleReaders={styleReaders}
     />
   ),
-  renderHoverCompanions: ({ related }) => <MexicoCompanionLayer related={related} />,
+  renderHoverCompanions: ({ related, styleReaders }) => (
+    <MexicoCompanionLayer related={related} styleReaders={styleReaders} />
+  ),
 });
 
 export const mexicoLine = defineGeomRenderer('line', {
   coord: 'cartesian',
   swatchShape: 'line',
-  render: ({ layer, coordSystem }) => {
+  render: ({ layer, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <MexicoLines layer={layer as CompiledLayerFor<'line'>} />;
+    return <MexicoLines layer={layer as CompiledLayerFor<'line'>} styleReaders={styleReaders} />;
   },
-  renderHover: ({ layer, coordSystem, primary, group, related, panelRect }) => {
+  renderHover: ({ layer, coordSystem, primary, group, related, panelRect, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
     return (
       <MexicoLineHover
@@ -906,10 +962,13 @@ export const mexicoLine = defineGeomRenderer('line', {
         observation={primary.observation}
         companions={[...group, ...related]}
         size={rectSize(panelRect)}
+        styleReaders={styleReaders}
       />
     );
   },
-  renderHoverCompanions: ({ related }) => <MexicoCompanionLayer related={related} />,
+  renderHoverCompanions: ({ related, styleReaders }) => (
+    <MexicoCompanionLayer related={related} styleReaders={styleReaders} />
+  ),
 });
 
 export const mexicoPlugins = [mexicoBar, mexicoSlice, mexicoPoint, mexicoLine] as const;
@@ -1056,7 +1115,7 @@ export function RevenueDonut() {
 
 ## Fonts
 
-Theme tokens set font families but do not load the fonts — the page must load them. Righteous carries the headlines, Rubik the engine text:
+`style.graph({ fontFamily })` applies Rubik to the chart text and `fontFamilyDefault` to the header and footer (Righteous is set per title segment); none of them load a font — the page must load both:
 
 ```html
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Righteous&family=Rubik:wght@400;500;600;700&display=swap" />

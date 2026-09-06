@@ -7,6 +7,10 @@ A radar chart is a line/point/area chart bent around a circle: `coord.polar({ th
 | Spider (outline + vertex dots) | base below: `geom.line()` + `geom.point({ interactive: false })` |
 | Points only | single `geom.point()` layer, no line |
 | Filled | `geom.area({ position: 'identity' })` + `geom.point({ interactive: false })` instead of the line |
+| Curved spider | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
+| Rotated / hollow centre | `coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 })` |
+| Per-series dash | `lineType: 'player'` in the mapping + `scale.lineType.discrete({ range: ['solid', 'dashed'] })` |
+| Bar-based rose | `geom.bar` instead — `recipes/charts/polar-bar.md` |
 
 ## Base spider
 
@@ -71,10 +75,49 @@ styles({
 }),
 ```
 
+Curved spider — a Catmull-Rom spline through the vertices instead of straight segments:
+
+```ts
+geom.line({ params: { interpolate: 'catmull-rom' } }),
+```
+
+Missing spokes — `missingValues` defaults to `'gap'` on a line (the outline breaks) and `'zero'` on an area (the vertex drops to the centre); `'connect'` spans the hole:
+
+```ts
+geom.line({ params: { missingValues: 'connect' } }),
+```
+
+Rotated / hollow centre — `startAngle` (degrees, default `0`) picks where the first spoke lands; `innerRadius` in `(0, 1)` keeps the polygons off the centre:
+
+```ts
+coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 }),
+```
+
+Stroke — `style.geom.line({ strokeWidth, lineType })` (defaults `2` / `'solid'`) paints every outline; map `lineType` for a dash per series:
+
+```ts
+createSpec({ x: 'skill', y: 'score', color: 'player', lineType: 'player' }),
+geom.line(),
+scale.lineType.discrete({ domain: ['Alice', 'Bob'], range: ['solid', 'dashed'] }),
+styles({ defaults: [style.geom.line({ strokeWidth: 3 })] }),
+```
+
+## Intro animation
+
+Only the vertex dots have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` lands the highest scores first:
+
+```tsx
+<GraphRenderer animation={{ intro: { staggerOrder: 'value-descending' } }} />
+```
+
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area.
+
 ## Gotchas
 
 - Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences.
 - The filled variant needs `position: 'identity'` — `geom.area` defaults to `'stack'`, which would pile the series' radii on top of each other instead of overlapping them.
 - Use `scale.x.discrete()` explicitly for the spokes; under `coord.polar` the compiler zeroes discrete-scale padding so the spokes distribute evenly around the full circle.
 - Mark the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the dots.
-- The intro animation reaches the vertex dots (they pop in staggered, tuned by `animation` on `GraphRenderer`); a polar line or area polygon has no entrance of its own. `animation.maxAnimatedGeoms` (default `1500`) counts geoms across all layers.
+- Data labels are unsupported under polar for line, area and point layers — `showDataLabels: true` warns `DATA_LABELS_UNSUPPORTED` and nothing renders.
+- `style.geom.line({ fillAlpha })` is inert here: the gradient wash under a line is cartesian-only. Use the filled variant for a tinted polygon.
+- No reference ring: `geom.rule` is cartesian/flip only and raises `UNSUPPORTED_COORD` under `coord.polar`.

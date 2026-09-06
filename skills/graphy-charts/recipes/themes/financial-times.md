@@ -1,10 +1,10 @@
 # Financial Times
 
-Technique: spec `config()` + a stylesheet + theme tokens (no slots, no plugins).
+Technique: spec `config()` + a stylesheet + a few theme tokens for the header/footer (no slots, no plugins).
 
 The FT house look: charts sit on the signature salmon paper (`#FFF1E5`) with warm sand-toned rules for gridlines and panel edges, claret/wine-red data with a paler tint for forecasts, and Oxford blue as the counterpart series. Titles are 18px sentence-case headlines where key words take the series colour, so the headline doubles as the legend. Only horizontal structure: solid top rule, heavier 1.5px bottom rule, y gridlines on, no side borders.
 
-`config()` sets what the frame contains, a stylesheet paints it, and `themeOverrides` dresses the legend and headline chrome around it (`reference/styling.md`).
+`config()` sets what the frame contains, a stylesheet paints it — paper, rules, text, and the tooltip, legend pills and headline cards — and `themeOverrides` dresses only the header/footer type around it (`reference/styling.md`).
 
 ## Constants
 
@@ -32,31 +32,29 @@ export const FT_CLARET_RAMP = ['#990F3D', '#BE4B75', '#D486A3', '#E5B0C4', '#F2D
 
 ## Theme
 
-This style keeps the engine's default font sizing and swaps only colours and families, so the theme needs no measured `FontTokenOverride` entry at all — `fontFamilyDefault` reaches every text target the stylesheet leaves unnamed.
+Header and footer only: Figtree for the title, subtitle and caption (and the measurement fallback), black and slate for their ink. The engine's default sizing stays, so nothing here is measured. These are theme tokens, not the stylesheet tokens of the same name — the plot text, legend pills, tooltip and headline take their colour from the stylesheet below.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const financialTimesTheme: ThemeOverrides = {
-  textPrimary: FT_COLORS.black,
-  textSecondary: FT_COLORS.slate,
-  legendBackground: 'transparent',
-  legendBorderColor: 'transparent',
-  fontFamilyDefault: FT_FONT_FAMILY.body,
+  fontFamilyDefault: FT_FONT_FAMILY.body, // header/footer family and the measurement fallback
   fontFamilyHeading: FT_FONT_FAMILY.body,
+  textPrimary: FT_COLORS.black, // title and subtitle
+  textSecondary: FT_COLORS.slate, // caption and source
 };
 ```
 
 ## Shared frame stylesheet
 
-The whole FT frame is seven entries: the paper, the solid grid, the warm tick marks, and a panel ruled top and bottom only.
+The FT frame: the paper and its family, the solid grid, the warm tick marks, a panel ruled top and bottom only, then the ink — black where text names things, slate for tick values — and the same split carried into the legend pills, tooltip and headline.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
 
 const financialTimesChromeStyles = styles({
   defaults: [
-    style.graph({ background: FT_COLORS.paper }),
+    style.graph({ background: FT_COLORS.paper, fontFamily: FT_FONT_FAMILY.body }),
     style.gridLine({ lineType: 'solid' }),
     style.tickLine({ color: FT_COLORS.rule }),
     // The bare builder rules all four edges; the edge partitions then differ.
@@ -64,6 +62,20 @@ const financialTimesChromeStyles = styles({
     style.panelBorder.bottom({ strokeWidth: 1.5 }),
     style.panelBorder.left({ strokeWidth: 0 }),
     style.panelBorder.right({ strokeWidth: 0 }),
+
+    style.axisLabel({ textColor: FT_COLORS.black }),
+    style.tickLabel({ textColor: FT_COLORS.slate }),
+    style.directLabel({ textColor: FT_COLORS.black }),
+
+    // Legend pills sit bare on the paper.
+    style.legendItem({ background: 'transparent', borderColor: 'transparent', textColor: FT_COLORS.slate }),
+    // Tooltip: a paper card ruled in the same warm sand as the grid, square-cornered like the bars.
+    style.tooltip({ background: FT_COLORS.paper, borderColor: FT_COLORS.rule, borderWidth: 1, borderRadius: 0 }),
+    style.tooltip.heading({ textColor: FT_COLORS.black }),
+    style.tooltip.label({ textColor: FT_COLORS.slate }),
+    style.tooltip.value({ textColor: FT_COLORS.black }),
+    style.headlineItem.number({ textColor: FT_COLORS.black }),
+    style.headlineItem.caption({ textColor: FT_COLORS.slate }),
   ],
 });
 ```
@@ -166,7 +178,7 @@ The bar entry sits in `defaults`, so it shapes the corners without touching the 
 
 ## Example: line race with colour-keyed headline and direct labels
 
-The headline names each series in its line colour, so no boxed legend is needed; direct labels sit at the line endpoints. FT lines are 2.5px and unfilled — a line draws a gradient wash only where `fillAlpha` is declared, so leaving it out gives the bare stroke.
+The headline names each series in its line colour, so no boxed legend is needed; direct labels sit at the line endpoints, typed by the frame's `style.directLabel` entry. FT lines are 2.5px and unfilled — a line draws a gradient wash only where `fillAlpha` is declared, so leaving it out gives the bare stroke.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -226,7 +238,7 @@ export function FinancialTimesProductRace() {
 
 ## Fonts
 
-Figtree (stand-in for FT Metric) carries all chart text; Source Serif 4 (stand-in for Financier Display) is only for page-level display text outside the chart. Load on the host page:
+Figtree (stand-in for FT Metric) carries all chart text — `style.graph({ fontFamily })` applies it to the chart text, `fontFamilyDefault` to the header/footer; Source Serif 4 (stand-in for Financier Display) is only for page-level display text outside the chart. Neither token loads the font. Load on the host page:
 
 ```html
 <link

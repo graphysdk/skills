@@ -7,17 +7,17 @@ settings:
 catalogs:
   default:
     '@graphysdk/data-import-utils':
-      specifier: 1.8.1-beta.1787333039234
-      version: 1.8.1-beta.1787333039234
+      specifier: 1.9.0-beta.1788548769329
+      version: 1.9.0-beta.1788548769329
     '@graphysdk/react':
-      specifier: 1.8.1-beta.1787333039234
-      version: 1.8.1-beta.1787333039234
+      specifier: 1.9.0-beta.1788548769329
+      version: 1.9.0-beta.1788548769329
     '@graphysdk/react-renderer':
-      specifier: 1.8.1-beta.1787333039234
-      version: 1.8.1-beta.1787333039234
+      specifier: 1.9.0-beta.1788548769329
+      version: 1.9.0-beta.1788548769329
     '@graphysdk/viz-engine':
-      specifier: 1.8.1-beta.1787333039234
-      version: 1.8.1-beta.1787333039234
+      specifier: 1.9.0-beta.1788548769329
+      version: 1.9.0-beta.1788548769329
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
@@ -28,12 +28,12 @@ importers:
     dependencies:
       '@graphysdk/react':
         specifier: 'catalog:'
-        version: 1.8.1-beta.1787333039234(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/react-renderer':
-        specifier: 1.9.0-beta.1788548769329
+        specifier: 'catalog:'
         version: 1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
-        specifier: 1.9.0-beta.1788548769329
+        specifier: 'catalog:'
         version: 1.9.0-beta.1788548769329
       typescript:
         specifier: 'catalog:'
@@ -53,13 +53,13 @@ importers:
         version: 0.3.216(@anthropic-ai/sdk@0.112.4(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@graphysdk/data-import-utils':
         specifier: 'catalog:'
-        version: 1.8.1-beta.1787333039234
+        version: 1.9.0-beta.1788548769329
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
-        version: 1.8.1-beta.1787333039234(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
         specifier: 'catalog:'
-        version: 1.8.1-beta.1787333039234
+        version: 1.9.0-beta.1788548769329
       '@hono/node-server':
         specifier: ^1.19.14
         version: 1.19.14(hono@4.12.31)
@@ -649,59 +649,8 @@ packages:
       typescript:
         optional: true
 
-  '@graphysdk/data-import-utils@1.8.1-beta.1787333039234':
-    resolution: {integrity: sha512-4g7Ao0xFngm2zogoVqFwKwqxs0LV6AzOZid0SibI8kT6M0i0V14DTCB9h1vNnILJFs9Rv5Oey6v+TduUvHHpWg==}
-
-  '@graphysdk/react-renderer@1.8.1-beta.1787333039234':
-    resolution: {integrity: sha512-ANu0/9xNlBG1TDezXkYzhiS7JyM1skuL0Qidh2LifAROn87r+XDH/YM3N17NjswqlfgrBJYP4yWORH5tIg2bAg==}
-    peerDependencies:
-      '@tiptap/core': ^3.0.0
-      '@tiptap/extension-bold': ^3.0.0
-      '@tiptap/extension-document': ^3.0.0
-      '@tiptap/extension-hard-break': ^3.0.0
-      '@tiptap/extension-heading': ^3.0.0
-      '@tiptap/extension-italic': ^3.0.0
-      '@tiptap/extension-link': ^3.0.0
-      '@tiptap/extension-paragraph': ^3.0.0
-      '@tiptap/extension-text': ^3.0.0
-      '@tiptap/extension-text-align': ^3.0.0
-      '@tiptap/extension-text-style': ^3.0.0
-      '@tiptap/extension-underline': ^3.0.0
-      '@tiptap/extensions': ^3.0.0
-      '@tiptap/pm': ^3.0.0
-      '@tiptap/react': ^3.0.0
-      react: ^19.0.0
-    peerDependenciesMeta:
-      '@tiptap/core':
-        optional: true
-      '@tiptap/extension-bold':
-        optional: true
-      '@tiptap/extension-document':
-        optional: true
-      '@tiptap/extension-hard-break':
-        optional: true
-      '@tiptap/extension-heading':
-        optional: true
-      '@tiptap/extension-italic':
-        optional: true
-      '@tiptap/extension-link':
-        optional: true
-      '@tiptap/extension-paragraph':
-        optional: true
-      '@tiptap/extension-text':
-        optional: true
-      '@tiptap/extension-text-align':
-        optional: true
-      '@tiptap/extension-text-style':
-        optional: true
-      '@tiptap/extension-underline':
-        optional: true
-      '@tiptap/extensions':
-        optional: true
-      '@tiptap/pm':
-        optional: true
-      '@tiptap/react':
-        optional: true
+  '@graphysdk/data-import-utils@1.9.0-beta.1788548769329':
+    resolution: {integrity: sha512-i2pU2UJa/p59f8VbbtzmaAHGUSPytqBARpEmvYOGcvm8EqJqDVlXYGhieMOCEeSxdP3pJFoUBqQQc1OR3kicSg==}
 
   '@graphysdk/react-renderer@1.9.0-beta.1788548769329':
     resolution: {integrity: sha512-qYXXau7+Z0pWExPgpAWnc0jFsIXVAMJNVDSJs3Gv1H6s9iwkixcSNYa8vpKrnfXkFfPjez6Wbga6Yq+YJDhvEQ==}
@@ -754,8 +703,8 @@ packages:
       '@tiptap/react':
         optional: true
 
-  '@graphysdk/react@1.8.1-beta.1787333039234':
-    resolution: {integrity: sha512-o8ymqJna57giTDTRIcQuiTFwXDJsb+g5v0WSJMYxKZ80LOw3wNabTQ190+9Hf/Oc/hQKEgVya78JSWETEcb6cQ==}
+  '@graphysdk/react@1.9.0-beta.1788548769329':
+    resolution: {integrity: sha512-TUWdBQIHKzpc6uMfpZQyIvBXiPFJHzpjq3PiEvIXAYYkZpeP3ktVBo9efRWZTjO7AwC8iyR2L297oWdN2CWTYQ==}
     peerDependencies:
       '@tiptap/core': ^3.0.0
       '@tiptap/extension-bold': ^3.0.0
@@ -804,9 +753,6 @@ packages:
         optional: true
       '@tiptap/react':
         optional: true
-
-  '@graphysdk/viz-engine@1.8.1-beta.1787333039234':
-    resolution: {integrity: sha512-mno/oPllEZV0OelY0NIXohXoX0N8p0grZPyCYCepepWZExalROoyS7VG2Ho2DTtFyIKbro7yOEOPmVzoZdO2eg==}
 
   '@graphysdk/viz-engine@1.9.0-beta.1788548769329':
     resolution: {integrity: sha512-4RLvSTyreCwOV69WNAGeNoF44angT23PlcXvS6bHRY6s1GwaYwD1FXgEvhIO3StWZx+6SKMysPWrYU1y+UPqww==}
@@ -2728,53 +2674,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@graphysdk/data-import-utils@1.8.1-beta.1787333039234':
+  '@graphysdk/data-import-utils@1.9.0-beta.1788548769329':
     dependencies:
       exceljs: 4.4.0
       papaparse: 5.5.4
-
-  '@graphysdk/react-renderer@1.8.1-beta.1787333039234(5aad7dcc2d5e48e0508df442c5bbe6b3)':
-    dependencies:
-      '@base-ui/react': 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@graphysdk/viz-engine': 1.8.1-beta.1787333039234
-      '@vanilla-extract/css': 1.21.1
-      '@vanilla-extract/dynamic': 2.1.5
-      clsx: 2.1.1
-      color2k: 2.0.4
-      d3-interpolate-path: 2.3.0
-      lodash-es: 4.18.1
-      motion: 12.42.2(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      react: 19.2.7
-      react-colorful: 5.8.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      react-intl: 8.1.4(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
-      zustand: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
-    optionalDependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/extension-bold': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-document': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-hard-break': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-heading': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-italic': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-link': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-paragraph': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-text': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-text-align': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-text-style': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-underline': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extensions': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-      '@tiptap/react': 3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-    transitivePeerDependencies:
-      - '@date-fns/tz'
-      - '@emotion/is-prop-valid'
-      - '@types/react'
-      - babel-plugin-macros
-      - date-fns
-      - immer
-      - react-dom
-      - typescript
-      - use-sync-external-store
 
   '@graphysdk/react-renderer@1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
@@ -2819,10 +2722,10 @@ snapshots:
       - typescript
       - use-sync-external-store
 
-  '@graphysdk/react@1.8.1-beta.1787333039234(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+  '@graphysdk/react@1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
-      '@graphysdk/react-renderer': 1.8.1-beta.1787333039234(5aad7dcc2d5e48e0508df442c5bbe6b3)
-      '@graphysdk/viz-engine': 1.8.1-beta.1787333039234
+      '@graphysdk/react-renderer': 1.9.0-beta.1788548769329(5aad7dcc2d5e48e0508df442c5bbe6b3)
+      '@graphysdk/viz-engine': 1.9.0-beta.1788548769329
       react: 19.2.7
     optionalDependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
@@ -2850,20 +2753,6 @@ snapshots:
       - react-dom
       - typescript
       - use-sync-external-store
-
-  '@graphysdk/viz-engine@1.8.1-beta.1787333039234':
-    dependencies:
-      color2k: 2.0.4
-      d3-delaunay: 6.0.4
-      d3-interpolate: 3.0.1
-      d3-regression: 1.3.10
-      d3-scale: 4.0.2
-      d3-scale-chromatic: 3.1.0
-      d3-shape: 3.2.0
-      d3-time: 2.1.1
-      date-fns: 3.6.0
-      humanize-duration: 3.34.0
-      lodash-es: 4.18.1
 
   '@graphysdk/viz-engine@1.9.0-beta.1788548769329':
     dependencies:

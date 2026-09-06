@@ -6,7 +6,7 @@ Agent skills for building with [Graphy](https://graphy.dev). Install into Claude
 
 | Skill | What it does |
 |---|---|
-| [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Everything for building with the Graphy viz stack: installing and setting up the SDK (prerequisites, troubleshooting), then authoring graphs — grammar-of-graphics spec building (geoms, scales, transforms, coords), styling, theming, slots, plugins, and storytelling (highlights, annotations). Includes recipes for common graph types and house styles, a generated type reference, a headless spec validator, and a checker that typechecks every code sample against the installed SDK. |
+| [`graphy-charts`](./skills/graphy-charts/SKILL.md) | Everything for building with the Graphy viz stack: installing and setting up the SDK (prerequisites, troubleshooting), then authoring graphs — grammar-of-graphics spec building (geoms, scales, transforms, coords), styling, slots, plugins, and storytelling (highlights, annotations). Includes recipes for common graph types and house styles, a generated type reference, a headless spec validator, and a checker that typechecks every code sample against the installed SDK. |
 | [`graphy-editor`](./skills/graphy-editor/SKILL.md) | Editing companion to `graphy-charts`: making a rendered chart editable (`@graphysdk/react-renderer/editable`), editing it programmatically or from an agent via the serializable command system (per-layer control included), undo/redo and command history, saving and restoring edited charts, point-and-click annotation editing on the canvas, and the optional pre-built editor panel with design-system adoption. Includes worked recipes for each integration shape and its own generated type reference over the editing surface. |
 
 ## Install

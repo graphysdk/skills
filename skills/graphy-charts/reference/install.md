@@ -1,26 +1,23 @@
 # Install
 
-One package: **`@graphysdk/react`** — the spec builders, the `<GraphProvider>`/`<GraphRenderer>`
-components, and the hooks. This is the way to get started.
+One package: **`@graphysdk/react`** — the spec builders, `<GraphProvider>`/`<GraphRenderer>`, and
+the hooks. Advanced mode installs the two packages it composes directly: **`@graphysdk/viz-engine`**
+(compiles a spec plus data into a render-ready form; no React dependency) and
+**`@graphysdk/react-renderer`** (paints the compiled graph to SVG, "Made with Graphy" badge off).
 
-Advanced mode: install the two packages it composes directly — **`@graphysdk/viz-engine`** (the
-engine — compiles a declarative spec plus data into a render-ready form, no React dependency) and
-**`@graphysdk/react-renderer`** (React components that paint the compiled graph to SVG, with the
-"Made with Graphy" badge off). For embedders who need the neutral layer or headless compiling.
-
-Don't stop at "packages installed" — the goal is a graph rendering on screen. If something blocks
-rendering, work through **Troubleshooting** below.
+The goal is a graph rendering on screen, not packages installed — work through **Troubleshooting**
+if anything blocks that.
 
 ## Prerequisites
 
 | Requirement | Why |
 |---|---|
-| **React 19** | `react@^19.0.0` is a peer of the renderer. React 18 will not resolve. |
-| **A bundler that processes CSS imports from `node_modules`** | The renderer's JS entry imports its own stylesheet. Vite, Next.js and webpack + `css-loader` all do. |
-| **`@tiptap/*` v3** | The renderer declares 15 tiptap v3 packages as peers (`@tiptap/core`, `@tiptap/react`, `@tiptap/pm` and the extensions). npm 7+ and pnpm install peers automatically; Yarn does not. |
-| **`moduleResolution: "bundler"`** (or `node16`/`nodenext`) | The packages ship an `exports` map; the legacy `"node"` resolution misses it. |
+| **React 19** — `react` and `react-dom` at `^19` | `react` is a required peer; `react-dom` is imported by the renderer but not declared, so install both. React 18 will not resolve. |
+| **A bundler that resolves CSS imports from `node_modules`** | The JS entry imports its sibling stylesheet (`dist/index.css`). Vite, Next.js and webpack + `css-loader` all do. |
+| **`moduleResolution: "bundler"`** (or `node16`/`nodenext`) | The packages ship an `exports` map with no `main` fallback; the legacy `"node"` resolution finds nothing. |
+| **`@tiptap/*` v3** — only for `/editable` | The renderer lists 15 `@tiptap/*` packages as **optional** peers. A read-only install needs none of them; importing the editing entry point does. |
 
-The packages are public on npm — no registry configuration or auth token needed.
+The packages are public on npm — no registry configuration or token.
 
 ## Step 1 — install
 
@@ -29,36 +26,43 @@ pnpm add @graphysdk/react
 # or: npm install / yarn add
 ```
 
-Advanced mode instead:
+Advanced mode:
 
 ```bash
 pnpm add @graphysdk/viz-engine @graphysdk/react-renderer
 ```
 
+Entry points per package:
+
+| Package | Entry points |
+|---|---|
+| `@graphysdk/react` | `.`, `./editable` |
+| `@graphysdk/react-renderer` | `.`, `./editable`, `./graph-config` |
+| `@graphysdk/viz-engine` | `.`, `./graph-config` |
+
 ## Step 2 — render a graph
 
-Use the minimal chart in `SKILL.md`. Two things to know when checking the result:
+Use the minimal chart in `SKILL.md`. When checking the result:
 
-- **There is no stylesheet to import.** Each entry point injects its own CSS. A correct render shows
-  axes, grid lines and a coloured bar — not unstyled black-on-white text.
-- **Sizing**: `sizing={{ mode: 'responsive' }}` is the default and fills the parent, so the parent
-  needs real width and height. Use `sizing={{ mode: 'fixed', width: 640, height: 400 }}` while
-  verifying, so the graph renders regardless of page layout.
+- **You never import a stylesheet.** The JS entry imports it. A correct render shows axes, grid lines
+  and a coloured bar — not unstyled black-on-white text.
+- **Sizing.** The default `sizing={{ mode: 'responsive' }}` fills the parent, so the parent needs real
+  width and height. Use `sizing={{ mode: 'fixed', width: 640, height: 400 }}` while verifying.
 
-The editing surface lives behind `@graphysdk/react/editable` (advanced mode:
-`@graphysdk/react-renderer/editable`) and ships its own stylesheet, injected the same way.
+The editing surface lives at `@graphysdk/react/editable` (advanced mode:
+`@graphysdk/react-renderer/editable`) and imports its own stylesheet the same way.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| **404 during install** | Wrong name or version — `npm view @graphysdk/viz-engine version` should print one. Also check no stale `.npmrc` points the `@graphysdk` scope at a registry that doesn't have them. |
+| **404 during install** | Wrong name or version — `npm view @graphysdk/react version` should print one. Check no stale `.npmrc` points the `@graphysdk` scope elsewhere. |
 | **`ERESOLVE` / peer error on `react`** | The project is on React 18 or older. Upgrade to React 19; there is no fallback. |
-| **Unmet peer `@tiptap/*`** | Yarn does not auto-install peers. Add the 15 `@tiptap/*` packages the renderer lists at `^3.0.0`. |
-| **Graph renders unstyled** | The bundler is not processing the CSS import inside `node_modules`. Add `css-loader` on a custom webpack setup; Vite and Next.js need no configuration. |
-| **Graph area blank or zero height** | Responsive sizing inside a parent with no height. Give the parent a height, or use fixed sizing. |
+| **`Cannot find module '@tiptap/…'` at runtime** | Only happens when importing `/editable`. Add the 15 `@tiptap/*` packages the renderer lists, at `^3.0.0`. |
+| **Graph renders unstyled** | The bundler is not resolving the CSS import inside `node_modules`. Add `css-loader` on a custom webpack setup; Vite and Next.js need nothing. |
+| **Graph area blank; console shows `[graphy] ZERO_SIZE_CONTAINER`** | Responsive sizing inside a parent with no width or height. Give the parent a size, or use fixed sizing. |
 | **TypeScript cannot find the module or its types** | Set `"moduleResolution": "bundler"` (or `"node16"`/`"nodenext"`) in `tsconfig.json`. |
-| **`ERR_PACKAGE_PATH_NOT_EXPORTED`** | The package exposes `.` and `@graphysdk/react-renderer/editable`. Import from those entry points only. |
+| **`ERR_PACKAGE_PATH_NOT_EXPORTED`** | Import only from the entry points in the table above. |
 
 ## Next
 

@@ -11,29 +11,69 @@ import { type ReactNode, useMemo } from 'react';
 import rough from 'roughjs';
 
 import { defineGeomRenderer } from '@graphysdk/react-renderer';
-import type { CartesianCoordSystem, CompiledLayer, MainAxis, Observation, Rect } from '@graphysdk/viz-engine';
-import { getAlpha, getBarRectBounds, getColor } from '@graphysdk/viz-engine';
+import type {
+  BarStyleReaders,
+  BorderRadiusToken,
+  CartesianCoordSystem,
+  CompiledLayer,
+  MainAxis,
+  Observation,
+  Rect,
+  StyleState,
+} from '@graphysdk/viz-engine';
+import { getBarRectBounds } from '@graphysdk/viz-engine';
 
 // The nominal square canvas the bars paint into; the browser stretches it to the panel via
-// `preserveAspectRatio="none"`, so the renderer never needs the panel's pixel size. 100 (not 1) keeps
-// rough.js's pixel-scale internals (wobble, hachure gap) in their intuitive range.
+// `preserveAspectRatio="none"`, so the renderer never needs the panel's pixel size (`input.panelRect`,
+// the panel's layout-pixel `Rect` with x/y already applied — paint in local 0…width / 0…height — is the
+// escape hatch when it does). 100 (not 1) keeps rough.js's pixel-scale internals (wobble, hachure gap)
+// in their intuitive range.
 const VIEWBOX_SIZE = 100;
-const DEFAULT_INK = '#4e79a7';
 // One shared generator — `toPaths` is stateless (produces path data, touches no DOM).
 const generator = rough.generator();
 
 type RoughPath = ReturnType<typeof generator.toPaths>[number];
 
-interface BarStyle {
-  strokeWidth: number;
+/** The hand-drawn knobs — the one kind of paint the stylesheet has no vocabulary for, so constants are fair. */
+interface SketchStyle {
+  roughness: number;
   fillWeight: number;
   hachureGap: number;
 }
 
-const BASE_STYLE: BarStyle = { strokeWidth: 1.8, fillWeight: 1.2, hachureGap: 2.2 };
-// Hover: a bolder outline and denser fill, drawn over the dimmed base bar so the focused one reads as
-// inked-in. Sharing the base bar's seed keeps the heavier strokes registered to the bar underneath.
-const HOVER_STYLE: BarStyle = { strokeWidth: 3.3, fillWeight: 2.4, hachureGap: 1.4 };
+const BASE_SKETCH: SketchStyle = { roughness: 0.8, fillWeight: 1.2, hachureGap: 2.2 };
+// Hover: a denser fill, drawn over the dimmed base bar so the focused one reads as inked-in. Sharing the
+// base bar's seed keeps the heavier strokes registered to the bar underneath.
+const HOVER_SKETCH: SketchStyle = { roughness: 0.8, fillWeight: 2.4, hachureGap: 1.4 };
+
+/** Everything else comes through the cascade: user `style.geom.bar` entries, tokens, the active scheme. */
+interface BarPaint {
+  color: string;
+  stroke: string;
+  strokeWidth: number;
+  radius: BorderRadiusToken;
+}
+
+// A render-only `'bar'` override receives the bar layer's readers, so the bar built-ins (`borderRadius`,
+// `borderWidth`) are typed non-null. The built-in stylesheet declares `borderColor` too (`geomBorder`
+// token), but the reader type does not guarantee it — hence the fallback.
+const readBarPaint = (readers: BarStyleReaders, observation: Observation, state?: StyleState): BarPaint => {
+  const color = readers.get('color', observation, state);
+  return {
+    color,
+    stroke: readers.get('borderColor', observation, state) ?? color,
+    strokeWidth: readers.get('borderWidth', observation, state),
+    radius: readers.get('borderRadius', observation, state),
+  };
+};
+
+// `borderRadius` is a token, not pixels — nominal corner radii in viewBox units.
+const RADIUS_UNITS: Record<BorderRadiusToken, number> = { none: 0, xs: 0.5, sm: 1, md: 2, lg: 3, xl: 4, full: 50 };
+
+const roundedRectPath = (x: number, y: number, width: number, height: number, radius: number): string => {
+  const r = Math.min(radius, width / 2, height / 2);
+  return `M${x + r},${y} h${width - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${height - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${2 * r - width} a${r},${r} 0 0 1 ${-r},${-r} v${2 * r - height} a${r},${r} 0 0 1 ${r},${-r} Z`;
+};
 
 /** FNV-1a hash → a stable positive rough.js seed, so a bar's wobble is deterministic across re-render/hover. */
 const hashSeed = (key: string): number => {
@@ -50,21 +90,24 @@ const hashSeed = (key: string): number => {
 const rectSeed = (bounds: Rect): number => hashSeed(`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`);
 
 /** rough.js path set for one normalized [0,1] bar rect, scaled into the nominal viewBox. */
-const buildBarPaths = (bounds: Rect, color: string, style: BarStyle): RoughPath[] =>
+const buildBarPaths = (bounds: Rect, paint: BarPaint, sketch: SketchStyle): RoughPath[] =>
   generator.toPaths(
-    generator.rectangle(
-      bounds.x * VIEWBOX_SIZE,
-      bounds.y * VIEWBOX_SIZE,
-      bounds.width * VIEWBOX_SIZE,
-      bounds.height * VIEWBOX_SIZE,
+    generator.path(
+      roundedRectPath(
+        bounds.x * VIEWBOX_SIZE,
+        bounds.y * VIEWBOX_SIZE,
+        bounds.width * VIEWBOX_SIZE,
+        bounds.height * VIEWBOX_SIZE,
+        RADIUS_UNITS[paint.radius]
+      ),
       {
         seed: rectSeed(bounds),
-        roughness: 0.8,
         bowing: 1.2,
-        stroke: color,
-        fill: color,
+        stroke: paint.stroke,
+        strokeWidth: paint.strokeWidth,
+        fill: paint.color,
         fillStyle: 'hachure',
-        ...style,
+        ...sketch,
       }
     )
   );
@@ -109,7 +152,15 @@ interface SketchyBar {
 // The geom renderer receives normalized [0,1] bounds, so the bars paint into the nominal viewBox
 // square that the browser stretches to the panel. `vectorEffect="non-scaling-stroke"` keeps the ink
 // weight constant through that non-uniform stretch — no panel measurement needed.
-const SketchyBars = ({ layer, coordSystem }: { layer: CompiledLayer; coordSystem: CartesianCoordSystem }) => {
+const SketchyBars = ({
+  layer,
+  coordSystem,
+  styleReaders,
+}: {
+  layer: CompiledLayer;
+  coordSystem: CartesianCoordSystem;
+  styleReaders: BarStyleReaders;
+}) => {
   const bars = useMemo<SketchyBar[]>(() => {
     const result: SketchyBar[] = [];
     let index = 0;
@@ -119,11 +170,14 @@ const SketchyBars = ({ layer, coordSystem }: { layer: CompiledLayer; coordSystem
       const bounds = getBarRectBounds(coordSystem.mainAxis, observation);
       if (!bounds || bounds.width <= 0 || bounds.height <= 0) continue;
 
-      const color = getColor(observation) ?? DEFAULT_INK;
-      result.push({ key, opacity: getAlpha(observation) ?? 1, paths: buildBarPaths(bounds, color, BASE_STYLE) });
+      result.push({
+        key,
+        opacity: styleReaders.get('alpha', observation),
+        paths: buildBarPaths(bounds, readBarPaint(styleReaders, observation), BASE_SKETCH),
+      });
     }
     return result;
-  }, [layer.data, coordSystem.mainAxis]);
+  }, [layer.data, coordSystem.mainAxis, styleReaders]);
 
   return (
     <SketchyCanvas>
@@ -137,14 +191,24 @@ const SketchyBars = ({ layer, coordSystem }: { layer: CompiledLayer; coordSystem
 };
 
 /** In-place hover highlight: the same bar redrawn bolder, registered via the shared rect seed. */
-const SketchyBarHighlight = ({ observation, mainAxis }: { observation: Observation; mainAxis: MainAxis }) => {
+const SketchyBarHighlight = ({
+  observation,
+  mainAxis,
+  styleReaders,
+}: {
+  observation: Observation;
+  mainAxis: MainAxis;
+  styleReaders: BarStyleReaders;
+}) => {
   const bounds = getBarRectBounds(mainAxis, observation);
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) return null;
 
-  const color = getColor(observation) ?? DEFAULT_INK;
+  // `'hovered'` resolves the built-in hover outline (`hoverAffordance` token) or the stylesheet's own
+  // hovered entry; the extra stroke weight is the sketch's, not the stylesheet's.
+  const paint = readBarPaint(styleReaders, observation, 'hovered');
   return (
     <SketchyCanvas>
-      <RoughPathSet paths={buildBarPaths(bounds, color, HOVER_STYLE)} />
+      <RoughPathSet paths={buildBarPaths(bounds, { ...paint, strokeWidth: paint.strokeWidth + 1.5 }, HOVER_SKETCH)} />
     </SketchyCanvas>
   );
 };
@@ -152,17 +216,28 @@ const SketchyBarHighlight = ({ observation, mainAxis }: { observation: Observati
 export const sketchyBar = defineGeomRenderer('bar', {
   coord: 'cartesian',
   guideMode: 'band',
-  render: ({ layer, coordSystem }) => {
+  // `swatchShape` omitted → legend/tooltip swatches fall back to `'square'`, right for bars.
+  // `renderHighlight` omitted → a spec `highlight()` repaints the matched subset through `render`.
+  render: ({ layer, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <SketchyBars layer={layer} coordSystem={coordSystem} />;
+    // The contract types the readers as the base `GeomStyleReaders`; a `'bar'` layer's are `BarStyleReaders`.
+    return <SketchyBars layer={layer} coordSystem={coordSystem} styleReaders={styleReaders as BarStyleReaders} />;
   },
-  renderHover: ({ primary, coordSystem }) => {
+  renderHover: ({ primary, coordSystem, styleReaders }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <SketchyBarHighlight observation={primary.observation} mainAxis={coordSystem.mainAxis} />;
+    return (
+      <SketchyBarHighlight
+        observation={primary.observation}
+        mainAxis={coordSystem.mainAxis}
+        styleReaders={styleReaders as BarStyleReaders}
+      />
+    );
   },
   renderHoverCompanions: () => null,
 });
 ```
+
+The bar layer's `spatialKind` is `'rects'`, so `input.intro` offers a grow plan; this renderer ignores it (plans are offered, never imposed), so the bars pop in while built-in layers animate.
 
 ## Usage
 
@@ -194,7 +269,8 @@ Stacked bars need no plugin changes — `geom.bar({ position: 'stack' })` plus a
 
 ## Adapting
 
-- `DEFAULT_INK` is the no-color-scale fallback; mapped colors come from the spec's color scale via `getColor`, which reads the encoding.
-- A render-only override owns the whole paint, including the properties the style cascade resolves for the built-in bar (`borderRadius`, `borderWidth`, `borderColor`): a user's `styles` entries reach the built-in renderer, not this one. Expose the equivalents as constants or params here. See `reference/styling.md`.
-- Tune the hand-drawn look via `roughness`, `bowing`, `fillStyle` (e.g. `'cross-hatch'`, `'zigzag'`) and the `BASE_STYLE`/`HOVER_STYLE` weights.
+- Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens (`getColor`/`getAlpha` expose the encoding only). Reserve constants and geom params for what the stylesheet has no vocabulary for — roughness, hachure. See `reference/styling.md`.
+- A render-only override receives the bar layer's own readers, so the bar built-ins need no re-inventing: `borderRadius` (a token — `'none'` … `'full'`), `borderWidth`, `borderColor`, and `get('borderColor', observation, 'hovered')` for the hover outline. `renderHighlight` is omitted, so a spec `highlight()` repaints the matched subset via `render` — a lone mid-stack segment is drawn as an isolated rect (stack-segment fidelity lost) — while layer dimming still comes free from the wrapping group; add `renderHighlight` reading `sourceLayer` to restore it.
+- Annotations keep anchoring to the bars: the built-in bar's `resolveAnchorPosition` is untouched, only its paint is replaced.
+- Tune the hand-drawn look via `roughness`, `bowing`, `fillStyle` (e.g. `'cross-hatch'`, `'zigzag'`) and the `BASE_SKETCH`/`HOVER_SKETCH` weights.
 - The same pattern overrides any built-in geom name (`'point'`, `'line'`, `'area'`, `'rule'`) — pass a different name to `defineGeomRenderer` and read the geometry with that geom's accessors. A later `plugins` entry wins on a shared `(geom, coord)` key.

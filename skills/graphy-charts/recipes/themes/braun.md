@@ -1,10 +1,10 @@
 # Braun
 
-Technique: spec `config()` + a stylesheet + theme tokens (no slots, no plugins).
+Technique: spec `config()` + a stylesheet + a few theme tokens for the header/footer (no slots, no plugins).
 
 Dieter Rams applied to data: a warm-grey desk, charts as rounded plates in a warm panel tone, ink linework, and one orange (`indicator`) reserved for a single reading per chart — never a series. Bars are fully rounded pills at 55% band width resting on a single structure-grey baseline; there is no y axis and no grid — printed readings (data labels) carry the values. One typeface (Archivo) at one 12px cut for all engine text, with readings slightly heavier.
 
-The split: `config()` decides what exists (legend, axes, padding), the **stylesheet** paints it (plate, baseline, label type), and `themeOverrides` dresses only the HTML chrome around the plot. See `reference/styling.md`.
+The split: `config()` decides what exists (legend, axes, padding), the **stylesheet** paints it — plate, baseline, label type, and the tooltip, legend key and headline cards — and `themeOverrides` dresses only the header/footer type around the plot. See `reference/styling.md`.
 
 ## Constants
 
@@ -30,34 +30,18 @@ export const BRAUN_FONT_FAMILY = {
 
 ## Theme
 
-The theme carries the chrome around the plot: the legend key, the headline family, and the fallback family every text target inherits when the stylesheet names none. `fontLegendLabel` is the measured font token and takes a structured `FontTokenOverride`; `fontSeriesLabel` and `fontPieLabel` take CSS font shorthand strings.
+Four tokens, all for the HTML header and footer: the family the title, subtitle and caption take (and the measurement fallback), and the ink they print in. These are theme tokens, not the stylesheet tokens of the same name — the plot's own text, the legend key, the tooltip and the headline take their colour from the stylesheet below, which names it per target.
 
 ```ts
-import { type FontTokenOverride, type ThemeOverrides } from '@graphysdk/react-renderer';
-
-// Legend keys take the same 12px cut in the muted grey the plot's ticks use.
-const legendFont: FontTokenOverride = {
-  family: BRAUN_FONT_FAMILY.body,
-  size: { value: 12, unit: 'px' },
-  lineHeight: 1.4,
-  weight: 500,
-};
+import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const braunTheme: ThemeOverrides = {
-  textPrimary: BRAUN_COLORS.ink,
-  textSecondary: BRAUN_COLORS.labelMuted,
-  legendBackground: 'transparent',
-  legendBorderColor: 'transparent',
-  legendTextColor: BRAUN_COLORS.labelMuted,
-  fontFamilyDefault: BRAUN_FONT_FAMILY.body,
+  fontFamilyDefault: BRAUN_FONT_FAMILY.body, // header/footer family and the measurement fallback
   fontFamilyHeading: BRAUN_FONT_FAMILY.body,
-  fontLegendLabel: legendFont,
-  fontSeriesLabel: `500 12px/1.4 ${BRAUN_FONT_FAMILY.body}`,
-  fontPieLabel: `500 11.5px/1.4 ${BRAUN_FONT_FAMILY.body}`,
+  textPrimary: BRAUN_COLORS.ink, // title and subtitle
+  textSecondary: BRAUN_COLORS.labelMuted, // caption and source
 };
 ```
-
-These `textPrimary` / `textSecondary` values dress the legend, headline and footer. The plot's own text — axis, tick and data labels — takes its colour from the stylesheet below, which names it per target.
 
 ## Shared plate stylesheet
 
@@ -66,20 +50,46 @@ import { style, styles } from '@graphysdk/viz-engine';
 
 // The plate paint: a warm panel ground with a single structure-grey baseline the
 // geoms rest on, and one 12px Archivo cut across the engine's text — readings
-// heavier. No family is declared, so every target inherits `fontFamilyDefault`.
+// heavier. `style.graph({ fontFamily })` puts Archivo on every text target.
 const braunChromeStyles = styles({
   defaults: [
+    style.graph({ background: BRAUN_COLORS.panel, fontFamily: BRAUN_FONT_FAMILY.body }),
+    // `strokeWidth: 0` hides an edge and reserves no space for it.
+    style.panelBorder({ strokeWidth: 0 }),
+    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1.2, color: BRAUN_COLORS.structure }),
+
     style.axisLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.ink }),
     style.tickLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.labelMuted }),
     // Printed readings sit heavier and slightly larger — the one number you read off a dial.
     style.dataLabel({ fontSize: 13, fontWeight: 600, textColor: BRAUN_COLORS.ink }),
     // Outside readings print straight onto the plate colour, so no pill shows behind them.
     style.dataLabel.observation.outside({ background: BRAUN_COLORS.panel }),
+    // Pie labels are data labels: the category name beside a wedge takes the dial-label grey.
+    style.dataLabel.category({ fontSize: 12, fontWeight: 500, textColor: BRAUN_COLORS.label }),
+    // Series end labels (direct legend) take the plain 12px cut.
+    style.directLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.ink }),
 
-    style.graph({ background: BRAUN_COLORS.panel }),
-    // `strokeWidth: 0` hides an edge and reserves no space for it.
-    style.panelBorder({ strokeWidth: 0 }),
-    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1.2, color: BRAUN_COLORS.structure }),
+    // Legend key: bare text in the muted grey the ticks use — no pill, no ring.
+    style.legendItem({
+      fontSize: 12,
+      fontWeight: 500,
+      lineHeight: 1.4,
+      textColor: BRAUN_COLORS.labelMuted,
+      background: 'transparent',
+      borderColor: 'transparent',
+      paddingInline: 0,
+    }),
+    style.legendItem.swatch({ size: 10 }),
+    style.legend({ gap: 16 }),
+
+    // Tooltip: a panel-coloured card with a structure hairline and no shadow.
+    style.tooltip({ background: BRAUN_COLORS.panel, borderColor: BRAUN_COLORS.structure, borderWidth: 1, borderRadius: 6, shadow: 'none' }),
+    style.tooltip.heading({ textColor: BRAUN_COLORS.ink }),
+    style.tooltip.label({ textColor: BRAUN_COLORS.labelMuted }),
+    style.tooltip.value({ textColor: BRAUN_COLORS.ink }),
+    // Headline cards: ink numbers over muted captions.
+    style.headlineItem.number({ textColor: BRAUN_COLORS.ink }),
+    style.headlineItem.caption({ textColor: BRAUN_COLORS.labelMuted }),
   ],
 });
 
@@ -258,7 +268,7 @@ export function BraunRevenueDonut() {
 
 ## Fonts
 
-Archivo must be loaded by the host page (the theme falls back to Inter/sans-serif):
+`style.graph({ fontFamily })` puts Archivo on the chart text and `fontFamilyDefault` on the header/footer; neither loads it. Archivo must be loaded by the host page (the theme falls back to Inter/sans-serif):
 
 ```html
 <link
@@ -272,6 +282,6 @@ Archivo must be loaded by the host page (the theme falls back to Inter/sans-seri
 Each pipes `createBraunConfig()` + `braunChromeStyles`, then its own one-line geom stylesheet.
 
 - Stacked pills: `geom.bar({ position: 'stack', params: { width: BAR_WIDTH } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: BRAUN_COLORS.panel, borderWidth: 1.5 })] })` — panel-coloured borders cut a hairline gap between segments; series colours `[BRAUN_COLORS.ink, BRAUN_RAMP[1]]`.
-- Line race: `geom.line()` + `styles({ defaults: [style.geom.line({ strokeWidth: LINE_WIDTH })] })`, lead series in `ink`, follower in `trace2`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`. There is no gradient wash unless you declare `fillAlpha`.
+- Line race: `geom.line()` + `styles({ defaults: [style.geom.line({ strokeWidth: LINE_WIDTH })] })`, lead series in `ink`, follower in `trace2`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry. There is no gradient wash unless you declare `fillAlpha`.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: BRAUN_COLORS.panel, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })` + `braunPolarStyles`; emphasised months in `ink`, the rest in `structure`.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })` + `braunPolarStyles`; achieved in `ink`, remainder in `BRAUN_RAMP[3]`.

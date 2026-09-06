@@ -9,6 +9,8 @@
 | Missing values | `geom.area({ params: { missingValues: 'zero' \| 'connect' } })` |
 | Vertex dots | add `geom.point({ position: 'stack', interactive: false })` |
 | Opaque fill | `styles({ defaults: [style.geom.area({ alpha: 1 })] })` |
+| Data labels | `geom.area({ dataLabels: { showDataLabels: true } })` |
+| Radar | append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
 
 ## Base: simple area
 
@@ -62,6 +64,8 @@ const input = pipe(
 );
 ```
 
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so this chart gets the single-hue `brick` mono ramp rather than the 8-colour multicolour set. `scale.color.palette({ palette: { type: 'graphy' } })` forces the multicolour set.
+
 ## Flipped
 
 ```ts
@@ -88,20 +92,27 @@ geom.area({ params: { interpolate: 'catmull-rom', missingValues: 'connect' } }),
 styles({ defaults: [style.geom.area({ alpha: 1, strokeAlpha: 1, strokeWidth: 3 })] }),
 ```
 
+The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in dimmed state is `alpha: 0.4`.
+
+`color`, `strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous()`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous()`.
+
+Data labels: `geom.area({ dataLabels: { showDataLabels: true } })` — offset `8` px under cartesian/flip; area labels always use the outside styling (`style.dataLabel.observation.outside`), since the translucent fill cannot back white text.
+
 ## Intro animation
 
-On mount the layer is revealed by a wipe travelling along the main axis; every band in the layer
-enters together. The renderer's `animation` prop tunes it:
+On mount, under cartesian or flipped coords, the layer is revealed by a wipe travelling along the
+main axis; every band in the layer enters together. A polar area (radar) has no entrance. The
+renderer's `animation` prop tunes it:
 
 ```tsx
 <GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
 ```
 
-`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
 
 ## Gotchas
 
-- **Area fills draw at `alpha: 0.3`** (the engine's `DEFAULT_AREA_ALPHA`) — colors read lighter than their palette hex. Good for overlapping areas; wrong for stacked bands or a saturated house style. Set `styles({ defaults: [style.geom.area({ alpha: 1 })] })` for solid bands; `strokeAlpha` stays independently controllable.
+- **Area fills draw at `alpha: 0.3`** (the built-in `style.geom.area` entry's `alpha`) — colors read lighter than their palette hex. Good for overlapping areas; wrong for stacked bands or a saturated house style. Set `styles({ defaults: [style.geom.area({ alpha: 1 })] })` for solid bands; `strokeAlpha` stays independently controllable.
 - A `defaults` entry loses to a mapped aesthetic, so recoloring a series that is mapped to `color` needs an `overrides` entry (`reference/styling.md`).
 - Area's default position is **`stack`** — multi-series areas stack without an explicit `position`.
 - Wide data needs `transform.reshape` before mapping `color`; with the no-option reshape the output columns are named `key` and `value`.

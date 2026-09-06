@@ -1,6 +1,6 @@
 # Lenny's Newsletter
 
-**Tier: config + stylesheet + theme tokens.** No slots, no plugins — the card chrome, the headline and the plate rules all come from the spec.
+**Tier: config + stylesheet + theme tokens.** No slots, no plugins — the card chrome, the plate rules, the tooltip and the legend all come from the spec's stylesheet; theme tokens only dress the header and footer type.
 
 Warm newsletter style: cream chart grounds with a hairline ink outline and a 28px corner radius drawn by the chart's own frame, not an outer card, one full-strength brand orange leading a soft autumn ramp, and Plus Jakarta Sans throughout. Value labels are plain bold ink with no plate behind them; cartesian charts sit on a single 2px ink baseline while polar charts drop the baseline and grid entirely.
 
@@ -37,7 +37,7 @@ export const LINE_FOLLOWER = '#AE9070';
 
 ## Theme overrides
 
-The theme covers the chrome around the plot — the legend and the headline — plus the family every text target inherits.
+The stylesheet paints the plot and the tooltip, legend and headline; theme tokens are left with the HTML header and footer — title, subtitle, caption, source — and the family that text and the measurement fallback use.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -45,11 +45,9 @@ import type { ThemeOverrides } from '@graphysdk/react-renderer';
 export const themeOverrides: ThemeOverrides = {
   fontFamilyDefault: LENNY_FONT_FAMILY.body,
   fontFamilyHeading: LENNY_FONT_FAMILY.body,
+  // Header and footer text: title/subtitle in ink, caption and source in the secondary ink.
   textPrimary: LENNY_COLORS.ink,
   textSecondary: LENNY_COLORS.inkSecondary,
-  // Legend as plain dot + label, no pill chrome.
-  legendBackground: 'transparent',
-  legendBorderColor: 'transparent',
 };
 ```
 
@@ -63,12 +61,24 @@ import { style, styles } from '@graphysdk/viz-engine';
 /** The card itself: cream ground, radius 28, hairline ink outline, and text one fifth up. */
 const cardAppearance = { textScale: 1.2 } as const;
 const cardChromeStyles = styles({
+  // Ink for every primary text target; the secondary ink for ticks, legend pills and tooltip values.
+  tokens: { textPrimary: LENNY_COLORS.ink, textSecondary: LENNY_COLORS.inkSecondary },
   defaults: [
-    style.graph({ background: LENNY_COLORS.card, borderColor: LENNY_COLORS.ink, borderWidth: 1, borderRadius: 28 }),
+    style.graph({
+      background: LENNY_COLORS.card,
+      borderColor: LENNY_COLORS.ink,
+      borderWidth: 1,
+      borderRadius: 28,
+      fontFamily: LENNY_FONT_FAMILY.body,
+    }),
     style.tickLabel({ fontWeight: 600, textColor: LENNY_COLORS.inkSecondary }),
     // Value labels as plain bold ink, and nothing behind the outside ones.
     style.dataLabel({ fontSize: 13, fontWeight: 700, textColor: LENNY_COLORS.ink }),
     style.dataLabel.observation.outside({ background: 'transparent' }),
+    // Legend as plain dot + label, no pill chrome.
+    style.legendItem({ background: 'transparent', borderColor: 'transparent', textColor: LENNY_COLORS.ink }),
+    // The tooltip is a small card: cream ground, hairline ink ring.
+    style.tooltip({ background: LENNY_COLORS.card, borderColor: LENNY_COLORS.ink, borderWidth: 1, borderRadius: 12 }),
   ],
 });
 
@@ -98,7 +108,7 @@ const polarPanel = {
 const polarPlateStyles = styles({ defaults: [style.panelBorder({ strokeWidth: 0 })] });
 ```
 
-Each style entry merges property by property, so `style.tickLabel({ fontWeight: 600 })` bolds the tick text and leaves its size and family alone. An edge is taken off the plate with `strokeWidth: 0` — it draws nothing and reserves no space, which is what lets the polar plate float free of any rule. `borderRadius` on `style.graph` is a pixel number; on a bar it is a token (`'none'` through `'full'`).
+Each style entry merges property by property, so `style.tickLabel({ fontWeight: 600 })` bolds the tick text and leaves its size and family alone. An edge is taken off the plate with `strokeWidth: 0` — it draws nothing and reserves no space, which is what lets the polar plate float free of any rule. `borderRadius` on `style.graph` is a pixel number; on a bar it is a token (`'none'` through `'full'`). `style.graph({ fontFamily })` is the base family every stylesheet text target inherits — axis, ticks, labels, legend pills, tooltip — while the theme's `fontFamilyDefault` carries the header and footer. Redefining the `textPrimary`/`textSecondary` *stylesheet* tokens re-inks every built-in default that reads them (direct labels, headline cards, tooltip text); they are independent of the theme tokens of the same name.
 
 ## Title helper
 
@@ -232,7 +242,7 @@ export function ProductRaceChart() {
 
 ## Fonts
 
-Theme tokens set font families but do not load the fonts — the page must load Plus Jakarta Sans:
+`style.graph({ fontFamily })` applies Plus Jakarta Sans to the chart text and `fontFamilyDefault` to the header and footer; neither loads the font — the page must load it:
 
 ```html
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&display=swap" />
