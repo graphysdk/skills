@@ -51,15 +51,18 @@ same chart also runs on a plain HTML page with no bundler, loading the SDK from 
 the imports change (`reference/cdn.md`).
 
 Reference and recipe samples import from the underlying packages (`@graphysdk/viz-engine`,
-`@graphysdk/react-renderer`). With the standard `@graphysdk/react` install, every one of those
-names comes from `'@graphysdk/react'` instead — only the specifier changes.
+`@graphysdk/react-renderer`). With the standard `@graphysdk/react` install, the builders, the
+provider/renderer and the hooks come from `'@graphysdk/react'` instead — it re-exports the authoring
+surface plus all of `@graphysdk/react-renderer`. A few engine internals the plugin and theme recipes
+use (`RichTextContent`, `Rect`, `IdentityKey`, `readAuthoredNumber`, …) still import from
+`@graphysdk/viz-engine`, which is installed as its dependency.
 
 ## The expressiveness ladder
 
 1. **Spec + `config()`** — chart structure and chart-level options: layers, scales, coords, legend/axes settings, titles, headline numbers, number formats, layout.
 2. **Stylesheet** — pipe `styles({ ... })` into the spec to repaint anything the chart draws, from mark fill to the tooltip box and legend pills. Predicate- and state-aware, serializable. This is the restyling tier — `reference/styling.md`.
 3. **Theme tokens** — `themeOverrides` on `GraphProvider`, only for the HTML chrome the stylesheet has no target for: header/footer type, hover guide, tooltip row gap, legend overflow pill. React-only, not serializable.
-4. **Slots** — replace whole regions (header, footer, tooltip, legend, headline, grid, axis ticks, swatch) with your own React components via the `slots` prop on `GraphRenderer`.
+4. **Slots** — replace whole regions (header, footer, tooltip, legend, headline, grid, axis ticks, axis label, swatch) with your own React components via the `slots` prop on `GraphRenderer`.
 5. **Plugins** — change how marks are painted (render-only override of a built-in geom) or add entirely new geoms/stats/transforms (`defineGeomRenderer`, `createGraphyKit`).
 
 See `recipes/themes/` for complete worked examples at each tier.
@@ -80,7 +83,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 | Render in React: provider/renderer props, sizing, animation, locales, error handling | `reference/react-api.md` |
 | Recolor geoms; restyle grid, ticks, panel border, background, text, tooltip, legend pills, headline cards | `reference/styling.md` |
 | Set the chart font, series palette, or dark mode colors | `reference/styling.md` |
-| Replace the header, footer, tooltip, legend, headline, grid, or axis ticks with React components | `reference/slots.md` |
+| Replace the header, footer, tooltip, legend, headline, grid, axis ticks or axis label with React components | `reference/slots.md` |
 | Annotate, highlight, add reference lines/trendlines/headline numbers/data labels | `reference/storytelling.md` |
 | Compare two values or periods, show a change/gap/drop (difference arrows) | `reference/storytelling.md` |
 | Author plugins: repaint a built-in geom or define a new one | `reference/plugins.md` |
@@ -130,7 +133,7 @@ node scripts/validate-spec.mjs path/to/my-spec.mjs
 - Every consumer must wrap `GraphRenderer` in a `GraphProvider`; the renderer has no standalone mode.
 - The `plugins` array on `GraphProvider` is frozen at mount — remount with a React `key` to change it.
 - Everything the chart draws is painted from the spec stylesheet (`styles`), varying per observation via `style.geom(decls, { where })` and per series via `{ layer }`. Reach for `themeOverrides` only for header/footer type, the hover guide, tooltip row gap and the legend overflow pill.
-- Built-in style tokens are `geom`, `geomBorder`, `ruleLine`, `gridLine`, `graphBackground`, `textPrimary`, `textSecondary`, … (`reference/styling.md`). A declaration outside a target's vocabulary, or an unknown geom param, is dropped silently — a change with no visible effect is usually one the wrong target carried.
+- Built-in style tokens are `geom`, `geomBorder`, `ruleLine`, `gridLine`, `graphBackground`, `textPrimary`, `textSecondary`, … (`reference/styling.md`). A declaration outside a target's vocabulary is dropped with an `INVALID_STYLE_RULE` warning; an unknown geom param is dropped silently — a change with no visible effect is usually one the wrong target carried.
 - Chart text never inherits the page font. Set `style.graph({ fontFamily })`, and load the font before the chart measures.
 - You never import a stylesheet; each entry point imports its own CSS. Editing lives behind the `@graphysdk/react-renderer/editable` entry point (`EditableGraphRenderer`, `EditorPanel`) — `mode="editable"` on a plain `GraphRenderer` renders no editor surface. Making charts editable, editing them programmatically, and the editor panel are the `graphy-editor` skill.
 

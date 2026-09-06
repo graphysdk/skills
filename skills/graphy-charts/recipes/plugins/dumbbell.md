@@ -25,8 +25,8 @@ interface DumbbellParams {
 /**
  * Compares two values per category. `start` and `end` are custom y aesthetics declared as a
  * `min`/`max` interval, so the engine fills and scales them into yMin/yMax and trains the value
- * axis over both. `compile()` only injects a representative `y` for the hover index; the paint half
- * just draws a connector and two dots.
+ * axis over both. `compile()` injects a representative `y` that serves both the hover index and the
+ * y-scale domain; the paint half just draws a connector and two dots.
  */
 class DumbbellGeom extends Geom<DumbbellParams> {
   readonly type = 'dumbbell' as const;
@@ -38,8 +38,8 @@ class DumbbellGeom extends Geom<DumbbellParams> {
   };
   override readonly positionRoles = [
     { axis: 'x', role: 'point', valueKind: 'value' }, // the category band, from the root `x` mapping
-    { axis: 'y', role: 'min', valueKind: 'value', aes: 'start' }, // → yMin (and trains the value axis)
-    { axis: 'y', role: 'max', valueKind: 'value', aes: 'end' }, // → yMax
+    { axis: 'y', role: 'min', valueKind: 'value', aes: 'start' }, // → yMin (must be numeric)
+    { axis: 'y', role: 'max', valueKind: 'value', aes: 'end' }, // → yMax (must be numeric)
   ] as const;
   // Cartesian only: opts out of `coord.flip()`.
   override readonly supportedCoordTypes = ['cartesian'] as const;
@@ -54,9 +54,12 @@ class DumbbellGeom extends Geom<DumbbellParams> {
 
   override readonly spatialKind = 'buckets';
 
-  // The bucket hover index needs a `POSITION_VARIABLES.y` column next to x, and `mapping.y` is where it
-  // comes from (it also joins the y-domain). The end value is a raw column preserved alongside
-  // yMin/yMax, so it serves; the tooltip does not read it.
+  // The injected `y` mapping does two jobs: the bucket hover index needs a `POSITION_VARIABLES.y`
+  // column next to x, and the y-scale domain is collected from `yMin`/`yMax` only through a `y` mapping
+  // that resolves to them — without it `start`/`end` would never train the axis. The end value is a raw
+  // column preserved alongside yMin/yMax, so it serves; the tooltip does not read it. Note this makes
+  // `layer.mapping.y` the end column, so a fork dropping the `tooltip` contract would see `end` in the
+  // default tooltip rows and labels.
   compile({ data, mapping }: GeomCompilerInput): CompiledGeom {
     return { data, mapping: { y: mapping.end } };
   }
@@ -125,8 +128,10 @@ const DumbbellLayer = ({ layer, styleReaders }: { layer: CompiledLayer; styleRea
 };
 
 /**
- * Re-paints the hovered dumbbell above its siblings, which the layer group's CSS hover-dim fades — that
- * dimming is driven by `renderHover`, not by `highlightStrategy`.
+ * Re-paints the hovered dumbbell above its siblings, which the layer group's CSS hover-dim fades. That
+ * dimming is driven by the hover store holding any primary hit (`useHoverDim` sets `data-hover-active`
+ * on the geom group), not by `highlightStrategy`; this output escapes it only because it paints outside
+ * that group.
  */
 const HoveredDumbbell = ({
   layer,
@@ -145,7 +150,7 @@ const HoveredDumbbell = ({
 export const dumbbell = defineGeomRenderer(new DumbbellGeom(), {
   coord: 'cartesian',
   guideMode: 'band',
-  swatchShape: 'circle', // omitted, swatches fall back to `'square'`
+  swatchShape: 'circle', // without this, swatches fall back to `'square'`
   render: ({ layer, styleReaders }) => <DumbbellLayer layer={layer} styleReaders={styleReaders} />,
   renderHover: ({ layer, primary, styleReaders }) => (
     <HoveredDumbbell layer={layer} observation={primary.observation} styleReaders={styleReaders} />
@@ -201,4 +206,4 @@ export const DumbbellChart = () => (
 - Rename the endpoint aesthetics (`aes: 'start'` / `aes: 'end'` in `positionRoles`) to fit the domain (`before`/`after`, `low`/`high`) — the typed `kit.geom.<name>({ aes })` keys and the `tooltip` entries follow the declared names.
 - `zero: false` on the y scale is usually right for dumbbells (the gap is the message); drop it when absolute magnitude matters.
 - `highlightStrategy` is inert here (see the class comment): a custom geom that should recede while another layer is highlighted paints its own de-emphasis via `styleReaders.get('alpha', observation, 'dimmed')`. `identityKey: 'index'` would be equally inert — it is only read for `'render-hit-test'` geoms — so it is not declared.
-- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to the dumbbells; implement it returning an endpoint's `[0,1]` position to make them annotatable.
+- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to the dumbbells; implement it returning an endpoint's `[0,1]` position to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.

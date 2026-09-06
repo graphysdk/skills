@@ -168,6 +168,9 @@ class SankeyGeom extends Geom<Record<string, never>> {
   override readonly identityKey: IdentityKey = { variable: SANKEY_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly highlightStrategy = null;
+  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
+  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
+  override readonly positionRoles = [] as const;
   // `source`/`target`/`value` are relational inputs the layout consumes (read straight from the mapped
   // columns, not scaled); `color` is author-mapped, targeting the derived `node`.
   override readonly aesthetics = [
@@ -242,6 +245,10 @@ class SankeyGeom extends Geom<Record<string, never>> {
     // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`. Colour is
     // NOT forced here: the author maps `color` to the derived `node` field, and the engine's
     // categorical scale resolves it — the renderer reads a flow's target end off that same scale.
+    // Because this returns a fresh `Dataset`, every column a visual aesthetic maps to must be emitted
+    // under the mapped name (`node` here): `compile()` does not rewrite `layer.mapping.color`, the
+    // visual mapper resolves it against the compiled data, and a missing column silently falls every
+    // cell back to `token('geom')`. `derivedVariables` is what exempts `node` from `UNKNOWN_VARIABLE`.
     return {
       data: table,
       mapping: {
@@ -267,6 +274,8 @@ interface RenderNode {
 
 interface RenderFlow {
   markId: string;
+  /** Position in the flow list — a sanitised token for the gradient `id` (`markId` contains `#` and `>`). */
+  index: number;
   value: number;
   /** The flow's source-end fill (cascade-resolved); the target end is read off the colour scale at paint time. */
   sourceColor: string;
@@ -319,6 +328,7 @@ function readSankey(data: Dataset, styleReaders: GeomStyleReaders): { nodes: Ren
       case 'flow':
         flows.push({
           markId: readAuthoredString(observation, SANKEY_COLUMNS.markId),
+          index: flows.length,
           value: readAuthoredNumber(observation, SANKEY_COLUMNS.value),
           sourceColor: styleReaders.get('color', observation),
           targetKey: readAuthoredString(observation, SANKEY_COLUMNS.targetKey),
@@ -389,7 +399,11 @@ const FLOW_LABEL_MIN_BAND = 0.028;
 /** Fraction along the ribbon to sit the value label — clear of both node ends. */
 const FLOW_LABEL_T = 0.18;
 
-/** Picks dark or white label text for legibility on a node's fill, by relative luminance. */
+/**
+ * Picks dark or white label text for legibility on a node's fill, by relative luminance. Handles 6-digit
+ * hex only: an `rgba(...)` fill — such as the default `token('geom')` when `color` is unmapped — falls
+ * back to the dark label.
+ */
 function readableTextColor(fill: string): string {
   const hex = fill.replace('#', '');
   if (hex.length !== 6) return LABEL_DARK;
@@ -464,7 +478,8 @@ const SankeyFlowMark = ({
   colorScheme: ColorScheme;
   isHighlighted?: boolean;
 }) => {
-  const gradientId = `sankey-flow-grad:${flow.markId}${isHighlighted ? ':hover' : ''}`;
+  // Derived from the flow index, not `markId`: an SVG `id` referenced via `url(#…)` must not contain `#` or `>`.
+  const gradientId = `sankey-flow-grad-${flow.index}${isHighlighted ? '-hover' : ''}`;
   return (
     <>
       <UnitSpaceSvg>

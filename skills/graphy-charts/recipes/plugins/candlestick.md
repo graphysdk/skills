@@ -46,9 +46,9 @@ class CandlestickGeom extends Geom<CandlestickParams> {
   };
   override readonly positionRoles = [
     { axis: 'x', role: 'point', valueKind: 'value' }, // band centre, from the root `x` mapping
-    { axis: 'y', role: 'min', valueKind: 'value', aes: 'low' }, // wick bottom → yMin (drives the domain)
-    { axis: 'y', role: 'max', valueKind: 'value', aes: 'high' }, // wick top → yMax
-    { axis: 'y', role: 'scalar', valueKind: 'value', aes: 'open' }, // body (scaled; raw price preserved)
+    { axis: 'y', role: 'min', valueKind: 'value', aes: 'low' }, // wick bottom → yMin (numeric; domain via the injected `y`)
+    { axis: 'y', role: 'max', valueKind: 'value', aes: 'high' }, // wick top → yMax (numeric)
+    { axis: 'y', role: 'scalar', valueKind: 'value', aes: 'open' }, // body (scaled; joins the domain via its own positional axis)
     { axis: 'y', role: 'scalar', valueKind: 'value', aes: 'close' },
   ] as const;
   // Cartesian only: opts out of `coord.flip()`.
@@ -65,8 +65,11 @@ class CandlestickGeom extends Geom<CandlestickParams> {
   ] as const;
   override readonly spatialKind = 'buckets';
 
-  // The pipeline scales the prices. The bucket hover index needs a `POSITION_VARIABLES.y` column next
-  // to x, and `mapping.y` is where it comes from — the session high serves. The tooltip does not read it.
+  // The pipeline scales the prices. The injected `y` mapping does two jobs: the bucket hover index needs
+  // a `POSITION_VARIABLES.y` column next to x, and the interval roles (`low`/`high`) reach the y-scale
+  // domain only through a `y` mapping that resolves to `yMin`/`yMax` (`open`/`close` are `scalar` roles
+  // and reach it separately via their own positional axes). The session high serves; the tooltip does
+  // not read it. `min`/`max` role columns must be numeric.
   compile({ data, mapping }: GeomCompilerInput): CompiledGeom {
     return { data, mapping: { y: mapping.high } };
   }
@@ -164,8 +167,10 @@ const CandlestickLayer = ({ layer, styleReaders }: { layer: CompiledLayer; style
 };
 
 /**
- * Re-paints the hovered candle above its siblings, which the layer group's CSS hover-dim fades — that
- * dimming is driven by `renderHover`, not by `highlightStrategy`.
+ * Re-paints the hovered candle above its siblings, which the layer group's CSS hover-dim fades. That
+ * dimming is driven by the hover store holding any primary hit (`useHoverDim` sets `data-hover-active`
+ * on the geom group), not by `highlightStrategy`; this output escapes it only because it paints outside
+ * that group.
  */
 const HoveredCandle = ({
   layer,
@@ -239,9 +244,9 @@ export const CandlestickGraph = () => (
 
 ## Adapting
 
-- Add or drop positional aesthetics by editing `positionRoles`: `role: 'min'`/`'max'` entries fill the `yMin`/`yMax` interval columns, `role: 'scalar'` entries are scaled in place into their own derived column; all of them feed the axis domain, so every declared price trains the scale. Each `aes` name becomes a key in the layer's `aes` object; scalars are read via `getScaledAesthetic`. Requiredness is asymmetric: `low`/`high` (min/max roles with an `aes`) are required, while `open`/`close` (scalar) are optional unless asserted via `validateMapping`.
-- Keep `compile()` injecting a representative `y` mapping if you rely on the built-in bucket hover — the index needs a y position column next to x. The `tooltip` rows read the raw (unscaled) value of each declared aesthetic through its own `aes`, never `y`.
-- `guideMode: 'band'` assumes a discrete x scale; for a continuous x, switch to `'crosshair'` and reconsider `resolveHalfBody` (body width derives from the minimum gap between x positions). `HoveredCandle` re-derives that width from every candle on each pointer move; a pixel body width from `input.panelRect.width` would make it a constant instead.
+- Add or drop positional aesthetics by editing `positionRoles`: `role: 'min'`/`'max'` entries fill the `yMin`/`yMax` interval columns (numeric only), `role: 'scalar'` entries are scaled in place into their own derived column. All of them train the scale, by two routes: `min`/`max` reach the domain only through a `y` mapping that resolves to `yMin`/`yMax`, while `scalar` roles reach it via their own custom positional axes. Each `aes` name becomes a key in the layer's `aes` object; scalars are read via `getScaledAesthetic`. Requiredness is asymmetric: `low`/`high` (min/max roles with an `aes`) are required, while `open`/`close` (scalar) are optional unless asserted via `validateMapping`.
+- Keep `compile()` injecting a representative `y` mapping — the bucket hover index needs a y position column next to x, and dropping it also removes `low`/`high` from the y domain. The `tooltip` rows read the raw (unscaled) value of each declared aesthetic through its own `aes`, never `y`.
+- `guideMode: 'band'` assumes a discrete x scale; for a continuous x, switch to `'crosshair'` and reconsider `resolveHalfBody` (body width derives from the minimum gap between x positions). `HoveredCandle` re-derives that width from every candle on each pointer move; a pixel body width from `input.panelRect.width` would make it a constant instead, and `HoverRenderInput` carries `panelRect` too, so the hovered candle can take the same pixel route.
 - Paint is inside the style cascade: `styleReaders.get('alpha', observation)` (and `get('color', observation)`, if you want the wick in the layer's colour) honour a user's `style.geom` entries and dark-scheme tokens; `getColor`/`getAlpha` expose the encoding only. `upColor`/`downColor` stay geom params because the stylesheet has no up/down vocabulary; as fixed hex they ignore the scheme — branch on `input.colorScheme` (`'light' | 'dark'`) for a light/dark pair. See `reference/styling.md`.
 - `highlightStrategy` is inert here (see the class comment): a custom geom that should recede while another layer is highlighted paints its own de-emphasis via `styleReaders.get('alpha', observation, 'dimmed')`. `identityKey: 'index'` would be equally inert — it is only read for `'render-hit-test'` geoms — so it is not declared.
-- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to the candles; implement it returning the candle's `[0,1]` position (the close, or the wick top) to make them annotatable.
+- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to the candles; implement it returning the candle's `[0,1]` position (the close, or the wick top) to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.

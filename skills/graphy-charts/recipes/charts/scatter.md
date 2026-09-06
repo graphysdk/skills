@@ -9,7 +9,8 @@
 | Flipped | append `coord.flip()` |
 | Fixed marker size | `styles({ defaults: [style.geom.point({ size: 12 })] })` |
 | Stepped sizes | map `size`, add `scale.size.discrete({ range: [4, 8, 12] })` |
-| Data labels | `geom.point({ dataLabels: { showDataLabels: true } })` — a bubble prints its mapped `size` |
+| Data labels | `geom.point({ dataLabels: { showDataLabels: true } })` — a bubble prints its mapped `size`; `offset` defaults to `4` (not `8` like line/area); unsupported under polar |
+| Trend line | add `geom.line({ stat: stat.smooth({ method: 'linear' }), interactive: false })` over the same mapping — below |
 
 ## Base: simple scatter
 
@@ -79,6 +80,15 @@ scale.color.palette(),
 coord.flip()
 ```
 
+## Trend line
+
+A companion line layer with a `smooth` stat (`stat` is exported from `@graphysdk/viz-engine`) fits a regression over the same mapping; `interactive: false` keeps hover on the points:
+
+```ts
+geom.point(),
+geom.line({ stat: stat.smooth({ method: 'linear' }), interactive: false }),
+```
+
 ## Marker paint
 
 `geom.point` takes no params — the marker is entirely a stylesheet target (`reference/styling.md`):
@@ -100,7 +110,7 @@ and an `overrides` entry wins over the mapping.
 
 The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries.
 
-`scale.size.continuous()`'s default range `[4, 20]` is a **radius** range, while `style.geom.point({ size })` is a **diameter** — mixing the two is off by 2×. `scale.size.discrete({ range: [4, 8, 12] })` and `scale.size.identity()` also exist; `alpha` is mappable too (`scale.alpha.continuous()`). Points render under `coord.polar` as radar vertex dots (`recipes/charts/radar.md`).
+`scale.size.continuous()`'s default range `[4, 20]` and `style.geom.point({ size })` are the **same diameter units** — the renderer halves once for the radius. `scale.size.discrete({ range: [4, 8, 12] })` and `scale.size.identity()` also exist; `alpha` is mappable too (`scale.alpha.continuous()`). Points render under `coord.polar` as radar vertex dots (`recipes/charts/radar.md`).
 
 ## Intro animation
 
@@ -111,10 +121,11 @@ reading order along x), `'value-ascending'` or `'value-descending'` (by mapped `
 <GraphRenderer animation={{ intro: { staggerOrder: 'value-descending' } }} />
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series. Scatter is the chart that hits it: above the limit the intro is dropped wholesale, not degraded.
+`animation={{ intro: { stagger: false } }}` pops every marker together; `animation={{ intro: { enabled: false } }}` disables the entrance. `animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series. Scatter is the chart that hits it: above the limit the intro is dropped wholesale, not degraded.
 
 ## Gotchas
 
 - A mapped `size` needs `scale.size.continuous()`; the scale defaults to a sqrt transform so marker **area** (not diameter) tracks the value.
-- A bubble layer's data label defaults to the `size` variable, not `y`.
+- A bubble layer's data label defaults to the `size` variable, not `y`; point labels default to `offset: 4` and warn `DATA_LABELS_UNSUPPORTED` under `coord.polar`.
+- Point declares no `strokeWidth` aesthetic — a mapped `strokeWidth` warns `UNDECLARED_AESTHETIC` and is ignored.
 - Observations with a `null` x or y are simply not drawn — no `missingValues` param on point.

@@ -20,6 +20,7 @@ import type {
   GeomStyleReaders,
   HoverHit,
   IdentityKey,
+  Observation,
   Rect,
 } from '@graphysdk/viz-engine';
 import { Geom, getX, readObservationIndex } from '@graphysdk/viz-engine';
@@ -30,11 +31,11 @@ const POINT_RADIUS = 3.5;
 const POINT_HIT_RADIUS = POINT_RADIUS + 2;
 const EPSILON = 1e-6;
 
-/** One observation to place: row index (the `'index'` identity), scaled x in [0, 1], cascade-resolved fill. */
+/** One observation to place: row index (the `'index'` identity), scaled x in [0, 1], and the row for paint. */
 interface SwarmPoint {
   index: number;
   x01: number;
-  color: string;
+  observation: Observation;
 }
 
 /** A placed point in panel pixel space. */
@@ -127,36 +128,42 @@ class BeeswarmGeom extends Geom {
 
   // The engine scales x and trains the colour scale; the geom adds nothing and injects no y. Passing
   // the data through keeps row order: `identityKey: 'index'` keys each hit as `String(datasetRow)`, so
-  // the row the tester returns must be the row the engine's `byKey` map stored.
+  // the row the tester returns must be the row the engine's `byKey` map stored. `'index'` indexes every
+  // row, including ones the layout skips for a null x — which is why `readPoints` advances its counter
+  // unconditionally.
   compile({ data }: GeomCompilerInput): CompiledGeom {
     return { data, mapping: {} };
   }
 }
 
 /**
- * Reads each row's scaled x and cascade-resolved fill, preserving the row index as the identity key.
- * `styleReaders` (override → colour scale → default, resolved for the active scheme) replaces
- * `getColor`, which sees the data tier only and is `undefined` whenever `color` is unmapped.
+ * Reads each row's scaled x, preserving the row index as the identity key. Layout reads no colour: the
+ * `hitTest` factory is memoized on `[hitTest, layer.data, panelRect]` — not `styleReaders` — so a
+ * tester that read paint would go stale on a restyle. Paint resolves colour per point at render time.
  */
-function readPoints(data: Dataset, styleReaders: GeomStyleReaders): SwarmPoint[] {
+function readPoints(data: Dataset): SwarmPoint[] {
   const points: SwarmPoint[] = [];
   let index = 0;
   for (const observation of data) {
     const x01 = getX(observation);
     if (x01 !== null) {
-      points.push({ index, x01, color: styleReaders.get('color', observation) });
+      points.push({ index, x01, observation });
     }
+    // Unconditional: `identityKey: 'index'` keys hits by dataset row, skipped rows included.
     index += 1;
   }
   return points;
 }
 
 /** The swarm for one panel size — the single layout that paint, the hit tester, and the hover repaint share. */
-function layoutSwarm(data: Dataset, styleReaders: GeomStyleReaders, width: number, height: number): PlacedPoint[] {
-  return computeSwarm(readPoints(data, styleReaders), width, height, POINT_RADIUS);
+function layoutSwarm(data: Dataset, width: number, height: number): PlacedPoint[] {
+  return computeSwarm(readPoints(data), width, height, POINT_RADIUS);
 }
 
-/** The cursor query over the placed circles — nearest-first from the top, so the drawn-last point wins. */
+/**
+ * The cursor query over the placed circles — walks the placed points in reverse paint order and returns
+ * the first containment hit, so the drawn-last point wins.
+ */
 function buildSwarmTester(placed: PlacedPoint[], width: number, height: number, radius: number): RenderHitTester {
   const radiusSq = radius * radius;
   return (cursor) => {
@@ -182,10 +189,12 @@ interface SwarmPaintProps {
 
 /**
  * Paints the swarm in panel pixel space. `panelRect` is the paint size the renderer hands every render
- * input — no measurement needed (`useElementScreenRect` is for client-coordinate overlays).
+ * input — no measurement needed (`useElementScreenRect` is for client-coordinate overlays). Fill comes
+ * from `styleReaders` (override → colour scale → default, resolved for the active scheme), not
+ * `getColor`, which sees the data tier only and is `undefined` whenever `color` is unmapped.
  */
 const BeeswarmLayer = ({ layer, styleReaders, panelRect: { width, height } }: SwarmPaintProps) => {
-  const placed = useMemo(() => layoutSwarm(layer.data, styleReaders, width, height), [layer.data, styleReaders, width, height]);
+  const placed = useMemo(() => layoutSwarm(layer.data, width, height), [layer.data, width, height]);
 
   return (
     <>
@@ -195,7 +204,7 @@ const BeeswarmLayer = ({ layer, styleReaders, panelRect: { width, height } }: Sw
           cx={point.cx}
           cy={point.cy}
           r={POINT_RADIUS}
-          fill={point.color}
+          fill={styleReaders.get('color', point.observation)}
           stroke="#fff"
           strokeWidth={0.5}
         />
@@ -207,14 +216,22 @@ const BeeswarmLayer = ({ layer, styleReaders, panelRect: { width, height } }: Sw
 /**
  * Repaints the hovered dot at full opacity above the auto-dimmed base layer. `primary` is an anchorless
  * hit (no `x`/`y`), so the dot is found by its dataset row from the same layout the base paint used.
+ * `readObservationIndex(primary)` returns that row because a render-hit-test hit carries `pointIndex` only.
  */
 const BeeswarmHover = ({ layer, styleReaders, panelRect: { width, height }, primary }: SwarmPaintProps & { primary: HoverHit }) => {
-  const placed = useMemo(() => layoutSwarm(layer.data, styleReaders, width, height), [layer.data, styleReaders, width, height]);
+  const placed = useMemo(() => layoutSwarm(layer.data, width, height), [layer.data, width, height]);
   const row = readObservationIndex(primary);
   const hovered = placed.find((point) => point.index === row);
   if (!hovered) return null;
   return (
-    <circle cx={hovered.cx} cy={hovered.cy} r={POINT_RADIUS + 2} fill={hovered.color} stroke="#1f2937" strokeWidth={1.5} />
+    <circle
+      cx={hovered.cx}
+      cy={hovered.cy}
+      r={POINT_RADIUS + 2}
+      fill={styleReaders.get('color', hovered.observation)}
+      stroke="#1f2937"
+      strokeWidth={1.5}
+    />
   );
 };
 
@@ -226,11 +243,12 @@ export const kit = createGraphyKit({
       render: ({ layer, styleReaders, panelRect }) => (
         <BeeswarmLayer layer={layer} styleReaders={styleReaders} panelRect={panelRect} />
       ),
-      // The factory gets the same `panelRect` as `render` and is re-memoized on `layer.data` and the panel
-      // pixel rect, so the dodge is recomputed on resize. Declaring it here (rather than registering
-      // through `useGeomHitTest` at runtime) also satisfies the `MISSING_RENDER_HIT_TEST` check.
-      hitTest: ({ layer, styleReaders, panelRect: { width, height } }) =>
-        buildSwarmTester(layoutSwarm(layer.data, styleReaders, width, height), width, height, POINT_HIT_RADIUS),
+      // The factory gets the same `panelRect` as `render` and is memoized on `[hitTest, layer.data,
+      // panelRect]`, so the dodge is recomputed on resize (and never on a restyle — hence no
+      // `styleReaders` in the layout). Declaring it here (rather than registering through
+      // `useGeomHitTest` at runtime) also satisfies the `MISSING_RENDER_HIT_TEST` check.
+      hitTest: ({ layer, panelRect: { width, height } }) =>
+        buildSwarmTester(layoutSwarm(layer.data, width, height), width, height, POINT_HIT_RADIUS),
       renderHover: ({ layer, styleReaders, panelRect, primary }) => (
         <BeeswarmHover layer={layer} styleReaders={styleReaders} panelRect={panelRect} primary={primary} />
       ),
@@ -276,7 +294,7 @@ export const BeeswarmChart = () => (
 
 ## Adapting
 
-- Swap `computeSwarm` for any pixel-space placement (jitter, violin-density dodge, a d3-force collision pass); keep the row-index identity aligned with the compiled data order so hover keys resolve. `identityKey: 'index'` keys each hit as `String(datasetRow)` — the tester's returned `key` must equal `getStableKey(identityValue)` (identity for strings, normalised for other types: a `Date` becomes its ISO string), which is why `compile()` must preserve row order. A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing. `defaultInteractive: false` on the geom opts a layer out of hover entirely.
+- Swap `computeSwarm` for any pixel-space placement (jitter, violin-density dodge, a d3-force collision pass); keep the row-index identity aligned with the compiled data order so hover keys resolve. `identityKey: 'index'` keys each hit as `String(datasetRow)`, which is why `compile()` must preserve row order; under the `{ variable }` identity form the returned `key` must instead equal `getStableKey(identityValue)` (identity for strings, normalised for other types: a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing. `defaultInteractive: false` on the geom opts a layer out of hover entirely and also silences `MISSING_RENDER_HIT_TEST`.
 - Tune `POINT_RADIUS` / `POINT_HIT_RADIUS` for density; the hit radius can exceed the drawn radius to keep small marks targetable.
 - To swarm vertically, declare the position role on `axis: 'y'` and dodge along x instead — the layout and tester swap coordinates, the geom contract is otherwise unchanged.
 - The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left pixel frame the dots are placed in: a dot at `(cx, cy)` becomes `{ x: cx / width, y: 1 - cy / height }`, though the dodge is knowable only render-side here. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.

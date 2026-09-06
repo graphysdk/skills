@@ -48,7 +48,7 @@ const input = pipe(
 | `strokeWidth` | stroke width |
 | `lineType` | dash pattern (solid/dashed/dotted) |
 
-Plugin geoms may declare extra positional channels (e.g. `open`/`high`/`low`/`close`); they scale like built-ins.
+Each geom accepts a subset: point → `color`, `size`, `alpha`; line and area → `color`, `strokeWidth`, `lineType`, `alpha`; bar → `color`, `alpha`; tile → `color` (required); rule → none. A mapping the geom does not declare warns `UNDECLARED_AESTHETIC` and is ignored (`label` and `group` are always accepted). Plugin geoms may declare extra positional channels (e.g. `open`/`high`/`low`/`close`); they scale like built-ins.
 
 Each value is an `AestheticValue`, one of three forms:
 
@@ -70,7 +70,7 @@ Each `geom.<name>(options)` produces one layer. Common options (all optional, `s
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `id` | `string` | auto UUID | stable layer identifier |
+| `id` | `string` | short generated id (unique per runtime, not across reloads) | stable layer identifier — set it yourself when highlights, styles or anchors reference the layer |
 | `aes` | `AesMapping` | `{}` | layer-local mapping, merged over global |
 | `stat` | `StatName \| StatInput` | `'identity'` | per-layer statistical transform |
 | `position` | `'identity' \| 'stack' \| 'dodge' \| 'fill'` | per geom (below) | overlap arrangement; `fill` normalizes stacks to 100% |
@@ -95,7 +95,7 @@ Params carry **geometry and policy only** — sizing, interpolation, missing-val
 
 Paint: `style.geom.line({ strokeWidth, lineType, fillAlpha })` — defaults `2` / `'solid'` / undeclared. `fillAlpha` is the peak opacity of the gradient wash beneath the line; undeclared draws no wash. A mapped `strokeWidth` or `lineType` aesthetic beats a `defaults` entry and loses to an `overrides` one.
 
-**`geom.area()`** — default position `'stack'`. Same two params as line; `missingValues` defaults to `'zero'`. Paint: `style.geom.area({ alpha, strokeWidth, lineType, strokeAlpha })` — defaults `0.3` / `2` / `'solid'` / `1`.
+**`geom.area()`** — default position `'stack'`. Same two params as line; `missingValues` defaults to `'zero'`, and `'gap'` is silently normalised to `'zero'`. Paint: `style.geom.area({ alpha, strokeWidth, lineType, strokeAlpha })` — defaults `0.3` / `2` / `'solid'` / `1`.
 
 **`geom.bar()`** — default position `'dodge'`. Bars render as pie wedges under `coord.polar`.
 
@@ -128,12 +128,12 @@ Defaults it brings: both position scales forced to bands with `padding: 0`; the 
 
 ### `dataLabels` (`DataLabelsConfig`)
 
-Available on bar, line, area, point and tile (polar labels for bars only; `rule` has none).
+Available on bar, line, area, point and tile (polar labels for bars only; `rule` has none — `DATA_LABELS_UNSUPPORTED` warns and nothing renders). Coercions, each with a `DATA_LABEL_PLACEMENT_COERCED` warning: stacked/filled cartesian segments turn `position: 'outside'` into `'inside'`; `panel-start`/`panel-end` justify becomes `start`/`end` under polar, on stacked bars and on multi-series line/area layers. `showStackTotals` outside a stacked cartesian bar warns `DATA_LABEL_SETTING_IGNORED`.
 
 | Key | Default | Effect |
 |---|---|---|
 | `showDataLabels` | `false` (`true` on `tile`) | show value labels on the layer |
-| `format` | `'absolute'` (`'percentage'` for polar bars) | `'absolute'` or `'percentage'`; on tile, point and line `'percentage'` falls back to absolute — no denominator |
+| `format` | `'absolute'` (`'percentage'` for polar bars) | `'absolute'` or `'percentage'`; a non-stacked cartesian bar uses Σ\|y\| as the denominator; on tile, point, line and non-stacked area `'percentage'` falls back to absolute — no denominator |
 | `showStackTotals` | `false` | totals at stack ends (stacked/filled bars) |
 | `showCategoryLabels` | `false` | polar bars: prepend category ("Europe · 35%"); cartesian bars: second label per observation placed by the `category*` fields |
 | `position` | `'auto'` | `'auto' \| 'inside' \| 'outside'`; only `'auto'` may drop/flip/rotate |
@@ -171,7 +171,7 @@ Options per scale type:
 | continuous | `transform` | `'linear'` | `'linear' \| 'log' \| 'sqrt'` (`.log()`/`.sqrt()` are shorthands) |
 | | `reverse` | `false` | flip direction |
 | | `nice` | `true` | round domain to nice values |
-| | `zero` | `false` | include 0 in the domain (bar layers force it on y) |
+| | `zero` | `false` | include 0 in the domain (a bar layer forces it on an inferred `scale.y()` only; an explicit `scale.y.continuous()` keeps `false` unless you pass it) |
 | | `clamp` | `false` position, `true` non-position | pin out-of-domain values to the range |
 | | `domainMin` / `domainMax` | data | override one bound |
 | | `range` | size `[4, 20]`, alpha `[0.1, 1]`, strokeWidth `[1, 4]` | output range, non-positional only |
@@ -182,7 +182,7 @@ Options per scale type:
 | datetime | `domainMin` / `domainMax` | data | epoch milliseconds |
 | | `nice` | `false` | rounding temporal bounds is surprising, so off by default |
 | | `reverse` / `clamp` | `false` | as continuous |
-| palette | `palette` | `{ type: 'default' }` | `{ type: 'graphy' \| 'pastel' }`, `{ type: 'neon', base }`, `{ type: 'mono', base }`, `{ type: 'custom', id }`. `'default'` is context-derived: a graph whose geoms touch (stacked/filled bars or areas, tiles) gets the `brick` mono ramp spread over its groups and tuned to the color scheme; every other graph gets the 8-colour multicolour set. graphy/pastel/neon accept `variant: 'waterfall'`, mono `variant: 'light' \| 'dark'` (default `'light'`). Mono bases: `'brick'` (default) `'grey' 'red' 'orange' 'yellow' 'green' 'cyan' 'blue' 'purple' 'pink'`; neon bases: `'cyan' 'pink' 'purple' 'red' 'orange' 'yellow' 'green' 'blue'` |
+| palette | `palette` | `{ type: 'default' }` | `{ type: 'graphy' \| 'pastel' }`, `{ type: 'neon', base }`, `{ type: 'mono', base }`, `{ type: 'custom', id }`. `'default'` is context-derived: a graph whose geoms touch (stacked/filled bars or areas, tiles) gets the `brick` mono ramp spread over its groups (up to 7; more fall back to the 8-tone ramp) and tuned to the color scheme; every other graph gets the 8-colour multicolour set. graphy/pastel/neon accept `variant: 'waterfall'`, mono `variant: 'light' \| 'dark'` (default `'light'`). Mono bases: `'brick'` (default) `'grey' 'red' 'orange' 'yellow' 'green' 'cyan' 'blue' 'purple' 'pink'`; neon bases: `'cyan' 'pink' 'purple' 'red' 'orange' 'yellow' 'green' 'blue'` |
 | | `overrides` | none | `{ [groupNumber]: { hex?, id? } }` per-series color overrides (1-indexed); `id` looks up a color in the active custom palette, `hex` wins if both set |
 | identity | — | — | data values pass through as visual values (`scale.size.identity()`: `{ size: 10 }` → 10 px) |
 
@@ -237,7 +237,7 @@ Transforms rewrite the dataset **before** mapping and stats read it. Spec-level 
 
 | Builder | Example |
 |---|---|
-| `transform.reshape(options?)` — wide→long: collapse numeric columns into key/value rows | `transform.reshape({ reshape: ['revenue', 'cost'], keyName: 'metric', valueName: 'amount' })` then `mapping({ x: 'month', y: 'amount', color: 'metric' })`. Defaults: `reshape` = all numeric columns, `keep` = all categorical/temporal columns, `keyName: 'key'`, `valueName: 'value'` |
+| `transform.reshape(options?)` — wide→long: collapse numeric columns into key/value rows | `transform.reshape({ reshape: ['revenue', 'cost'], keyName: 'metric', valueName: 'amount' })` then `mapping({ x: 'month', y: 'amount', color: 'metric' })`. Defaults: `reshape` = all numeric columns not named in `keep`, `keep` = all categorical/temporal columns, `keyName: 'key'`, `valueName: 'value'`. A non-numeric `reshape` column, a `keyName`/`valueName` colliding with a kept column, or reshaping a column that already carries a `lookup` format throws `INVALID_DATA_SHAPE` |
 | `transform.filter({ variableName, operator, value })` — keep matching rows | `transform.filter({ variableName: 'region', operator: 'eq', value: 'EU' })`; operators `'eq' \| 'neq' \| 'gt' \| 'gte' \| 'lt' \| 'lte'` |
 | `transform.sort({ variableName, direction? })` | `transform.sort({ variableName: 'revenue', direction: 'desc' })` (default `'asc'`) |
 | `transform.aggregate({ groupby, operations })` — group rows and summarize | `transform.aggregate({ groupby: ['region'], operations: [{ op: 'sum', variableName: 'revenue', as: 'total' }] })`; ops `'count' \| 'sum' \| 'mean' \| 'median' \| 'mode' \| 'min' \| 'max'` |
@@ -270,9 +270,9 @@ Each axis takes the same shape. Defaults: x below, y beside.
 | `ticks.isVisible` | `boolean` | `true` | `false` | tick labels |
 | `ticks.mode` | `'auto' \| 'edges'` | `'auto'` | `'auto'` | `'edges'` shows only first/last tick |
 
-These keys decide whether a grid line is drawn; its stroke comes from `style.gridLine({ color, strokeWidth, lineType })` / `.x` / `.y` (built-in `1` / `'dashed'`). Tick marks are `style.tickLine`; tick and axis label type are `style.tickLabel` / `style.axisLabel`.
+These keys decide whether a grid line is drawn; its stroke comes from `style.gridLine({ color, strokeWidth, lineType })` / `.x` / `.y` (only `.y` has a built-in stroke, `1` / `'dashed'`; an x grid needs an entry to paint). Tick marks are `style.tickLine`; tick and axis label type are `style.tickLabel` / `style.axisLabel`.
 
-Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it auto-injects the `ySecondary` scale and renders the second axis opposite the primary y. `axes.ySecondary` is a **sparse** `DeepPartial<YAxisConfig>`: an unset field is inherited at compile time — `position` from the side opposite `y`, `isVisible`/`grid`/`ticks` from `y`, `label` from nothing. An absent override means "mirror the primary axis", so pinning a field trades that mirroring away.
+Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it auto-injects the `ySecondary` scale and renders the second axis opposite the primary y. `axes.ySecondary` is a **sparse** `DeepPartial<YAxisConfig>`: an unset field is inherited at compile time — `position` from the side opposite `y`, `isVisible`/`grid`/`ticks` from `y`, `label` from nothing. One exception: a `grid.isVisible` left `null` resolves hidden on `ySecondary` (visible on `y`). An absent override means "mirror the primary axis", so pinning a field trades that mirroring away.
 
 ### `panel`
 

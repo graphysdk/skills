@@ -66,7 +66,7 @@ const input = pipe(
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so those charts get the single-hue `brick` mono ramp, while dodged bars (nothing touches) get the 8-colour multicolour set. `scale.color.palette({ palette: { type: 'graphy' } })` forces the multicolour set.
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp there, while dodged bars (nothing touches) get the 8-colour default set. On a touching chart that set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
 
 Data already in long form (a series column per row) skips the reshape — map `color` directly:
 
@@ -115,7 +115,7 @@ config({ axes: { y: { label: 'Count' } } })
 
 | Surface | Key | Type | Default | Notes |
 |---|---|---|---|---|
-| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` (`1` under `coord.polar`) | fraction of the category band |
+| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` (`1` under `coord.polar`) | fraction of the category band; dodged groups use an inner padding of `0.1` between bars |
 | `style.geom.bar` | `borderRadius` | `'none' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl' \| 'full'` | `'sm'` | `'full'` = pill; a stack rounds the outer corners of the whole column |
 | `style.geom.bar` | `borderColor` | color | `token('geomBorder')` | translucent ink, light/dark aware — the border is drawn by default |
 | `style.geom.bar` | `borderWidth` | number | `1` | `0` removes the border |
@@ -130,7 +130,7 @@ one data subset via `{ layer }` / `{ where }`.
 
 The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in hovered state is `style.geom.bar({ borderColor: token('hoverAffordance') }, { state: 'hovered' })`.
 
-Stats available on a bar layer: `'count' | 'sum' | 'mean' | 'smooth'`. Bars also render under `coord.polar` (`recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md`), where the `width` default becomes `1`.
+Stats available on a bar layer: `'identity'` (default) `| 'count' | 'sum' | 'mean' | 'smooth'`. `count`/`sum` group per x and series; `mean` collapses the layer to **one** observation (a single bar). Mapping `y` alongside `stat: 'count'` is a hard error (`CONFLICTING_STAT_MAPPING`). Bar declares only the `color` and `alpha` aesthetics — a mapped `size`/`strokeWidth` warns `UNDECLARED_AESTHETIC` and is ignored. Bar hides the x grid by default. Bars also render under `coord.polar` (`recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md`), where the `width` default becomes `1`.
 
 ## Data labels
 
@@ -144,6 +144,7 @@ geom.bar({
 - Stacked/filled segments coerce `position: 'outside'` to `'inside'` (`DATA_LABEL_PLACEMENT_COERCED`) — every segment edge borders a neighbour; use `showStackTotals` for stack-end totals.
 - `showStackTotals` on anything but a stacked cartesian bar warns `DATA_LABEL_SETTING_IGNORED`.
 - `justify` defaults to `'end'`, `'center'` on stacked/filled bars; `offset` defaults to `4`.
+- Category labels (`showCategoryLabels`) place independently via `categoryPosition | categoryJustify | categoryAlign | categoryOffset` (defaults `'inside' / 'start' / 'center' / 4`); `mapping.label` overrides the value label's text source.
 
 ## Intro animation
 
@@ -162,5 +163,5 @@ segments of one stack share a delay so the column rises as one. The renderer's `
 - Bar's default position is `dodge`, not `stack` — a multi-series bar with no `position` renders grouped bars.
 - Wide data must go through `transform.reshape` before mapping `color` to the series; a long-form series column maps directly.
 - With negative values use `position: 'identity'` so bars hang below the zero baseline instead of being position-adjusted.
-- `stat: 'count'` supplies y itself — do not also map `y`, but still add `scale.y()`.
+- `stat: 'count'` supplies y itself — mapping `y` too is a hard error (`CONFLICTING_STAT_MAPPING`); still add `scale.y()`.
 - A `width` outside `(0, 1]` renders with a substitute (`1` for anything above `1`, otherwise `0.7`) and an `INVALID_GEOM_PARAM` warning.

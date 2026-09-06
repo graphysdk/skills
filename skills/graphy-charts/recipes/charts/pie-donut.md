@@ -47,7 +47,7 @@ export function BudgetPie() {
 }
 ```
 
-Every pie from this snippet is a single-hue ramp: with no `palette` option `scale.color.palette()` resolves `{ type: 'default' }`, and a chart whose geoms touch (every pie, stacked/filled bars or areas, tiles) gets the `brick` mono ramp rather than the 8-colour set. Ask for multicolour with `scale.color.palette({ palette: { type: 'graphy' } })`; `scale.color.palette({ overrides: { 1: { hex: '#FF5A5F' } } })` recolors one slice (1-indexed group).
+Every pie from this snippet is a single-hue ramp: with no `palette` option `scale.color.palette()` resolves `{ type: 'default' }`, and on a chart whose geoms touch (every pie, stacked/filled bars or areas, tiles) that always resolves to the `brick` mono ramp — the 8-colour default set is unreachable. Escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`; `scale.color.palette({ overrides: { 1: { hex: '#FF5A5F' } } })` recolors one slice (1-indexed group).
 
 ## Variants
 
@@ -71,7 +71,7 @@ geom.bar({ position: 'fill' }),
 styles({ defaults: [style.geom.bar({ borderRadius: 'md' })] }),
 ```
 
-Data labels on slices — `format: 'percentage'` is already the default for a polar bar layer; it divides each value by the layer total (sum of absolute values, so negative slices don't shrink the denominator); `showCategoryLabels: true` prepends the category ("Engineering · 42.0%"). `position: 'outside'` is kept under polar; the panel-edge `justify` values are coerced back with `DATA_LABEL_PLACEMENT_COERCED`, and `showStackTotals` warns `DATA_LABEL_SETTING_IGNORED`:
+Data labels on slices — `format: 'percentage'` is already the default for a polar bar layer; it divides each value by the layer total (sum of absolute values, so negative slices don't shrink the denominator — the denominator exists only for non-stacked layers); `showCategoryLabels: true` prepends the category ("Engineering · 42.0%"). `position: 'outside'` is kept under polar, but an outside label crossing the footer band is dropped; the panel-edge `justify` values are coerced back with `DATA_LABEL_PLACEMENT_COERCED`, and `showStackTotals` warns `DATA_LABEL_SETTING_IGNORED`:
 
 ```ts
 geom.bar({
@@ -80,7 +80,7 @@ geom.bar({
 })
 ```
 
-Headline number in the donut hole — on a polar chart `show: 'total'` compiles to a single grand total (signed sum of `y`); `position: 'center'` places it inside the hole:
+Headline number in the donut hole — on a polar chart only `show: 'total'` renders, compiling to a single grand total (signed sum of `y`); `'average'`/`'current'` silently give no headline. `position: 'center'` places it inside the hole:
 
 ```ts
 coord.polar({ theta: 'y', innerRadius: 0.55 }),

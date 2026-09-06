@@ -106,7 +106,7 @@ geom.point({ interactive: false }),
 
 ## Trend overlay
 
-A second line layer with a `smooth` stat draws a regression over the data (`stat` is exported from `@graphysdk/viz-engine`); a non-numeric `x` raises `INCOMPATIBLE_TYPE`:
+A second line layer with a `smooth` stat draws a regression over the data (`stat` is exported from `@graphysdk/viz-engine`). A non-numeric **y** raises `INCOMPATIBLE_TYPE`; a categorical x is ranked in data order and a temporal x rebased to days. Methods: `'linear' | 'loess' | 'exponential' | 'logarithmic' | 'quadratic' | 'power' | 'polynomial'`, with `order` (default `3`, polynomial only) and `bandwidth` (default `0.3`, loess only). Output: a discrete x emits one fitted point per category; a continuous/datetime x emits the sampled curve (a linear fit is two endpoints):
 
 ```ts
 geom.line(),
@@ -143,7 +143,7 @@ The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomB
 
 `strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous({ range: [1, 6] })`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous({ … })`. Default ranges: `strokeWidth` `[1, 4]`, `alpha` `[0.1, 1]`, `size` `[4, 20]` (for a companion point layer).
 
-Line's default position is `identity`. Data labels: `geom.line({ dataLabels: { showDataLabels: true } })`, offset `8` px from the vertex.
+Line's default position is `identity`. Data labels: `geom.line({ dataLabels: { showDataLabels: true } })`, offset `8` px from the vertex; under `coord.polar` they warn `DATA_LABELS_UNSUPPORTED` and render nothing.
 
 ## Intro animation
 
@@ -159,6 +159,7 @@ renderer's `animation` prop tunes it:
 
 ## Gotchas
 
+- Month-name columns like the base data's `'Jan'` parse as temporal, so `scale.x()` infers a datetime scale; `scale.x.discrete()` keeps them as categories.
 - Wide data needs `transform.reshape` before `color` (or `lineType`) can map to the series variable.
 - `lineType` scales are discrete-only — mapping `lineType` to a numeric variable errors at compile time. Valid range values: `'solid' | 'dashed' | 'dotted'`.
 - A mapped `alpha` dims the stroke; the wash beneath it follows `fillAlpha`, so the two are set separately.

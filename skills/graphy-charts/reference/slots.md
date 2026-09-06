@@ -41,8 +41,9 @@ default is a no-op; `@graphysdk/react-renderer/editable` is what fills it (see
 ### `measure` rules
 
 - `measure` mirrors the built-in layout measurer for that region; regions you don't override keep
-  their built-in measurer. It is not consulted for an empty band — a legend with no items, or a
-  hidden axis or one with no ticks, reserves 0 regardless.
+  their built-in measurer. `Legend` and `AxisTicks` overrides are skipped for an empty band (no items;
+  hidden axis or no ticks) and reserve 0; `AxisLabel` and `Headline` overrides are always called, so
+  they must return 0 themselves for an absent region.
 - **Give `measure` a stable reference** (module scope, or `useCallback`/`useMemo`). An identity that
   changes each render takes effect on the next paint but does not retrigger layout.
 - Second argument is a `SlotMeasureContext`:
@@ -99,7 +100,7 @@ rich text and `header` is `null`. Handle both or comment bubbles paint empty. `T
 `label`, `value` (formatted strings), `swatchColor` (`string | null` — null when the chart has no
 color scale), `swatchLineType`, `geom`, `isPrimary`, `key`.
 
-Rows follow legend order. The hovered row is the one with `isPrimary` set, not the first; emphasise
+Rows follow layer-declaration order across layers and legend order within a layer. The hovered row is the one with `isPrimary` set, not the first; emphasise
 it in place rather than sorting it to the top.
 
 Content arrives fully formatted by the viz-engine runtime. Hit-testing, open/close, cursor tracking,
@@ -144,7 +145,7 @@ context.
 
 | Field | Meaning |
 |---|---|
-| `formattedLegends: FormattedLegend[]` | Each: `position`, `align`, `display` (`pill`/`direct`), `title`, `aesthetics`, `items` (with `formattedLabel`, `label`, `value`, `valueFormat`, `geom`, `visual.color/size/alpha/strokeWidth/lineType`, `normalizedY`) |
+| `formattedLegends: FormattedLegend[]` | Each: `position`, `align`, `display` (`pill`/`direct`), `title`, `aesthetics`, `items` (with `formattedLabel`, `label`, `value`, `valueFormat`, `geom`, `visual.color/size/alpha/strokeWidth/lineType` — `size` is a symbol diameter in px on bubble legends, skip the item when it is non-finite or ≤ 0 — `normalizedY`) |
 | `rects: Partial<Record<LayoutEdge, Rect>>` | The reserved band per edge (whatever your `measure` returned) |
 | `textScale: number` | Active text-scale multiplier |
 
@@ -178,7 +179,7 @@ JSX as a child throws "Objects are not valid as a React child".
 
 | Field | Meaning |
 |---|---|
-| `formattedAxes: FormattedAxis[]` | Per axis: `scaleAestheticKey` (`ySecondary` folds into `y`), `position` (edge), `geometry` (paint only `'linear'`; polar axes render elsewhere), `label` (the axis title), `isVisible`, `ticksVisible`, `ticks` (`value`, `formattedLabel`, normalized `position` — y is data-up), `bandwidth` (discrete band width), `labelRotation`, `labelMaxWidthPx` |
+| `formattedAxes: FormattedAxis[]` | Per axis: `scaleAestheticKey` (`ySecondary` folds into `y`), `position` (edge), `geometry` (paint only `'linear'`; polar axes render elsewhere), `label` (the axis title), `isVisible`, `ticksVisible`, `gridVisible`, `scaleType`, `tickMode`, `valueFormat`, `ticks` (`value`, `formattedLabel`, normalized `position` — y is data-up), `bandwidth` (discrete band width), `labelRotation`, `labelMaxWidthPx`. Ticks arrive selected and formatted — paint `formattedLabel` verbatim; re-selecting or re-formatting desyncs paint from the reserved band |
 | `tickRects` / `labelRects: Partial<Record<LayoutEdge, Rect>>` | SVG-local reserved band per edge |
 
 Tick band and axis title are **separate slots** — overriding `AxisTicks` leaves the title on the

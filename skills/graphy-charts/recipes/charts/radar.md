@@ -9,7 +9,7 @@ A radar chart is a line/point/area chart bent around a circle: `coord.polar({ th
 | Filled | `geom.area({ position: 'identity' })` + `geom.point({ interactive: false })` instead of the line |
 | Curved spider | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
 | Rotated / hollow centre | `coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 })` |
-| Per-series dash | `lineType: 'player'` in the mapping + `scale.lineType.discrete({ range: ['solid', 'dashed'] })` |
+| Per-series dash | `geom.line({ aes: { lineType: 'player' } })` + `scale.lineType.discrete({ domain: ['Alice', 'Bob'], range: ['solid', 'dashed'] })` |
 | Bar-based rose | `geom.bar` instead — `recipes/charts/polar-bar.md` |
 
 ## Base spider
@@ -93,28 +93,29 @@ Rotated / hollow centre — `startAngle` (degrees, default `0`) picks where the 
 coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 }),
 ```
 
-Stroke — `style.geom.line({ strokeWidth, lineType })` (defaults `2` / `'solid'`) paints every outline; map `lineType` for a dash per series:
+Stroke — `style.geom.line({ strokeWidth, lineType })` (defaults `2` / `'solid'`) paints every outline; map `lineType` **on the line layer** for a dash per series — in the spec-level mapping the point layer, which does not declare `lineType`, would warn `UNDECLARED_AESTHETIC`. Without `domain`, `scale.lineType.discrete({ range })` pairs values in first-occurrence order; pass `domain` to pin the pairing:
 
 ```ts
-createSpec({ x: 'skill', y: 'score', color: 'player', lineType: 'player' }),
-geom.line(),
+createSpec({ x: 'skill', y: 'score', color: 'player' }),
+geom.line({ aes: { lineType: 'player' } }),
+geom.point({ interactive: false }),
 scale.lineType.discrete({ domain: ['Alice', 'Bob'], range: ['solid', 'dashed'] }),
 styles({ defaults: [style.geom.line({ strokeWidth: 3 })] }),
 ```
 
 ## Intro animation
 
-Only the vertex dots have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` lands the highest scores first:
+Only the vertex dots have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` sorts by the mapped `size`, falling back to x — a radar maps no size, so it reverses spoke order rather than sorting by score:
 
 ```tsx
 <GraphRenderer animation={{ intro: { staggerOrder: 'value-descending' } }} />
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area; a skip also kills the vertex-dot entrance.
 
 ## Gotchas
 
-- Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences.
+- Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences. `domainMax` caps the outer ring (e.g. `{ domainMin: 0, domainMax: 10 }`); `nice` defaults to `true`.
 - The filled variant needs `position: 'identity'` — `geom.area` defaults to `'stack'`, which would pile the series' radii on top of each other instead of overlapping them.
 - Use `scale.x.discrete()` explicitly for the spokes; under `coord.polar` the compiler zeroes discrete-scale padding so the spokes distribute evenly around the full circle.
 - Mark the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the dots.

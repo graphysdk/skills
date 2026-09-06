@@ -246,7 +246,11 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
   };
   override readonly identityKey: IdentityKey = { variable: FORCE_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
+  // Documentation only: a custom geom's `layer.highlight` is `null` regardless of this declaration.
   override readonly highlightStrategy = null;
+  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
+  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
+  override readonly positionRoles = [] as const;
   override readonly aesthetics = [
     { kind: 'data', name: 'source', required: true },
     { kind: 'data', name: 'target', required: true },
@@ -292,6 +296,10 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
       FORCE_COLUMNS.kind
     );
 
+    // Because this returns a fresh `Dataset`, every column a visual aesthetic maps to must be emitted
+    // under the mapped name (`node` here): `compile()` does not rewrite `layer.mapping.color`, the
+    // visual mapper resolves it against the compiled data, and a missing column silently falls every
+    // cell back to `token('geom')`. `derivedVariables` is what exempts `node` from `UNKNOWN_VARIABLE`.
     return {
       data: table,
       mapping: { label: { variable: FORCE_COLUMNS.label }, value: { variable: FORCE_COLUMNS.value } },
@@ -493,11 +501,22 @@ const ForceCanvas = ({
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(runLoop);
   }, [runLoop]);
 
+  // `nodes`/`edges` get a fresh identity on every recompile (`styleReaders` changes each compile), so
+  // keying the rebuild on them would reseed the layout on any restyle. Key it on a topology signature
+  // instead and read the current arrays through a ref.
+  const topologySignature = useMemo(
+    () => `${nodes.length}|${edges.map((edge) => edge.markId).join('|')}`,
+    [nodes, edges]
+  );
+  const topologyRef = useRef({ nodes, edges });
+  topologyRef.current = { nodes, edges };
+
   // Build (or rebuild) the simulation when the topology or its tuning changes — never every frame.
   useEffect(() => {
-    const simEdges: SimEdge[] = edges.map((edge) => ({ sourceIndex: edge.sourceIndex, targetIndex: edge.targetIndex }));
+    const { nodes: currentNodes, edges: currentEdges } = topologyRef.current;
+    const simEdges: SimEdge[] = currentEdges.map((edge) => ({ sourceIndex: edge.sourceIndex, targetIndex: edge.targetIndex }));
     const { width, height } = rectRef.current;
-    simRef.current = new ForceSimulation(nodes.length, simEdges, {
+    simRef.current = new ForceSimulation(currentNodes.length, simEdges, {
       width,
       height,
       chargeStrength: params.chargeStrength,
@@ -512,7 +531,7 @@ const ForceCanvas = ({
       // forever if a topology change interrupts a drag before `onLostPointerCapture` fires.
       dragIndexRef.current = null;
     };
-  }, [nodes, edges, params.chargeStrength, params.linkDistance, ensureRunning]);
+  }, [topologySignature, params.chargeStrength, params.linkDistance, ensureRunning]);
 
   // Reflow into a resized panel without reseeding the layout.
   useEffect(() => {
@@ -716,7 +735,10 @@ export const kit = createGraphyKit({
       // the renderer mounts it in a screen portal above the capture layer and supplies `overlay`
       // ({ panelRect, pushHover }). The central hover layer contributes nothing; the tooltip is
       // driven through the push path. An overlay-hosted geom is skipped by the panel-SVG paint and
-      // the highlight repaint (hence `highlightStrategy = null`), and is handed no intro plan.
+      // the highlight repaint (`highlightStrategy = null` merely documents that — a custom geom's
+      // `layer.highlight` is `null` regardless), and is handed no intro plan. The overlay is mounted
+      // only for a `'render-hit-test'` layer, from a component that mounts as a unit, so hooks inside
+      // `fn` are safe.
       render: {
         fn: ({ layer, styleReaders, overlay }) => (
           <ForceOverlay layer={layer} styleReaders={styleReaders} rect={overlay.panelRect} pushHover={overlay.pushHover} />
@@ -768,8 +790,8 @@ export const ForceDirectedChart = () => (
 ## Adapting
 
 - Tune the physics through geom params: `kit.geom.forceDirected({ params: { chargeStrength, linkDistance }, aes: { ... } })` — both are consumed render-side when the simulation is built.
-- The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` clears this layer's hover only, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
-- Two diagnostics define this shape. `OVERLAY_REQUIRES_RENDER_HIT_TEST`: an overlay render on a layer whose `spatialKind` is not `'render-hit-test'` — `pushHover` then resolves against no index — which is why the geom declares `'render-hit-test'`. `CONFLICTING_RENDER_HIT_TEST`: declaring both a `hitTest` factory and an overlay render; the overlay wins. An overlay-hosted geom is skipped by the panel-SVG paint and the highlight repaint, hence `highlightStrategy = null`; the hover dim the renderer applies to panel-SVG layers does not reach the overlay, so the neighbourhood fade here is the geom's own de-emphasis.
+- The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` — like a key that misses — clears only when this layer holds the primary hit, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. An overlay render is mounted only for a `spatialKind: 'render-hit-test'` layer (never otherwise), is exempt from `MISSING_RENDER_HIT_TEST`, and its `fn` is invoked from a component that mounts as a unit, so hooks inside it are safe. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
+- Two diagnostics define this shape. `OVERLAY_REQUIRES_RENDER_HIT_TEST`: an overlay render on a layer whose `spatialKind` is not `'render-hit-test'` — `pushHover` then resolves against no index — which is why the geom declares `'render-hit-test'`. `CONFLICTING_RENDER_HIT_TEST`: declaring both a `hitTest` factory and an overlay render; the overlay wins. An overlay-hosted geom is skipped by the panel-SVG paint and the highlight repaint; `highlightStrategy = null` is documentation only, since a custom geom's `layer.highlight` is `null` regardless. The hover dim the renderer applies to panel-SVG layers does not reach the overlay, so the neighbourhood fade here is the geom's own de-emphasis.
 - Requires `d3-force` (`@types/d3-force` for TypeScript), both user-installed. Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
 - The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom): a pixel position `(px, py)` in the overlay becomes `{ x: px / width, y: 1 - py / height }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`. A node's live position is known only to the running simulation, so an anchor here is a snapshot at best.
 - Node and edge fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the node stroke and label colours (`#fff`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.

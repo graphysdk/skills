@@ -60,7 +60,7 @@ Registry key is the `(geom, coord)` pair — one contract per coordinate system 
 | `swatchShape` | no | Legend/tooltip/headline mark: `'square' \| 'line' \| 'circle' \| 'area' \| 'slice'` |
 | `guideMode` | no | Hover guide this layer draws when hovered: `'band'` (category rectangle — bars), `'crosshair'` (rule at the value — line/area), omit/`null` for none (scatter) |
 | `hitTest` | no | Factory `(input) => RenderHitTester` for `'render-hit-test'` geoms with precomputed geometry (tier 2 only; see Hover wiring) |
-| `getOverlayAnchor` | no | `({ layer, coordSystem, observation }) => { x, y } \| null` in `[0,1]` panel space; type-enforced for built-in renderers whose highlight strategy is `'overlay-anchor'` (line, area, point). On a custom geom it is never called today (see dimming below) |
+| `getOverlayAnchor` | no | `({ layer, coordSystem, observation }) => { x, y } \| null` in `[0,1]` panel space. A render-only override of `line`, `area` or `point` **must** supply it — without it every highlight overlay dot and value label vanishes, silently. On a custom geom it is never called today (see dimming below) |
 
 ### Drawing in unit space
 
@@ -87,7 +87,7 @@ import { UnitBoxSvg, UnitSpaceSvg } from '@graphysdk/react-renderer';
 
 `layer.data` is an iterable `Dataset` of observations — **not an array**. `layer.data.map(...)` fails; iterate with `for (const observation of layer.data)` or spread first (`[...layer.data].map(...)`).
 
-Never index into an observation's columns by name — read every value through the readers exported by `@graphysdk/viz-engine`. They return scaled `[0,1]` positions (or resolved visual values), or `null` when absent:
+Never index into an observation's columns by name — read every value through the readers exported by `@graphysdk/viz-engine`. Position readers return `number | null`; `getColor` / `getLineType` return `undefined` when absent:
 
 | Readers | Return |
 |---|---|
@@ -133,7 +133,7 @@ render: ({ layer, styleReaders }) => (
 
 `input.intro` is a `LayerIntroPlan | null` — the engine's plan for how this layer should enter on first mount (and on a coord change). The plan is **offered, never imposed**: nothing gates the paint, and a geom that ignores it simply appears at once.
 
-- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan, `'buckets'` under cartesian → a `wipe` plan, `'cells'` → a `fade` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom always receives `null` — it never animates in, by design.
+- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan (on `x`/`y`, or `angle`/`radius` under polar), `'buckets'` under cartesian → a `wipe` plan, `'cells'` → a `fade` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom, an empty layer, a disabled intro or a tripped `maxAnimatedGeoms` budget all yield `null`.
 - `LayerIntroPlan` is discriminated on `type`, every member carrying `layerId` and `durationSeconds`: `{ type: 'grow', baseline, growAxis: 'x' | 'y' | 'angle' | 'radius' | 'size', delayByKey }`, `{ type: 'wipe', axis: 'x' | 'y' }`, or `{ type: 'fade' }`. Timings are already in seconds.
 - Chart chrome (data labels) is held until the longest layer plan comes to rest, measured from the chart's mount — a geom that ignores its plan still appears before the chrome.
 - The layer counts toward the intro's `maxAnimatedGeoms` budget (`countLayerGeoms`: the group count for `'buckets'`, the row count otherwise; default 1500), so a large custom layer can suppress the whole chart's intro.
@@ -149,7 +149,7 @@ Plugin mistakes surface as `VizDiagnostic` entries rather than throws. Most are 
 |---|---|---|
 | `MISSING_GEOM_RENDERER` | error | A compile definition is in `plugins` with no render half registered for its `type` |
 | `MISSING_GEOM_RENDERER` | warning | A compiled layer's `(geom, coord)` pair resolves to no renderer under the chart's coord system — the layer paints nothing |
-| `DUPLICATE_REGISTERED_TYPE` | warning | Two render-only overrides register the same `(geom, coord)`; the last in the array wins |
+| `DUPLICATE_REGISTERED_TYPE` | warning | Two render-only overrides register the same `(geom, coord)`, or two distinct compile definitions claim one `type`/`transformType`; the last in the array wins |
 | `MISSING_RENDER_HIT_TEST` | warning | A `'render-hit-test'` layer whose renderer declares neither a `hitTest` factory nor an overlay render — the layer has no hover. Also fires for the `useGeomHitTest` hook form, which registers at runtime and so is invisible to the check |
 | `RENDER_HIT_TEST_IDENTITY` | warning | A `'render-hit-test'` geom left on a position-derived identity (`'x-group'` or `'x-y'`), or keyed on `{ variable }` naming a column its `compile()` never emits — either way the hover lookup is empty and every hit resolves to nothing |
 | `CONFLICTING_RENDER_HIT_TEST` | warning | A renderer declares both a `hitTest` factory and an overlay render; only the overlay is used |
@@ -205,13 +205,14 @@ Key declarations:
 | `derivedVariables` | `[]` | Names the geom computes in its own output that authors may map to (exempt from unknown-variable checks) |
 | `scaleConstraints` | unset | `{ discreteMainAxis?, discreteCrossAxis?, zeroBaseline?, bandPadding?, inferredColor? }` — demands the geom imposes on its scales. `discreteMainAxis`/`zeroBaseline` only steer bare inferred scales; `discreteCrossAxis` is a hard band demand that coerces a declared continuous scale back (`UNSUPPORTED_SCALE_TYPE`); `inferredColor` infers the colour scale from the mapped column instead of the palette |
 | `supportedCoordTypes` | `['cartesian', 'flip']` | Coords the geom renders under |
-| `spatialKind` | `'points'` | Hover hit-test shape: `'points' \| 'rects' \| 'cells' \| 'buckets' \| 'noop' \| 'render-hit-test'`. Use `'render-hit-test'` when geometry comes from a layout algorithm rather than position scales |
+| `spatialKind` | `'points'` | Hover hit-test shape: `'points'` (nearest point), `'rects'` (banded rects, needs `xMin`/`xMax`), `'cells'` (cartesian enclosure, a tile grid), `'buckets'` (nearest main-axis value, needs `x` and `y`), `'noop'`, `'render-hit-test'` (geometry from a layout algorithm; you supply the tester) |
 | `identityKey` | `'x-group'` | What makes "the same observation" across recompiles: `'x-group'`, `'index'`, `'x-y'` (both position columns), or `{ variable: 'nodeId' }` for a geom keyed by its own id column |
 | `isComposite` | `false` | `true` when the geom draws one geometry per group (a line's path) rather than one mark per observation |
 | `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` (contract must supply `getOverlayAnchor`) \| `'observation-rerender'` \| `null` (opt out) |
 | `defaultPosition`, `defaultInteractive` | `'identity'`, `true` | Layer-resolution defaults |
 | `supportedPositions` | all four | Position adjusters the geom accepts; others are rejected |
-| `grid`, `legend`, `tooltip`, `summaries` | `{}` / `[]` | Guide policies the pipeline reads; `dataLabels` is a further optional policy |
+| `grid`, `legend`, `tooltip`, `summaries` | `{}` / `[]` | Guide policies: `grid: { hideGridX?, hideGridY?, hideBorder? }`, `legend: { suppressWhenSingleItem?, sidePlacement?, directLabelSupport? }`, `tooltip: [{ key?, aes }]` (rows read the raw mapped column; replaces the default y rows), `summaries: { grandTotal?, stackTotals?, perGroupHeadline? }` |
+| `dataLabels` | unset | `Partial<Record<CoordType, Partial<DataLabelsConfig>>>` — per-coord data-label defaults (a polar bar's `format: 'percentage'`) |
 | `dataLabelCoordTypes` | `[]` | Coords the built-in placement pipeline can place this geom's data labels under |
 | `resolveAnchorPosition` | optional | `(observation, context: AnchorContext) => AnchorPosition \| null` — where an annotation on that observation sits, in normalized `[0,1]` panel space. `AnchorContext` carries `{ coordSystem, position, purpose: 'pin' \| 'value', align? }`. A geom without it is skipped by the annotation stage; on a `'render-hit-test'` geom the omission also raises `MISSING_ANCHOR_CAPABILITY` |
 | `validateMapping`, `resolveBandFraction`, `resolveValueSource`, `resolveDataLabelDefaults` | optional | Further opt-in hooks. `resolveValueSource(mapping, purpose: 'label' \| 'measurement')` names the aesthetic a label or measurement reads when the value does not ride on `y` (a tile's `color`) |
@@ -222,17 +223,19 @@ Both are bare `CompileDefinition` plugins — add the instance to the `plugins` 
 
 ```ts
 import { Stat } from '@graphysdk/viz-engine';
-import type { TransformStrategy } from '@graphysdk/viz-engine';
+import type { CompiledStat, StatCompilerInput, TransformStrategy } from '@graphysdk/viz-engine';
 
 class MedianStat extends Stat {
   readonly type = 'median' as const;
   readonly computedVariables = new Set(['y' as const]);
-  protected computeStat(input) { /* StatCompilerInput in, { data, mapping } out */ }
+  protected computeStat({ data, mapping }: StatCompilerInput): CompiledStat {
+    return { data, mapping }; // reduce `data` and return the (possibly overridden) mapping
+  }
 }
 
 const jitterTransform: TransformStrategy = {
   transformType: 'jitter',
-  apply: (data, transform) => /* Dataset → Dataset */,
+  apply: (data) => data, // Dataset → Dataset
   getIntroducedVariables: () => ['jittered'],
 };
 ```

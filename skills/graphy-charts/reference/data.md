@@ -68,7 +68,7 @@ Per column, the engine:
    wins this pass.
 3. Otherwise the **first non-empty cell alone** decides the column's `ValueFormat`, tried in order:
    number → date string (an ISO-8601 datetime string gives `datetime`) → weekly date range
-   (`'Jan 1 – Jan 7'`, ends exactly 6 days apart) → `Date` object → percentage (`'12%'`) →
+   (`'Jan 1 – Jan 7'`, ends 6 days apart, 5 across a possible leap day) → `Date` object → percentage (`'12%'`) →
    currency (`'$5'`, `'€5'`, …) → `text` (catch-all).
 4. Every cell in the column is then parsed with that one format. **Cells that don't fit become
    `null` silently** — no error.
@@ -81,8 +81,8 @@ Parsing details:
   percentage format — bare fractions (0.12) infer `decimal` and render as plain numbers. Inside a
   percentage column a bare numeric cell passes through unscaled (`12` renders "1200%"), so don't mix
   bare numbers into a percent-string column.
-- Currency is recognised by symbol only, at the start or end of the string (`'$5'`, `'5 €'`, not
-  `'USD 5'`); the symbol sets the format's `iso` (e.g. `'usd'`).
+- Currency is recognised by symbol only, adjacent to the number at the start or end (`'$5'`, `'-$5'`,
+  `'5€'`; not `'5 €'` or `'USD 5'`); the symbol sets the format's `iso` (e.g. `'usd'`).
 - Dates become UTC `Date` objects. `'2022-02'` and `'February 2022'` parse as month + year; `'Q1 2022'`
   as a quarter; bare `'February'`/`'Feb'` as a month with no year; `'February 1, 2022'`, `'1 Feb 2022'`
   and `/`, `-`, `.` separated forms all parse. A `Date` object infers `date`; only an ISO-8601 datetime
@@ -97,7 +97,9 @@ onto one calendar year.
 The rule: walk the column **in row order**, starting from the year the first value parsed with (the
 current calendar year). Whenever a value sorts before its predecessor (compared on month/day, year
 ignored), bump the year. Each **group** — the explicit `group` aesthetic if mapped, else the
-combination of every discrete aesthetic — runs its own sequence; ungrouped rows share one.
+combination of the categorical visual aesthetics (`color`, `size`, `alpha`, `strokeWidth`, `lineType`)
+— runs its own sequence; ungrouped rows share one. The pass runs per layer, after grouping, so two
+layers grouped differently can assign different years to the same rows.
 
 What follows:
 
@@ -192,7 +194,7 @@ const input = pipe(
 With all defaults, `transform.reshape()` melts every numeric column and keeps the rest — often
 exactly right for a wide table. If the source columns share a format (all currency), the value
 column keeps it; if they differ, the value column gets a `lookup` format keyed on `keyName`, so each
-series still displays in its own format. A mixed-format value column is still one axis holding two
+series still displays in its own format (a `lookup` column cannot be reshaped again). A mixed-format value column is still one axis holding two
 units, so observations across it are not comparable — an `annotation.differenceArrow` spanning them
 compiles with an `INCOMPARABLE_ARROW_ENDPOINTS` warning (`reference/storytelling.md`).
 

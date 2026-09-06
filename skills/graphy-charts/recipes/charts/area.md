@@ -10,7 +10,7 @@
 | Vertex dots | add `geom.point({ position: 'stack', interactive: false })` |
 | Opaque fill | `styles({ defaults: [style.geom.area({ alpha: 1 })] })` |
 | Data labels | `geom.area({ dataLabels: { showDataLabels: true } })` |
-| Radar | append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
+| Radar | `geom.area({ position: 'identity' })` (area stacks by default) + append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
 
 ## Base: simple area
 
@@ -64,7 +64,7 @@ const input = pipe(
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so this chart gets the single-hue `brick` mono ramp rather than the 8-colour multicolour set. `scale.color.palette({ palette: { type: 'graphy' } })` forces the multicolour set.
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp — the 8-colour default set is unreachable here. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or a non-touching position.
 
 ## Flipped
 
@@ -96,7 +96,9 @@ The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomB
 
 `color`, `strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous()`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous()`.
 
-Data labels: `geom.area({ dataLabels: { showDataLabels: true } })` — offset `8` px under cartesian/flip; area labels always use the outside styling (`style.dataLabel.observation.outside`), since the translucent fill cannot back white text.
+Like line, `geom.area` accepts a `stat` (e.g. `stat.smooth({ method: 'linear' })`) and an `id`, so `style.geom.area({ … }, { layer: 'trend' })` scopes paint to that layer.
+
+Data labels: `geom.area({ dataLabels: { showDataLabels: true } })` — offset `8` px under cartesian/flip; area labels always use the outside styling (`style.dataLabel.observation.outside`), since the translucent fill cannot back white text. Under `coord.polar` (radar) they warn `DATA_LABELS_UNSUPPORTED` and render nothing.
 
 ## Intro animation
 

@@ -38,13 +38,13 @@ export const NB_DONUT_RAMP = [
 
 ## Theme
 
-The stylesheet paints the plot and the tooltip, legend pills and direct series labels; theme tokens are left with the HTML header and footer — title, subtitle, caption, source — and the base families. Pie labels are data labels and take the `style.dataLabel` entry below.
+The stylesheet paints the plot and the tooltip, legend items and direct series labels; theme tokens are left with the HTML header and footer. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback) — the rich-text title and sub line below inherit the host page's font unless their `textStyle` mark names `font` (they do, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. Pie labels are data labels and take the `style.dataLabel` entry below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const neoBrutalistTheme: ThemeOverrides = {
-  // Header and footer text: title/subtitle in body white, caption and source in grey.
+  // Header and footer text: title, subtitle and caption in body white; the source line in grey.
   textPrimary: NB_COLORS.body,
   textSecondary: NB_COLORS.secondary,
   fontFamilyDefault: NB_FONT_FAMILY.body,
@@ -54,7 +54,7 @@ export const neoBrutalistTheme: ThemeOverrides = {
 
 ## Shared stylesheet builder
 
-The sheet paint: square corners, chrome-grey dashed frame, solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
+The sheet paint: square corners, chrome-grey dashed frame (the built-in 1px graph ring survives, so it is recoloured chrome too), solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow; `style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set, so they keep their built-in paint. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
@@ -63,15 +63,15 @@ const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =
   styles({
     defaults: [
       // Space Grotesk for every text target: axis, ticks, data and direct labels, legend, tooltip.
-      style.graph({ background: NB_COLORS.surface, borderRadius: 0, fontFamily: NB_FONT_FAMILY.heading }),
+      style.graph({ background: NB_COLORS.surface, borderColor: NB_COLORS.chrome, borderRadius: 0, fontFamily: NB_FONT_FAMILY.heading }),
       style.axisLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
       style.tickLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.secondary }),
       style.dataLabel({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
-      style.directLabel({ fontSize: 11, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
-      // Legend as plain swatch + label, no pill chrome.
+      // No `textColor`: an authored one replaces the series colour on every end label, and the
+      // acid lead is meant to reach its own label.
+      style.directLabel({ fontSize: 11, fontWeight: 500, lineHeight: 1.4 }),
+      // The built-in legend item is already bare text (no background, no border); only type and ink are set.
       style.legendItem({
-        background: 'transparent',
-        borderColor: 'transparent',
         fontSize: 10,
         fontWeight: 500,
         lineHeight: 1.4,
@@ -89,7 +89,8 @@ const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =
       style.tooltip.label({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.secondary }),
       style.tooltip.value({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
       style.gridLine({ lineType: 'solid', strokeWidth: 1, color: NB_COLORS.chrome }),
-      style.tickLine({ color: NB_COLORS.chrome }),
+      // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+      style.tickLine({ color: NB_COLORS.chrome, strokeWidth: 1, length: 4 }),
       style.panelBorder({ lineType: 'dashed', strokeWidth: 1, color: NB_COLORS.chrome, borderRadius: 0 }),
       ...(options.hasAcidBaseline === true
         ? [style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: NB_COLORS.acid })]
@@ -98,7 +99,7 @@ const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =
   });
 ```
 
-`fontSize` on a style target is a plain px number; `borderRadius` on `graph` and `panelBorder` is plain pixels, `0` for the square corners this style is built on.
+`fontSize` on a style target is a plain px number (a rich-text mark's `fontSize` is not — see the title helpers); `borderRadius` on `graph` and `panelBorder` is plain pixels, `0` for the square corners this style is built on.
 
 ## Shared config builder
 
@@ -119,7 +120,8 @@ const createNeoBrutalistConfig = (options: { legendPosition?: 'none' | 'top' | '
     },
   });
 
-// Uppercase title with per-segment acid accents.
+// Uppercase title with per-segment acid accents. A mark `fontSize` is n/10 em of its parent, so 24 is
+// 2.4em of the h1 (itself 2em of the 10px root), not 24px; the mark sets no weight, so the h1's 700 stands.
 const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
   type: 'doc',
   content: [
@@ -140,7 +142,7 @@ const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string 
   ],
 });
 
-// Sub line rendered by the engine at spec-line size.
+// Sub line: `fontSize: 10` is 1em of the paragraph it sits in, not 10px.
 const createNeoBrutalistSubtitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
   type: 'doc',
   content: [
@@ -291,11 +293,25 @@ The fill comes from the `color` mapping and the border from the stylesheet, so t
 Because the forecast series colour is `transparent`, the default legend swatch would paint nothing. Fix with a `Swatch` slot (see `reference/slots.md`) that draws a hollow acid outline for that series:
 
 ```tsx
-import { type GraphSlots, type SwatchSlotProps } from '@graphysdk/react-renderer';
+import { DefaultSwatch, type GraphSlots, type SwatchSlotProps } from '@graphysdk/react-renderer';
 
 const NeoBrutalistSwatch = (props: SwatchSlotProps) => {
+  // The slot replaces the swatch on every surface; only the legend key is hollowed here.
+  if (props.surface !== 'legend') {
+    return (
+      <DefaultSwatch
+        shape={props.shape}
+        color={props.color}
+        lineType={props.lineType}
+        width={props.width}
+        height={props.height}
+        strokeWidth={props.strokeWidth}
+      />
+    );
+  }
   const width = props.width ?? 12;
   const height = props.height ?? 12;
+  // `label` is the formatted legend text, so match it as the legend prints it.
   const isHollow = props.label === 'forecast';
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
@@ -316,11 +332,11 @@ const neoBrutalistSwatchSlots: GraphSlots = { Swatch: NeoBrutalistSwatch };
 // <GraphRenderer sizing={{ mode: 'responsive' }} slots={neoBrutalistSwatchSlots} />
 ```
 
-Only needed when a series colour is `transparent` and the legend is visible.
+The slot is handed every swatch surface — `legend | tooltip | headline | callout | rule-label` — which is why it delegates all but the legend to `DefaultSwatch`. Only needed when a series colour is `transparent`.
 
 ## Fonts
 
-`style.graph({ fontFamily })` applies Space Grotesk to the chart text and `fontFamilyDefault` sets the header/footer base (Inter); neither loads a font — the host page must load Space Grotesk:
+`style.graph({ fontFamily })` applies Space Grotesk to the chart text, the title and sub-line marks' `fontFamily` to the rich-text header, and `fontFamilyHeading` / `fontFamilyDefault` to plain-string header/footer text; none of them loads a font — the host page must load Space Grotesk:
 
 ```html
 <link

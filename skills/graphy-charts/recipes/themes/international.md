@@ -38,56 +38,59 @@ export const INTL_PALETTE = [
 
 ## Theme overrides
 
-The theme dresses only the HTML header and footer: Inter as the base family (also the measurement fallback), Golos Text inside the title, body ink for the title and subtitle, grey for the caption. These are theme tokens, not the stylesheet tokens of the same name — everything the chart draws, legend key, tooltip and headline included, takes its colour from the stylesheet below.
+The theme dresses only the HTML header and footer. `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback); `fontFamilyHeading` what a plain-string title takes — the rich-text title from `createInternationalTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — everything the chart draws, legend key, tooltip and headline included, takes its colour from the stylesheet below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const theme: ThemeOverrides = {
-  fontFamilyDefault: INTL_FONT_FAMILY.body, // header/footer family and the measurement fallback
-  fontFamilyHeading: INTL_FONT_FAMILY.heading,
-  textPrimary: INTL_COLORS.body, // title and subtitle
-  textSecondary: INTL_COLORS.grey, // caption and source
+  fontFamilyDefault: INTL_FONT_FAMILY.body, // plain-string subtitle, caption, source line, and the measurement fallback
+  fontFamilyHeading: INTL_FONT_FAMILY.heading, // plain-string title
+  textPrimary: INTL_COLORS.body, // title, subtitle, caption
+  textSecondary: INTL_COLORS.grey, // source line
 };
 ```
 
 ## Shared plate stylesheet
 
-White paper, a solid horizontal grid in the faint grey, and one solid bottom border as the axis baseline. Every text target carries the same 10.5px cut — ink for labels that name things, grey for tick values and the legend key — and `style.graph({ fontFamily })` is what puts Inter on all of them.
+White paper with the built-in 1px frame ring retired, a solid horizontal grid in the faint grey, and one solid ink bottom border as the axis baseline. Every text target carries the same 10.5px cut — ink for labels that name things, grey for tick values and the legend key — and `style.graph({ fontFamily })` is what puts Inter on all of them.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
 
 const internationalChromeStyles = styles({
   defaults: [
-    style.graph({ background: INTL_COLORS.paper, fontFamily: INTL_FONT_FAMILY.body }),
-    style.gridLine({ lineType: 'solid', strokeWidth: 1 }),
-    style.tickLine({ color: INTL_COLORS.gridLine }),
+    style.graph({ background: INTL_COLORS.paper, borderWidth: 0, fontFamily: INTL_FONT_FAMILY.body }),
+    style.gridLine({ lineType: 'solid', strokeWidth: 1, color: INTL_COLORS.gridLine }),
+    // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+    style.tickLine({ color: INTL_COLORS.gridLine, strokeWidth: 1, length: 4 }),
     // `strokeWidth: 0` takes an edge off the plate: no stroke, no reserved space.
     style.panelBorder({ strokeWidth: 0 }),
-    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1 }),
+    style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1, color: INTL_COLORS.ink }),
 
     style.axisLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.body }),
     style.tickLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.grey }),
     // Pie labels are data labels too, so this one entry covers bars and wedges.
     style.dataLabel({ fontSize: 10.5, fontWeight: 500, textColor: INTL_COLORS.body }),
-    style.directLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.body }),
+    // No `textColor`: an authored one replaces the series colour on every end label, and the
+    // red accent is meant to reach the key series' label.
+    style.directLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5 }),
 
-    // Legend key: bare grey text in the axis cut, no pill.
+    // Legend key: the built-in item is already bare text (no background, no border), so only
+    // the axis cut, the grey and the padding are set.
     style.legendItem({
       fontSize: 10.5,
       fontWeight: 500,
       lineHeight: 1.5,
       textColor: INTL_COLORS.grey,
-      background: 'transparent',
-      borderColor: 'transparent',
       paddingInline: 0,
     }),
+    // `size` is the box; a line/area swatch keeps the built-in `strokeWidth: 2` unless declared.
     style.legendItem.swatch({ size: 9 }),
     style.legend({ gap: 16 }),
 
-    // Tooltip: a white card with a hairline in the grid grey; headline in heading black over grey captions.
-    style.tooltip({ background: INTL_COLORS.paper, borderColor: INTL_COLORS.gridLine, borderWidth: 1, borderRadius: 2 }),
+    // Tooltip: a flat white card with a hairline in the grid grey; headline in heading black over grey captions.
+    style.tooltip({ background: INTL_COLORS.paper, borderColor: INTL_COLORS.gridLine, borderWidth: 1, borderRadius: 2, shadow: 'none' }),
     style.tooltip.heading({ textColor: INTL_COLORS.body }),
     style.tooltip.label({ textColor: INTL_COLORS.grey }),
     style.tooltip.value({ textColor: INTL_COLORS.body }),
@@ -96,6 +99,8 @@ const internationalChromeStyles = styles({
   ],
 });
 ```
+
+`style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set, so they keep their built-in paint.
 
 ## Shared config builder
 
@@ -119,7 +124,7 @@ const createInternationalConfig = (options: { legendPosition?: 'none' | 'top' | 
 
 ## Title helper
 
-Headlines are rich-text docs: Golos Text, sentence case with a full stop, key phrase in red.
+Headlines are rich-text docs: Golos Text, sentence case with a full stop, key phrase in red. A mark `fontSize` is n/10 em of its parent, so 20 is 2em of the h1 (itself 2em of the 10px root), not 20px; the mark sets no weight, so the h1's 700 stands.
 
 ```ts
 import type { RichTextContent } from '@graphysdk/viz-engine';
@@ -264,7 +269,7 @@ export function RevenueDonut() {
 
 ## Fonts
 
-`style.graph({ fontFamily })` puts Inter on the chart text and `fontFamilyDefault` on the header/footer; neither loads the font — the page must. Golos Text carries the headlines:
+`style.graph({ fontFamily })` puts Inter on the chart text and `fontFamilyDefault` on the plain-string subtitle, caption and source line; the title mark's `fontFamily` (with `fontFamilyHeading` for a plain-string title) puts Golos Text on the headline. None of them loads a font — the page must:
 
 ```html
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Golos+Text:wght@400..900&display=swap" />
@@ -275,6 +280,6 @@ export function RevenueDonut() {
 Each pipes `createInternationalConfig()` + `internationalChromeStyles`, then its own geom stylesheet.
 
 - Stacked bars: `geom.bar({ position: 'stack', params: { width: 0.66 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })`; segments in `[INTL_COLORS.ink, INTL_COLORS.accent]`, legend below.
-- Line race: `geom.line()` + `geom.point({ interactive: false })` for a dot on every vertex, with `styles({ defaults: [style.geom.line({ strokeWidth: 1.75 }), style.geom.point({ size: 6.5 })] })`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry.
+- Line race: `geom.line()` + `geom.point({ interactive: false })` for a dot on every vertex, with `styles({ defaults: [style.geom.line({ strokeWidth: 1.75 }), style.geom.point({ size: 6.5 })] })`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry and coloured by their series.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: INTL_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; the accent marks the emphasised months, the rest stay ink.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `ink`, remainder in `greyFaint`, and the red stays in the headline.

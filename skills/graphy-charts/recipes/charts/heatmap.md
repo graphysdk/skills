@@ -55,7 +55,7 @@ export function CohortRetention() {
 **The color scale is inferred from the column.** With none in the spec a tile layer reads its
 `color` column: a numeric value already lands on the default sequential ramp; only a categorical
 column falls back to the palette. Declare `scale.color.continuous()` to choose the `scheme`, `range`
-or `domainMid`. Omitting `color` altogether fails with `MISSING_AESTHETIC`.
+or `domainMid`. Omitting `color` altogether fails with `MISSING_AESTHETIC`; tile declares only `color`, so any other mapping (`size`, `alpha`, …) warns `UNDECLARED_AESTHETIC` and is ignored.
 
 ```ts
 scale.color.continuous();                                  // brand sequential ramp
@@ -66,7 +66,9 @@ scale.color.continuous({ range: ['#FFFFFF', '#0B5FFF'] }); // explicit ramp
 Data that crosses zero wants a diverging scheme with `domainMid: 0`; without the pin the neutral
 color lands on the data's midpoint rather than zero (`DIVERGING_SCHEME_WITHOUT_MIDPOINT`). It also
 turns `symmetric` on, so ±8 get equal intensity. `range` supersedes `scheme` — setting both raises
-`CONFLICTING_COLOR_RAMP`. Full ramp options: `reference/spec-api.md` → `scale`.
+`CONFLICTING_COLOR_RAMP`. Remaining ramp options: `reverse`, `transform: 'log' | 'sqrt'`, `domainMin`/`domainMax`,
+`symmetric`, `interpolate` (default `'lab'`), `clamp` (default `true` for non-position scales). Full list:
+`reference/spec-api.md` → `scale`.
 
 ## Wide matrix data
 
@@ -110,7 +112,7 @@ scale.x.discrete({ domain: ['Q1', 'Q2', 'Q3', 'Q4'] }),
 ## Value labels
 
 On by default here — a heatmap is read cell by cell. Each label centres in its cell, is dropped when
-the cell is too small to hold it, and flips ink dark/light against the fill beneath it.
+its box plus 4 px exceeds the inset cell, and flips ink dark/light against the fill beneath it.
 
 ```ts
 geom.tile({ dataLabels: { showDataLabels: false } }),
@@ -125,8 +127,9 @@ denominator and falls back to absolute; `showStackTotals` warns `DATA_LABEL_SETT
 The same geom with a **discrete** color scale: a 10×10 field, one cell per percentage point. The grid
 indices are a layout device, so both axes are hidden. The explicit `range` matters: tiles touch, so
 the default palette (`{ type: 'default' }`, which the inferred scale for a categorical column also
-uses) resolves to the single-hue `brick` mono ramp — `scale.color.palette({ palette: { type: 'graphy' } })`
-is the other way to get distinguishable segments.
+uses) always resolves to the single-hue `brick` mono ramp — the 8-colour default set is unreachable.
+Other escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-colour Graphy
+brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`.
 
 ```ts
 // rows: one per cell — { col: 0..9, row: 0..9, channel: 'Organic search' | … }

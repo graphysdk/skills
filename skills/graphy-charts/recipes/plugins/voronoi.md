@@ -6,7 +6,7 @@ Reach for this pattern when the hover region is a computed shape rather than the
 
 ## Layout (`voronoi-layout.ts`)
 
-Pure tessellation in unit `[0, 1]` space, free of any Graphy import.
+Pure tessellation in unit `[0, 1]` space (top-left origin, y inverted so larger values sit higher), free of any Graphy import.
 
 ```ts
 import { Delaunay } from 'd3-delaunay';
@@ -46,7 +46,11 @@ export function computeVoronoiLayout(points: VoronoiPoint[], options: { padding:
   });
 }
 
-/** Min–max normalises the raw points into a `[padding, 1 - padding]` box so cells fill the panel. */
+/**
+ * Min–max normalises the raw points into a `[padding, 1 - padding]` box so cells fill the panel. The
+ * box is top-left (`y = 0` at the top), so y is inverted here; without the `1 -` the picture would be
+ * vertically mirrored relative to scale-driven geoms.
+ */
 function normalizeSites(points: VoronoiPoint[], padding: number): Vertex[] {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
@@ -57,7 +61,7 @@ function normalizeSites(points: VoronoiPoint[], padding: number): Vertex[] {
   const [minX, maxX] = extent(xs);
   const [minY, maxY] = extent(ys);
 
-  return points.map((point) => [project(point.x, minX, maxX), project(point.y, minY, maxY)]);
+  return points.map((point) => [project(point.x, minX, maxX), 1 - project(point.y, minY, maxY)]);
 }
 
 /** Min/max in a single pass — a spread over a large point cloud would overflow the call-argument limit. */
@@ -144,6 +148,9 @@ class VoronoiGeom extends Geom<VoronoiParams> {
   override readonly identityKey: IdentityKey = { variable: VORONOI_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly highlightStrategy = null;
+  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
+  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
+  override readonly positionRoles = [] as const;
 
   // `x`/`y`/`label`/`category` are the point-cloud inputs the layout consumes (read from the mapped
   // columns, not scaled). `color` is author-mapped: a site is 1:1 with an input row, so the author maps
@@ -159,7 +166,7 @@ class VoronoiGeom extends Geom<VoronoiParams> {
   override readonly tooltip = [
     { key: 'Name', aes: 'label' },
     { key: 'Group', aes: 'category' },
-  ];
+  ] as const;
 
   override readonly spatialKind = 'render-hit-test';
 
@@ -201,7 +208,11 @@ class VoronoiGeom extends Geom<VoronoiParams> {
       [VORONOI_COLUMNS.category]: { type: 'categorical', values: category },
     });
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`category`.
+    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`category`. Because
+    // this returns a fresh `Dataset`, every column a visual aesthetic maps to must be re-emitted under
+    // the same name (`category` here): `compile()` does not rewrite `layer.mapping.color`, the visual
+    // mapper resolves it against the compiled data, and a missing column silently falls every cell back
+    // to `token('geom')`.
     return {
       data: table,
       mapping: { label: { variable: VORONOI_COLUMNS.label }, category: { variable: VORONOI_COLUMNS.category } },

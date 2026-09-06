@@ -14,7 +14,7 @@ export const BRAUN_COLORS = {
   indicator: '#F07E13', // orange — one reading per chart, never a series
   trace2: '#8E8C86', // second line series
   structure: '#C9C6BE', // baseline rule and hairlines
-  label: '#55534E', // dial and pie labels
+  label: '#55534E', // spare mid grey — wedge names print in the reading's ink (see dataLabel)
   labelMuted: '#87857F', // tick labels, legend key text
   page: '#E3E1DB', // the desk (page background, outside the chart)
   panel: '#EFEDE8', // a chart plate
@@ -30,16 +30,16 @@ export const BRAUN_FONT_FAMILY = {
 
 ## Theme
 
-Four tokens, all for the HTML header and footer: the family the title, subtitle and caption take (and the measurement fallback), and the ink they print in. These are theme tokens, not the stylesheet tokens of the same name — the plot's own text, the legend key, the tooltip and the headline take their colour from the stylesheet below, which names it per target.
+Four tokens for the HTML header and footer. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback). A rich-text title like `createBraunTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — the plot's own text, the legend key, the tooltip and the headline take their colour from the stylesheet below, which names it per target. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
 
 export const braunTheme: ThemeOverrides = {
-  fontFamilyDefault: BRAUN_FONT_FAMILY.body, // header/footer family and the measurement fallback
-  fontFamilyHeading: BRAUN_FONT_FAMILY.body,
-  textPrimary: BRAUN_COLORS.ink, // title and subtitle
-  textSecondary: BRAUN_COLORS.labelMuted, // caption and source
+  fontFamilyDefault: BRAUN_FONT_FAMILY.body, // plain-string subtitle, caption, source line, and the measurement fallback
+  fontFamilyHeading: BRAUN_FONT_FAMILY.body, // plain-string title
+  textPrimary: BRAUN_COLORS.ink, // title, subtitle, caption
+  textSecondary: BRAUN_COLORS.labelMuted, // source line
 };
 ```
 
@@ -51,9 +51,10 @@ import { style, styles } from '@graphysdk/viz-engine';
 // The plate paint: a warm panel ground with a single structure-grey baseline the
 // geoms rest on, and one 12px Archivo cut across the engine's text — readings
 // heavier. `style.graph({ fontFamily })` puts Archivo on every text target.
+// `borderWidth: 0` retires the built-in 1px frame ring, so the plate runs edge to edge.
 const braunChromeStyles = styles({
   defaults: [
-    style.graph({ background: BRAUN_COLORS.panel, fontFamily: BRAUN_FONT_FAMILY.body }),
+    style.graph({ background: BRAUN_COLORS.panel, borderWidth: 0, fontFamily: BRAUN_FONT_FAMILY.body }),
     // `strokeWidth: 0` hides an edge and reserves no space for it.
     style.panelBorder({ strokeWidth: 0 }),
     style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 1.2, color: BRAUN_COLORS.structure }),
@@ -62,21 +63,22 @@ const braunChromeStyles = styles({
     style.tickLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.labelMuted }),
     // Printed readings sit heavier and slightly larger — the one number you read off a dial.
     style.dataLabel({ fontSize: 13, fontWeight: 600, textColor: BRAUN_COLORS.ink }),
-    // Outside readings print straight onto the plate colour, so no pill shows behind them.
+    // Outside readings sit on a panel-coloured plate (radius 4, padding 6×2): invisible against the
+    // panel, but opaque — it occludes whatever it overlaps.
     style.dataLabel.observation.outside({ background: BRAUN_COLORS.panel }),
-    // Pie labels are data labels: the category name beside a wedge takes the dial-label grey.
-    style.dataLabel.category({ fontSize: 12, fontWeight: 500, textColor: BRAUN_COLORS.label }),
-    // Series end labels (direct legend) take the plain 12px cut.
-    style.directLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.ink }),
+    // Pie labels are observation labels: on polar, `showCategoryLabels` merges the category into the
+    // same label, so the entry above covers wedges. `dataLabel.category` exists only for cartesian bars.
+    // Series end labels (direct legend) take the plain 12px cut. No `textColor`: an authored one
+    // replaces the series colour on every end label, and the line race keys them by colour.
+    style.directLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4 }),
 
-    // Legend key: bare text in the muted grey the ticks use — no pill, no ring.
+    // Legend key: the built-in item is already bare text (no background, no border), so only
+    // the type, the muted tick grey and the padding are set.
     style.legendItem({
       fontSize: 12,
       fontWeight: 500,
       lineHeight: 1.4,
       textColor: BRAUN_COLORS.labelMuted,
-      background: 'transparent',
-      borderColor: 'transparent',
       paddingInline: 0,
     }),
     style.legendItem.swatch({ size: 10 }),
@@ -96,6 +98,8 @@ const braunChromeStyles = styles({
 // Polar plates carry no cartesian baseline, so the bottom rule is suppressed.
 const braunPolarStyles = styles({ defaults: [style.panelBorder.bottom({ strokeWidth: 0 })] });
 ```
+
+`style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set here, so they keep their built-in paint.
 
 ## Shared config builder
 
@@ -122,8 +126,9 @@ const createBraunConfig = (options: { legendPosition?: 'none' | 'top' | 'bottom'
     },
   });
 
-// Chart title: Archivo 500 16px in ink. Rams-plain — it names the reading, no
-// accent phrase, since orange belongs to the data.
+// Chart title: Archivo in ink. A mark `fontSize` is n/10 em of its parent, so 16 is
+// 1.6em of the h1 (itself 2em of the 10px root), not 16px; the mark sets no weight,
+// so the h1's 700 stands. Rams-plain — no accent phrase, since orange belongs to the data.
 const createBraunTitle = (text: string): RichTextContent => ({
   type: 'doc',
   content: [
@@ -268,7 +273,7 @@ export function BraunRevenueDonut() {
 
 ## Fonts
 
-`style.graph({ fontFamily })` puts Archivo on the chart text and `fontFamilyDefault` on the header/footer; neither loads it. Archivo must be loaded by the host page (the theme falls back to Inter/sans-serif):
+`style.graph({ fontFamily })` puts Archivo on the chart text, `fontFamilyHeading` / `fontFamilyDefault` on the plain-string header and footer text, and the title mark's `fontFamily` on the rich-text title; none of them loads it. Archivo must be loaded by the host page (the theme falls back to Inter/sans-serif):
 
 ```html
 <link

@@ -46,7 +46,7 @@ Default sizing is responsive, so the chart fills whatever sized container you gi
 | `children` | `ReactNode` | **Required.** Usually one `<GraphRenderer>` or `<EditableGraphRenderer>`. |
 | `plugins` | `readonly Plugin[]` | Custom geoms/stats/transforms and their render halves (see `reference/plugins.md`). Default `[]`. **Frozen at mount** — to change the set, remount with a React `key`. |
 | `formattingLocale` | `Locale` | Display locale for ticks, tooltips, legends, headline. See "Locales" below. |
-| `handleRef` | `Ref<GraphHandle>` | Filled with this graph's imperative handle (`commands`, `subscribe`, `getCompiled`, `undo`, `redo`, selection), for surfaces mounted outside the provider where the hooks can't reach. |
+| `handleRef` | `Ref<GraphHandle>` | Filled with this graph's imperative handle (`commands`, `subscribe`, `getCompiled`, `undo`, `redo`, `getSelection`/`setSelection`/`subscribeSelection`), for surfaces mounted outside the provider where the hooks can't reach. |
 | `onChange` | `(next: SpecInput) => void` | Fires when the live spec changes via commands. Irrelevant for plain chart building. |
 | `onError` | `(errors: VizDiagnostic[]) => void` | Compile failures and caught render-throws. |
 | `onWarnings` | `(warnings: VizDiagnostic[]) => void` | Advisory diagnostics from a successful compile. |
@@ -81,8 +81,8 @@ type GraphSizing =
   | { mode: 'keepAspectRatio'; intrinsicHeight: number; aspectRatio: number };
 ```
 
-Nothing paints until the container measures a positive width and height; `'responsive'` inside a
-zero-size parent logs `[graphy] ZERO_SIZE_CONTAINER` and waits. `'keepAspectRatio'` reserves space
+`'fixed'` paints immediately. `'responsive'` and `'keepAspectRatio'` paint only once the container
+measures a positive width and height; a zero-size parent logs `[graphy] ZERO_SIZE_CONTAINER` and waits. `'keepAspectRatio'` reserves space
 with CSS `aspect-ratio`, then scales the intrinsic box to the container width with a CSS transform.
 
 ### GraphAnimation
@@ -124,7 +124,8 @@ full compile. Pass `{ transitions: false }` when pushes come faster than a sprin
 ## Editing: the `./editable` entrypoint
 
 Editing lives at `@graphysdk/react-renderer/editable`, which exports `EditableGraphRenderer` (the
-renderer body wrapped in the editor providers, taking the same `GraphRendererProps`), `EditorPanel`,
+renderer body wrapped in the editor providers, taking the same `GraphRendererProps`; a caller-supplied
+`EditorSurface` slot replaces the editor's own layer), `EditorPanel`,
 its section, layout and control components, the panel hooks, and `IntlProvider`.
 
 ```tsx
@@ -152,7 +153,7 @@ differs. The badge reaches Header/Footer slot overrides as `brandMark: BrandMark
 Exported and out of scope here, but worth knowing they exist: `GraphHandle` / `useGraphHandle` /
 `useHandleCompiled`, `useGraphCommands`, `useGraphHistory`, `useGraphHistoryShortcuts`,
 `useCompiledSelector`, `useGraphSelection`, `DevToolsPanel`, `TextMeasurerProvider` /
-`CanvasTextMeasurer` / `useTextMeasurer`, `HoverProvider` / `useHoverState`, the theme exports
+`CanvasTextMeasurer` / `useTextMeasurer`, `HoverProvider` / `useHoverState`, `pruneSelection`, `lightenCss`, the theme exports
 `vars` / `ThemeProvider` / `lightTheme` / `darkTheme`, and the plugin surface (`createGraphyKit`,
 `defineGeomRenderer`, `UnitSpaceSvg`, `useStyleReaders`, `useGeomHitTest`, `useGeomHover`,
 `useElementScreenRect`, `DefaultSwatch` — `reference/plugins.md`). Full signatures in

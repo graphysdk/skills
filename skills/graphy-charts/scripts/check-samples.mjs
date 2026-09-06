@@ -64,6 +64,8 @@ function starExportsOf(fromPath, specifier, seen) {
 const VE = exportsOf(dts('@graphysdk/viz-engine', 'index.d.ts'));
 const RR = exportsOf(dts('@graphysdk/react-renderer', 'index.d.ts'));
 const ED = exportsOf(dts('@graphysdk/react-renderer', 'editable.d.ts'));
+const VEGC = exportsOf(dts('@graphysdk/viz-engine', 'graph-config.d.ts'));
+const RRGC = exportsOf(dts('@graphysdk/react-renderer', 'graph-config.d.ts'));
 const GR = exportsOf(dts('@graphysdk/react', 'index.d.ts'));
 const GRE = exportsOf(dts('@graphysdk/react', 'editable.d.ts'));
 // A name bound by the preamble must not be bound twice.
@@ -115,7 +117,8 @@ const REPORT = new Set([
   2322, // type not assignable (catches bad JSX props)
   2741, // missing required property
 ]);
-// Never report: fragment artefacts.
+// Never report: fragment artefacts. 2300/2440/2451 also cover blocks importing from @graphysdk/react,
+// whose names the preamble already binds from the underlying packages.
 const IGNORE = new Set([2304, 2552, 2451, 2440, 2300, 6133, 6196, 2686, 1155, 2693, 2749, 7027, 2578]);
 
 const files = walk(SKILL).sort();
@@ -124,11 +127,13 @@ const files = walk(SKILL).sort();
 // Phase 1 — every specifier resolves, every named import exists.
 // Parser-only, so there are no false positives.
 // ---------------------------------------------------------------------------
-const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/react-renderer', '@graphysdk/react-renderer/editable', '@graphysdk/react', '@graphysdk/react/editable']);
+const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/viz-engine/graph-config', '@graphysdk/react-renderer', '@graphysdk/react-renderer/graph-config', '@graphysdk/react-renderer/editable', '@graphysdk/react', '@graphysdk/react/editable']);
 const NAMES = {
   '@graphysdk/viz-engine': new Set([...VE.values, ...VE.types]),
   '@graphysdk/react-renderer': new Set([...RR.values, ...RR.types]),
   '@graphysdk/react-renderer/editable': new Set([...ED.values, ...ED.types]),
+  '@graphysdk/viz-engine/graph-config': new Set([...VEGC.values, ...VEGC.types]),
+  '@graphysdk/react-renderer/graph-config': new Set([...RRGC.values, ...RRGC.types]),
   '@graphysdk/react': new Set([...GR.values, ...GR.types]),
   '@graphysdk/react/editable': new Set([...GRE.values, ...GRE.types]),
 };

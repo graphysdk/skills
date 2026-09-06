@@ -69,7 +69,7 @@ Multiple `highlight()` calls accumulate and the engine **unions** their matches 
 
 ### How emphasis paints
 
-Every non-matched observation carries the `dimmed` **style state**. What dimming looks like is a stylesheet entry:
+Every non-matched observation carries the `dimmed` **style state** (the other state, `hovered`, is what the built-in hover outlines use). What dimming looks like is a stylesheet entry:
 
 ```ts
 styles({ overrides: [style.geom({ alpha: 0.35 }, { state: 'dimmed' })] });          // fade
@@ -101,7 +101,7 @@ Serialized on the spec they sit in `annotations` buckets whose names are not a m
 
 **One attachment per observation.** `sticker`, `pinnedNumber`, `comment` and `image` form the observation-attachment family, and an observation carries **at most one** of them: adding a second through `AddAnnotationCommand` displaces the incumbent rather than stacking. The rule lives in the command path, not the resolver — a hand-authored spec that breaks it paints both. `image` belongs to the family by intent only; its region anchor has no observation form, so an image neither displaces nor is displaced.
 
-**Failure is soft.** An annotation is a decoration, never a hard failure: every annotation diagnostic is a warning that drops that one annotation and renders the rest of the chart. The codes an author hits: `UNKNOWN_LAYER_ID`, `ANNOTATION_ANCHOR_UNRESOLVED`, `ANNOTATION_REF_NOT_FOUND`, `INCOMPARABLE_ARROW_ENDPOINTS`, and `ANNOTATION_DUPLICATE_ID` (the first annotation to declare an id keeps it; later claimants get a generated one, which silently breaks any `annotation` anchor pointed at them).
+**Failure is soft.** An annotation is a decoration, never a hard failure: every annotation diagnostic is a warning that drops that one annotation and renders the rest of the chart. The codes an author hits: `UNKNOWN_LAYER_ID`, `ANNOTATION_ANCHOR_UNRESOLVED`, `ANNOTATION_REF_NOT_FOUND`, and `ANNOTATION_DUPLICATE_ID` (the first annotation to declare an id keeps it; later claimants get a generated one, which silently breaks any `annotation` anchor pointed at them). `INCOMPARABLE_ARROW_ENDPOINTS` is the one warning that keeps the annotation (below).
 
 ### The anchor system
 
@@ -241,7 +241,7 @@ annotation.arrow({
 style.annotation.arrow({ color: '#e15759', strokeWidth: 4, lineType: 'solid' }, { annotation: 'launch-arrow' });
 ```
 
-The built-in arrow is `token('annotationArrow')`, `strokeWidth: 4`, solid, no border. For the raised sticker look, add a `borderWidth: 2` and a `shadow` such as `{ offsetX: 0, offsetY: 1.15, blur: 1.15, color: 'rgba(0, 0, 0, 0.16)' }` (exported as `ARROW_STICKER_DECLARATIONS`; `ARROW_STROKE_WIDTHS` holds the thin/medium/thick presets 2/4/8).
+The built-in arrow is `token('annotationArrow')`, `strokeWidth: 4`, solid, no border. For the raised sticker look, add a `borderWidth: 2` and a `shadow` such as `{ offsetX: 0, offsetY: 1.15, blur: 1.15, color: 'rgba(0, 0, 0, 0.16)' }` (exported as `ARROW_STICKER_DECLARATIONS`; `ARROW_STROKE_WIDTHS` holds the thin/medium/thick presets 2/4/8, `DIFFERENCE_ARROW_SIZE_DECLARATIONS` the small/medium/large difference-arrow bundles, and `TEXT_ANNOTATION_FADE_ALPHA` is `0.5`).
 
 ### `annotation.text` — rich-text label
 
@@ -269,6 +269,7 @@ annotation.text({
 });
 
 // A faded plate behind the words; the built-in background is transparent and `alpha` dims the plate alone.
+// Setting a background also reveals the built-in 1.5px border (radius 9), darkened from it unless `borderColor` is declared.
 style.annotation.text({ background: '#ffffff', alpha: 0.5 }, { annotation: 'launch-note' });
 ```
 
@@ -358,7 +359,7 @@ Rules default to `interactive: false` and paint in spec order — declared after
 
 ### Average lines — `stat.mean`
 
-`stat.mean` reduces a layer's data to one observation holding the mean of `y` — on a rule layer that is a data-driven average line. Requires a numeric `y` mapping (`MISSING_STAT_VARIABLE` otherwise, a hard error).
+`stat.mean` reduces a layer's data to one observation holding the mean of `y` — on a rule layer that is a data-driven average line. Requires `y` mapped to a column, not a constant (`MISSING_STAT_VARIABLE` otherwise, a hard error).
 
 ```ts
 geom.rule({
@@ -407,7 +408,7 @@ config({ headline: { show: 'current', compareWith: 'previous', size: 'auto', pos
 | `size` | `'auto' \| 'small' \| 'medium' \| 'large'` | |
 | `position` | `'above'` (header region, default) `\| 'center'` (inside a donut hole; donut charts only) | |
 
-Mode split: **cartesian** charts show a **per-group** strip — one figure per color group, each with its swatch, label and a caption (the latest x for `current`, a first–last range for aggregates), computed from that group's values (a per-group headline replaces the legend, which would name the same groups). **Polar** charts (pie/donut) show a single **grand total** — the plain signed sum of every slice's measure; only `show: 'total'` applies there. `show: 'total'` is suppressed on a stack-fill layer (totalling shares of a whole is meaningless). Only bar, line, area and point layers feed a headline; a tile or rule-only chart shows none.
+Mode split: **cartesian** charts show a **per-group** strip — one figure per color group, each with its swatch, label and a caption (the latest x for `current`; a first–last range for an aggregate on a datetime main axis only), computed from that group's values (a per-group headline replaces the pill legend, which would name the same groups; direct end labels survive). **Polar** charts (pie/donut) show a single **grand total** — the plain signed sum of every slice's measure; only `show: 'total'` applies there. `show: 'total'` is suppressed on a stack-fill layer (totalling shares of a whole is meaningless). Only bar, line, area and point layers feed a headline; a tile or rule-only chart shows none.
 
 ## Data labels — layer `dataLabels`
 
@@ -423,6 +424,7 @@ geom.bar({
 | Key | Values (default) | Notes |
 |---|---|---|
 | `showDataLabels` | `boolean` (`false`; `true` on `tile`) | one value label per observation |
+| `labelSource` | `AestheticValue` (the layer's raw y) | the column the label text reads; `mapping.label` sets it too |
 | `format` | `'absolute' \| 'percentage'` (`'absolute'`; `'percentage'` on polar bars) | on tile, point and line `'percentage'` falls back to absolute — no denominator |
 | `position` | `'auto' \| 'inside' \| 'outside'` (`'auto'`) | `auto` fits/flips/drops/rotates as needed and ignores `justify`/`align`; explicit values render exactly as asked. Stacked/filled cartesian segments coerce `'outside'` to `'inside'` |
 | `justify` | `'start' \| 'center' \| 'end' \| 'panel-start' \| 'panel-end'` (`'end'`; `'center'` for stacked/filled bars) | anchor along the value axis; `'end'` is the value tip regardless of orientation or sign; `panel-*` pins to the panel edge |

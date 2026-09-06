@@ -88,7 +88,7 @@ in a box: `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderW
 | `style.headlineItem` | `.number` (`.center` for the donut hole), `.caption`, `.label`, `.trend`, `.swatch`, `.trend.up` `.trend.down` `.trend.flat` | text parts: text; `swatch`: `size`; `trend.*`: `textColor`. No bare `style.headlineItem` |
 | `style.legend` | | `gap` (between pills) |
 | `style.legendItem` | `.swatch` | pill: text + box; `swatch`: `size`, `strokeWidth` |
-| `style.directLabel` | | text + `strokeWidth`, `lineType` (the overlap connector) |
+| `style.directLabel` | | text + `strokeWidth`, `lineType` (the overlap connector). An authored `textColor` replaces the per-series colour on every end label |
 | `style.annotation` | `.shape` `.arrow` `.differenceArrow` `.text` `.image` `.pinnedNumber` `.comment`, plus `{ annotation: id }` | shared: `color`, `alpha` |
 | `style.annotation.shape` | | `color`, `alpha` (fill only), `borderColor`, `borderWidth` |
 | `style.annotation.arrow` | | `color`, `strokeWidth`, `lineType`, `borderColor`, `borderWidth`, `shadow` |
@@ -103,11 +103,16 @@ Notes that bite:
 
 - **`borderRadius` on a bar is a token, not pixels**: `'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full'`.
   Everywhere else it is a plain number.
-- **Hide a panel-border edge with `strokeWidth: 0`** — it then reserves no space. Same for tick lines.
+- **Hide a panel-border edge with `strokeWidth: 0`** — it then reserves no space. A tick line's space is
+  `max(tickLabel.offset, tickLine.length)`, so set `length: 0` to free it. Tick lines are hidden by
+  default (`strokeWidth: 0, length: 0`): to show them declare both, not just `color`.
+- **Only the y grid has a built-in stroke.** An x grid shown by config paints nothing until a
+  `style.gridLine({ … })` or `style.gridLine.x({ … })` entry declares one.
 - `aggregate` data labels (stack totals) always sit outside, so they take no `.inside`/`.outside`.
 - **A tile has no `style.geom.tile`** — its fill comes from the `color` scale, its radius and inset are fixed.
 - A bare `style.tooltip` / `style.legendItem` entry is the box, not a wildcard over its parts.
-- Declarations outside a target's vocabulary are dropped silently.
+- A declaration outside a target's vocabulary, or an invalid value, is dropped with an
+  `INVALID_STYLE_RULE` warning.
 
 ## Colors
 
@@ -159,20 +164,24 @@ The built-in token names:
 | `ruleLine` | reference/goal/average lines |
 | `hoverAffordance` | the hovered outline on bars and points; point outlines |
 | `gridLine` | grid lines **and** the panel border |
-| `graphBackground`, `graphBorder` | the graph plate and its ring |
-| `textPrimary` | axis labels, data labels, tooltip heading/label, headline numbers, direct labels, callout markers, text annotations |
+| `graphBackground`, `graphBorder` | the graph plate and its ring; difference-arrow label pills |
+| `textPrimary` | axis labels, data labels, tooltip heading/label, headline numbers, direct labels, callout markers and labels, text annotations, difference-arrow labels |
 | `textSecondary` | tick labels, legend pills, tooltip values, headline captions/labels |
-| `tooltipBackground`, `tooltipBorder`, `tooltipPrimaryRow` | the tooltip box, and the callout label pills |
+| `tooltipBackground`, `tooltipBorder`, `tooltipPrimaryRow` | the tooltip box, the callout label pills and the callout marker ring |
 | `annotationShape`, `annotationArrow` | shape fill; arrow and difference-arrow strokes |
 | `trendPositive`, `trendNegative`, `trendNeutral` | headline trend colors |
 | `hoverGuideFill`, `hoverGuideLine` | declared, but the hover guide reads theme tokens (below) — redefining these moves nothing |
 
-Built-in defaults worth knowing: graph background `#F5F1E9` light / `#1F1E1C` dark, border `1`,
+Built-in defaults worth knowing: mark color `#B84737`; graph background `#F5F1E9` light / `#1F1E1C` dark, border `1`,
 radius `8`; bar `borderRadius: 'sm'`, border width `1`; line/area `strokeWidth: 2`, `lineType:
 'solid'`; area `alpha: 0.3`; point `size: 8`; rule `lineType: 'dashed'`; y grid lines `1px dashed`;
 panel border `dashed`, radius `6`; tick lines `strokeWidth: 0`; tick label `offset: 10`; labels
 `11.5px / 500`, outside data labels `12.5px / 600`; tooltip radius `6`, padding `8 × 10`; headline
-number `26px / 700`; dimmed state `alpha: 0.4`.
+number `26px / 700`, card gap `24`; legend pill `11.5px / 500`, padding `2 × 4`, no background or border (already bare text), gap `8`,
+swatch `12`; inside data labels white; direct labels `12px / 500` with a `1px dashed` connector; text
+annotation `15px / 500`, transparent background, border `1.5`, radius `9`; shape annotation
+`alpha: 0.25`, border `1`; arrow `strokeWidth: 4`; callout marker `8` with a `2px` ring; dimmed state
+`alpha: 0.4`.
 
 ## Fonts
 
@@ -186,7 +195,8 @@ built-in stack.
 - The CSS variable repaints only: layout measurement cannot read `var()`, so reserved space keeps the
   fallback metrics. Prefer `style.graph` or `fontFamilyDefault`, which move both.
 - Fonts must be loaded before the chart measures text: the renderer waits for `document.fonts.ready`
-  and re-measures on `loadingdone`. A family injected after that keeps fallback metrics.
+  and re-measures on every `loadingdone`, so a late `@font-face` is picked up; a family swapped in
+  without a font load keeps the earlier metrics.
 
 ## Series colors
 
@@ -229,15 +239,15 @@ What only a theme token reaches on a read-only chart:
 
 | Region | Tokens |
 |---|---|
-| Header and footer type | `fontTextEditorH3` (title), `fontTextEditorBody` (subtitle), `fontTextEditorH6` (caption), `fontSourceLabel`, `fontSourceLink`, `fontFamilyHeading` (family inside the title shorthand) |
-| Chart root text color and secondary text | `textPrimary` (title/subtitle, headline flat-trend disc), `textSecondary` (footer, headline trend reference) |
-| Base font family and measurement fallback | `fontFamilyDefault`, `textScale` |
+| Header and footer type | `fontTextEditorH3` (plain-string title, family from `fontFamilyHeading`), `fontTextEditorBody` (subtitle), `fontTextEditorH6` (caption), `fontSourceLabel`, `fontSourceLink`. A rich-text title inherits the page font unless its `textStyle` mark names `font` |
+| Chart root text color and secondary text | `textPrimary` (title, subtitle, caption, headline flat-trend disc, legend overflow popover), `textSecondary` (source line, headline trend reference) |
+| Base font family and measurement fallback | `fontFamilyDefault` (`textScale` exists too, but only CSS reads it — set text scale in `config({ appearance })` so layout follows) |
 | Tooltip row spacing | `tooltipRowGap` |
 | Headline card internals | `headlineRowGap` (rows inside one card) |
 | Legend swatch-to-label gap | `legendSwatchGap` |
 | Hover guide | `hoverGuideLineColor`, `hoverGuideFillColor` |
 | Legend overflow "+N" pill and popover | `legendBackground`, `legendBorderColor`, `legendTextColor`, `legendFocusOutlineColor`, `legendPill*`, `fontLegendLabel`, `tooltip*` |
-| Callout icon disc, trend glyph ink | `iconStickerBackground`, `iconPrimary` |
+| Trend glyph ink | `iconPrimary` (defaults to `currentColor`) |
 
 `legendSwatchGap`, `legendPill*`, `headlineRowGap` and `fontLegendLabel` also move layout; give them
 plain `px` values. `fontLegendLabel` is `{ family?, weight?, style?, size?: { value, unit: 'px' | 'em' }, lineHeight? }`.

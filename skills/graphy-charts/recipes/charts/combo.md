@@ -60,7 +60,7 @@ export function RegionalSalesCombo() {
 }
 ```
 
-The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too. Ask for the 8-colour set with `scale.color.palette({ palette: { type: 'graphy' } })`.
+The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too, and the 8-colour default set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'` on the bars.
 
 ## Variants
 
@@ -120,8 +120,11 @@ also scope by `{ where }` (a data predicate) and `{ state: 'hovered' | 'dimmed' 
 
 Constant reference line — `geom.rule` is the purpose-built geom. It reads a scalar from exactly one
 of `x` or `y` (both or neither fails with `INVALID_RULE_MAPPING`), spans the panel, and is
-non-interactive. Built-in paint is `token('ruleLine')`, `strokeWidth: 1`, `lineType: 'dashed'`;
-cartesian/flip only (`UNSUPPORTED_COORD` under polar):
+non-interactive. That `x`/`y` must be a constant `{ value }` or a stat-produced variable — a plain
+column name without a stat also fails `INVALID_RULE_MAPPING`. Params: `label` and `labelPosition`
+(default `'start'`); the label's type is styled via `style.geom.rule.label`. Built-in paint is
+`token('ruleLine')`, `strokeWidth: 1`, `lineType: 'dashed'`; cartesian/flip only
+(`UNSUPPORTED_COORD` under polar); a rule has no intro plan:
 
 ```ts
 geom.rule({ aes: { y: { value: 2500 } }, params: { label: 'Target', labelPosition: 'start' } }),
@@ -129,7 +132,7 @@ styles({ defaults: [style.geom.rule({ color: '#e5484d', strokeWidth: 2, lineType
 ```
 
 Average line — a rule can carry `stat: stat.mean()` to draw the mean of a mapped column without
-precomputing it:
+precomputing it. `stat.mean()` collapses a layer to one observation — fine for a rule, degenerate on a line or bar:
 
 ```ts
 geom.rule({ aes: { y: 'total' }, stat: stat.mean(), params: { label: 'Average' } }),
@@ -154,4 +157,4 @@ geom.rule({ aes: { y: 'total' }, stat: stat.mean(), params: { label: 'Average' }
 - A mapping the geom does not declare (e.g. `size` on a bar) warns `UNDECLARED_AESTHETIC` and is ignored.
 - Map the synthesized constant column to `color` even for a single-series layer — without a `color` mapping the layer gets no legend entry and no palette slot.
 - Layer `transforms` reshape only that layer's view of the data; the sibling layers still see the original wide columns (the total line reads `total` untouched while the bars see reshaped rows).
-- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop), tuned together by `animation` on `GraphRenderer`. `animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area — so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.
+- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop; a rule has none), tuned together by `animation` on `GraphRenderer`. `animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area — so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.

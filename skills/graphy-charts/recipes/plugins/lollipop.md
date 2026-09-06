@@ -29,7 +29,9 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
   override readonly supportedCoordTypes = ['cartesian'] as const;
 
   // `'buckets'`: nearest-x snapping anywhere over the panel. The bucket index needs both x and y
-  // position columns — `y` survives from the root mapping, so nothing extra is injected here.
+  // position columns — `y` survives from the root mapping, so nothing extra is injected here. The y
+  // domain is collected from `yMin`/`yMax` only while `mapping.y` exists, so a geom that drops `y`
+  // from its mapping loses both the axis domain and the bucket index.
   override readonly spatialKind = 'buckets';
 
   compile({ data }: GeomCompilerInput): CompiledGeom {
@@ -103,7 +105,7 @@ const LollipopItem = ({
 // derives the typed `kit.geom.lollipop` method AND registers the geom with the bound compiler.
 export const lollipop = defineGeomRenderer(new LollipopGeom(), {
   coord: 'cartesian',
-  // Omitted, legend/tooltip swatches fall back to `'square'`; a dot reads better.
+  // Without this, legend/tooltip swatches fall back to `'square'`; a dot reads better.
   swatchShape: 'circle',
   // No `guideMode` → no hover guide; `guideMode: 'band'` would add a category band under the hovered x.
   render: ({ layer, styleReaders }) => <LollipopRenderer layer={layer} styleReaders={styleReaders} />,
@@ -158,5 +160,5 @@ export const LollipopChart = () => (
 - Extra visual channels go in `aesthetics` (e.g. `size`, `alpha`) and are read through the cascade — `styleReaders.get('size', observation)` / `get('alpha', observation)` — never bake per-observation styling into render constants. (`size` has no built-in default on a custom geom, so it may resolve `undefined`.)
 - `positionRoles` is the geometry contract: keep `min`/`max` pairs for interval marks; a plain point mark declares only `point` roles and skips the baseline injection in `compile`.
 - Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens; `getColor`/`getAlpha` expose the encoding only. Reserve geom params for what the stylesheet has no vocabulary for (a stem width, a label's contrast colour). See `reference/styling.md`.
-- `highlightStrategy` on a custom geom is declared but not read — `layer.highlight` is looked up by built-in geom name, so a spec `highlight()` never dims or re-renders lollipops. To recede while another layer is highlighted, paint `styleReaders.get('alpha', observation, 'dimmed')` yourself. (Sibling fading on hover is the layer group's CSS hover-dim driven by `renderHover`, unrelated.)
-- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to lollipops; implement it returning the dot's `[0,1]` position to make them annotatable.
+- The class declares no `highlightStrategy`, so it inherits the base default `'overlay-anchor'` — and declared or inherited, it is not read on a custom geom: `layer.highlight` is looked up by built-in geom name, so a spec `highlight()` never dims or re-renders lollipops. To recede while another layer is highlighted, paint `styleReaders.get('alpha', observation, 'dimmed')` yourself. (Sibling fading on hover is unrelated: the layer group's CSS hover-dim is driven by the hover store holding any primary hit — `useHoverDim` sets `data-hover-active` on the geom group — and the `renderHover` output escapes it only because it paints outside that group.)
+- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to lollipops; implement it returning the dot's `[0,1]` position to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.

@@ -67,7 +67,11 @@ const readBarPaint = (readers: BarStyleReaders, observation: Observation, state?
   };
 };
 
-// `borderRadius` is a token, not pixels — nominal corner radii in viewBox units.
+// `borderRadius` is a token, not pixels. The engine's pixel radii are `none 0, xs 2, sm 4, md 8, lg 12,
+// xl 16` px, and `'full'` is half the band-side thickness on the band axis only. This table keeps those
+// ratios at ¼ the pixel values in the nominal 100-unit panel-relative viewBox — exact only on a 400 px
+// side, anisotropic on a non-square panel — and `'full'` is approximated. For pixel-exact radii paint
+// from `input.panelRect` instead and clamp with `Math.min(radius, width / 2)` on the band axis.
 const RADIUS_UNITS: Record<BorderRadiusToken, number> = { none: 0, xs: 0.5, sm: 1, md: 2, lg: 3, xl: 4, full: 50 };
 
 const roundedRectPath = (x: number, y: number, width: number, height: number, radius: number): string => {
@@ -86,7 +90,8 @@ const hashSeed = (key: string): number => {
 };
 
 // Seed derived from the bar's geometry — base paint and hover highlight independently compute the same
-// one for the same observation, so the heavier hover wobble lands exactly over the base bar.
+// one for the same observation, so the heavier hover wobble lands exactly over the base bar. It hashes
+// the scaled bounds, so a domain change (new data, a rescaled axis) re-seeds every bar's wobble.
 const rectSeed = (bounds: Rect): number => hashSeed(`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`);
 
 /** rough.js path set for one normalized [0,1] bar rect, scaled into the nominal viewBox. */
@@ -151,7 +156,11 @@ interface SketchyBar {
 
 // The geom renderer receives normalized [0,1] bounds, so the bars paint into the nominal viewBox
 // square that the browser stretches to the panel. `vectorEffect="non-scaling-stroke"` keeps the ink
-// weight constant through that non-uniform stretch — no panel measurement needed.
+// weight constant through that non-uniform stretch — no panel measurement needed. Only the stroke
+// width is size-invariant, though: rough.js consumes `roughness`/`bowing`/`hachureGap`/`fillWeight` in
+// path units, so the wobble and hatch density scale with the panel. Each stack segment is painted as
+// its own rounded, hachured rect (the built-in bar rounds the stack silhouette and merges internal
+// borders).
 const SketchyBars = ({
   layer,
   coordSystem,
@@ -265,12 +274,12 @@ export const SketchyChart = () => (
 );
 ```
 
-Stacked bars need no plugin changes — `geom.bar({ position: 'stack' })` plus a `color` mapping and `scale.color.palette()` just works, because stacking happens in the untouched compile half.
+Stacked bars need no plugin changes — `geom.bar({ position: 'stack' })` plus a `color` mapping and `scale.color.palette()` just works, because stacking happens in the untouched compile half. A render-only override keeps everything else built-in too: the bar's hover index, tooltip, identity and anchors are untouched, only the paint is replaced.
 
 ## Adapting
 
 - Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens (`getColor`/`getAlpha` expose the encoding only). Reserve constants and geom params for what the stylesheet has no vocabulary for — roughness, hachure. See `reference/styling.md`.
 - A render-only override receives the bar layer's own readers, so the bar built-ins need no re-inventing: `borderRadius` (a token — `'none'` … `'full'`), `borderWidth`, `borderColor`, and `get('borderColor', observation, 'hovered')` for the hover outline. `renderHighlight` is omitted, so a spec `highlight()` repaints the matched subset via `render` — a lone mid-stack segment is drawn as an isolated rect (stack-segment fidelity lost) — while layer dimming still comes free from the wrapping group; add `renderHighlight` reading `sourceLayer` to restore it.
 - Annotations keep anchoring to the bars: the built-in bar's `resolveAnchorPosition` is untouched, only its paint is replaced.
-- Tune the hand-drawn look via `roughness`, `bowing`, `fillStyle` (e.g. `'cross-hatch'`, `'zigzag'`) and the `BASE_SKETCH`/`HOVER_SKETCH` weights.
+- Tune the hand-drawn look via `roughness`, `bowing`, `fillStyle` (e.g. `'cross-hatch'`, `'zigzag'`) and the `BASE_SKETCH`/`HOVER_SKETCH` weights — all consumed in path units, so they scale with the panel; paint from `input.panelRect` for a size-invariant look.
 - The same pattern overrides any built-in geom name (`'point'`, `'line'`, `'area'`, `'rule'`) — pass a different name to `defineGeomRenderer` and read the geometry with that geom's accessors. A later `plugins` entry wins on a shared `(geom, coord)` key.

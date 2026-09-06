@@ -13,7 +13,7 @@ if anything blocks that.
 | Requirement | Why |
 |---|---|
 | **React 19** — `react` and `react-dom` at `^19` | `react` is a required peer; `react-dom` is imported by the renderer but not declared, so install both. React 18 will not resolve. |
-| **A bundler that resolves CSS imports from `node_modules`** | The JS entry imports its sibling stylesheet (`dist/index.css`). Vite, Next.js and webpack + `css-loader` all do. |
+| **A bundler that resolves CSS imports from `node_modules`** | The renderer's JS entry imports its stylesheets (`@graphysdk/react-renderer/dist/*.css`), reached transitively from `@graphysdk/react`. Vite, Next.js and webpack + `css-loader` all do. |
 | **`moduleResolution: "bundler"`** (or `node16`/`nodenext`) | The packages ship an `exports` map with no `main` fallback; the legacy `"node"` resolution finds nothing. |
 | **`@tiptap/*` v3** — only for `/editable` | The renderer lists 15 `@tiptap/*` packages as **optional** peers. A read-only install needs none of them; importing the editing entry point does. |
 
@@ -62,7 +62,7 @@ The editing surface lives at `@graphysdk/react/editable` (advanced mode:
 | **Graph renders unstyled** | The bundler is not resolving the CSS import inside `node_modules`. Add `css-loader` on a custom webpack setup; Vite and Next.js need nothing. |
 | **Graph area blank; console shows `[graphy] ZERO_SIZE_CONTAINER`** | Responsive sizing inside a parent with no width or height. Give the parent a size, or use fixed sizing. |
 | **TypeScript cannot find the module or its types** | Set `"moduleResolution": "bundler"` (or `"node16"`/`"nodenext"`) in `tsconfig.json`. |
-| **`ERR_PACKAGE_PATH_NOT_EXPORTED`** | Import only from the entry points in the table above. |
+| **`ERR_PACKAGE_PATH_NOT_EXPORTED`** | Import only from the entry points in the table above — `@graphysdk/react` has no `./graph-config`; that lives on the two lower packages. |
 
 ## Next
 
