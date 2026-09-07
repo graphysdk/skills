@@ -174,12 +174,13 @@ function shadeFor(value: number, maxValue: number): number {
 ## Plugin
 
 ```tsx
-import { type ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   createGraphyKit,
   defineGeomRenderer,
   lightenCss,
   type RenderHitTester,
+  UnitBoxSvg,
 } from '@graphysdk/react-renderer';
 import {
   type CompiledGeom,
@@ -194,7 +195,6 @@ import {
   getColor,
   readAuthoredNumber,
   readAuthoredString,
-  toPercent,
 } from '@graphysdk/viz-engine';
 
 import { computeTreemapLayout, type TreemapLeaf } from './treemap-layout';
@@ -410,32 +410,6 @@ const LEAF_LABEL_MIN_HEIGHT = 0.035;
 const LEAF_VALUE_MIN_WIDTH = 0.07;
 const LEAF_VALUE_MIN_HEIGHT = 0.08;
 
-interface UnitBox {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/**
- * A nested SVG viewport occupying a tile's unit-space box, placed in panel-relative percentages. Its
- * children live in the tile's OWN coordinate space — `100%` fills the box, `50%` is its centre — and
- * are clipped to the box (a nested SVG hides overflow by default). Glyphs keep their shape because the
- * box carries no distorting scale.
- */
-const TileSvg = ({ box, children }: { box: UnitBox; children: ReactNode }) => (
-  <svg
-    x={toPercent(box.x0)}
-    y={toPercent(box.y0)}
-    width={toPercent(box.x1 - box.x0)}
-    height={toPercent(box.y1 - box.y0)}
-    overflow="hidden"
-    pointerEvents="none"
-  >
-    {children}
-  </svg>
-);
-
 /** Group name, padded in from the band's left edge and vertically centered in it; white for contrast. */
 const GroupLabel = ({ label }: { label: string }) => (
   <text x={5} y="50%" textAnchor="start" dominantBaseline="middle" fontSize={11} fontWeight={600} fill="#fff">
@@ -485,18 +459,18 @@ const LeafLabel = ({ leaf }: { leaf: RenderTile }) => {
 
 /** A group cell: its saturated header band fills the band box, the group name clipped to it. */
 const TreemapGroupCell = ({ group }: { group: RenderTile }) => (
-  <TileSvg box={{ x0: group.x0, y0: group.y0, x1: group.x1, y1: group.headerY1 }}>
+  <UnitBoxSvg box={{ x0: group.x0, y0: group.y0, x1: group.x1, y1: group.headerY1 }}>
     <rect width="100%" height="100%" fill={group.color} />
     {group.x1 - group.x0 >= GROUP_LABEL_MIN_WIDTH && <GroupLabel label={group.label} />}
-  </TileSvg>
+  </UnitBoxSvg>
 );
 
 /** A leaf tile: rect fills the tile box, name/value centred in it, clipped so a label never bleeds. */
 const TreemapLeafTile = ({ leaf }: { leaf: RenderTile }) => (
-  <TileSvg box={leaf}>
+  <UnitBoxSvg box={leaf}>
     <rect width="100%" height="100%" fill={tileFill(leaf)} />
     <LeafLabel leaf={leaf} />
-  </TileSvg>
+  </UnitBoxSvg>
 );
 
 const TreemapLayer = ({ layer }: { layer: CompiledLayer }) => {
