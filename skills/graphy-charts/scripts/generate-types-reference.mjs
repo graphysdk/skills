@@ -372,7 +372,7 @@ const AMBIENT_NAMES = new Set([
  * - importedFrom: local name -> package specifier (for cross-package references)
  */
 function parsePackage(filePath) {
-  const text = readFileSync(filePath, "utf8");
+  const text = readFileSync(filePath, "utf8").replace(/\r\n?/g, "\n");
   const sourceFile = ts.createSourceFile(
     filePath,
     text,

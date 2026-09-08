@@ -15,7 +15,8 @@ Import exactly one. The editable bundle includes everything the read-only one ha
 edits loads only it — loading both puts two copies of the renderer on the page, and a provider
 from one copy is invisible to components from the other. The editable bundle is roughly twice the
 download, with its text-editing dependencies included; it needs nothing beyond the import map
-below. How to use the editing components is the `graphy-editor` skill.
+below. Sizes: about 1.25 MB read-only, 2.5 MB editable. How to use the editing components is the
+`graphy-editor` skill.
 
 The bare package URL `https://cdn.jsdelivr.net/npm/@graphysdk/react` resolves to the read-only
 bundle at the latest published version — handy for a first try. Pin `@<version>` in anything that
@@ -24,7 +25,8 @@ ships, so a new release can't change your page underneath you.
 ## Supply React through an import map
 
 React is not included in the bundles — the page provides it, so the SDK and your own code share
-one copy. The import map needs all four entries:
+one copy. The bundles import `react`, `react/jsx-runtime` and `react-dom`; your own mounting code adds
+`react-dom/client`, so map all four:
 
 ```html
 <!doctype html>
@@ -91,4 +93,4 @@ unchanged; only the import URL differs.
 | Editor components never see the chart | The page imports both bundles. Import only `editable.browser.mjs`; it includes the read-only components too. |
 | 404 from jsDelivr | The version in the URL does not exist, or predates the browser bundles. Check `https://cdn.jsdelivr.net/npm/@graphysdk/react/` for available files. |
 | Page broke without any change on your side | The import URL is unpinned, and a new SDK version was published. Pin `@<version>`. |
-| Graph area blank or zero height | Responsive sizing inside a parent with no height. Give the parent a height, or use fixed sizing as above. |
+| Graph area blank; console shows `[graphy] ZERO_SIZE_CONTAINER` | Responsive sizing inside a parent with no width or height. Give the parent a size, or use fixed sizing as above. |

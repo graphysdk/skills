@@ -7,7 +7,7 @@ description: Make Graphy charts editable and drive edits with @graphysdk/react-r
 
 Edit Graphy charts after they exist: point-and-click on the canvas, programmatically from code or
 an agent, or through the optional pre-built settings panel. This skill starts where a chart already
-renders — authoring the spec, styling, theming and the annotation builders are the `graphy-charts`
+renders — authoring the spec, styling and the annotation builders are the `graphy-charts`
 skill.
 
 ## Mental model

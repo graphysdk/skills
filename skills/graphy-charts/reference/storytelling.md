@@ -8,15 +8,15 @@ Highlights, annotations, reference lines, trendlines, headline numbers, and data
 |---|---|
 | Call out one observation | `annotation.text` / `annotation.comment` pinned to it, plus `highlight()` on it |
 | Show the change between two observations | `annotation.differenceArrow` (labels the measured gap) |
-| Mark a threshold or target | `geom.rule()` with a constant value |
+| Draw a threshold or target | `geom.rule()` with a constant value |
 | Show the average | `geom.rule({ stat: stat.mean() })` |
 | Shade a band or era | `annotation.shape` with `zOrder: 'background'`, washed by `style.annotation.shape({ color, alpha })` |
-| Box the marks a predicate matches | `annotation.shape` over a `selection` region |
+| Box the observations a predicate matches | `annotation.shape` over a `selection` region |
 | Emphasize one series among many | `highlight(predicate, { scope: 'series' })` |
 | Emphasize one time slice across series | `highlight(predicate, { scope: 'x-value' })` |
 | Show the trend through noisy points | second layer with `stat.smooth` |
 | Surface the total / latest value | `config({ headline: { show: 'total' \| 'current' } })` |
-| Label every value on the marks | layer `dataLabels: { showDataLabels: true }` |
+| Label every value on the geoms | layer `dataLabels: { showDataLabels: true }` |
 | Point at something / react to it | `annotation.arrow`, `annotation.sticker`, `annotation.image` |
 | Pin a live value bubble to an observation | `annotation.pinnedNumber` |
 
@@ -51,7 +51,7 @@ Predicates test post-transform user columns by `variable` (a column key):
 | `{ variable, range: [lo, hi] }` | value within bounds |
 | `{ and: [p, q] }` / `{ or: [p, q] }` / `{ not: p }` | logical composition, nestable to any depth |
 
-Ordering operators (`lt`…`range`) coerce their operand by the column's data type; using them on a categorical column is a resolve-time validation error. A single observation is usually pinned with `and`: `{ and: [{ variable: 'quarter', eq: 'Q2' }, { variable: 'region', eq: 'EU' }] }`.
+Ordering operators (`lt`…`range`) coerce their operand by the column's data type; on a categorical column they raise `INVALID_PREDICATE_OPERATOR`, an unknown column `UNKNOWN_VARIABLE`, an unknown `layerId` `UNKNOWN_LAYER_ID` — each a warning that drops that one highlight and renders the rest. A single observation is usually pinned with `and`: `{ and: [{ variable: 'quarter', eq: 'Q2' }, { variable: 'region', eq: 'EU' }] }`.
 
 The same predicate language drives `selection` annotation anchors and the `where` condition on style entries.
 
@@ -69,7 +69,7 @@ Multiple `highlight()` calls accumulate and the engine **unions** their matches 
 
 ### How emphasis paints
 
-Every non-matched observation carries the `dimmed` **style state**. What dimming looks like is a stylesheet entry:
+Every non-matched observation carries the `dimmed` **style state** (the other state, `hovered`, is what the built-in hover outlines use). What dimming looks like is a stylesheet entry:
 
 ```ts
 styles({ overrides: [style.geom({ alpha: 0.35 }, { state: 'dimmed' })] });          // fade
@@ -78,7 +78,7 @@ styles({ overrides: [style.geom({ saturation: 0, alpha: 0.6 }, { state: 'dimmed'
 
 The built-in entry is `alpha: 0.4`. State-scoped entries sit above the whole stateless cascade — see `reference/styling.md`. Matched observations render at full strength in their own series color; there is no per-highlight color.
 
-Per geom: `bar` re-renders the matched observations on top of the dimmed base. `line`, `area` and `point` re-render that way only for `series`-scope matches; their `data-point` and `x-value` matches surface as a **dot + value label overlay** placed at the geom's anchor for that observation, so a matched point on a line becomes a marked, labelled dot while the path dims. `rule` takes no part in highlighting.
+Per geom: `bar` and `tile` re-render the matched observations on top of the dimmed base. `line`, `area` and `point` dim only for `series`-scope matches; their `data-point` and `x-value` matches add a **point + value label overlay** at the geom's anchor for that observation and leave the rest of the layer at full strength. `rule` takes no part in highlighting.
 
 ## Annotations
 
@@ -97,11 +97,11 @@ Eight kinds, all built with the `annotation` factory and piped into the spec. Mu
 
 Serialized on the spec they sit in `annotations` buckets whose names are not a mechanical transform of the kind: `differenceArrows`, `shapes`, `arrows`, `textAnnotations`, `images`, `stickers`, `pinnedNumbers`, `comments`.
 
-**Paint lives in the stylesheet, not on the annotation.** An annotation input carries its identity, its anchors and its content, nothing else. Colour, opacity, stroke and type come from `style.annotation.<kind>(declarations, { annotation: id })` in `styles({ overrides })`; leave `annotation` out to style every annotation of that kind. `differenceArrow`, `pinnedNumber` and `comment` also take `.label(...)` for the box beside the line or dot. The targets and their declarations are listed in `reference/styling.md`.
+**Paint lives in the stylesheet, not on the annotation.** An annotation input carries its identity, its anchors and its content, nothing else. Color, opacity, stroke and type come from `style.annotation.<kind>(declarations, { annotation: id })` in `styles({ overrides })`; leave `annotation` out to style every annotation of that kind. `differenceArrow`, `pinnedNumber` and `comment` also take `.label(...)` for the box beside the line or point. `sticker` has no style target — its paint is fixed. The targets and their declarations are listed in `reference/styling.md`.
 
 **One attachment per observation.** `sticker`, `pinnedNumber`, `comment` and `image` form the observation-attachment family, and an observation carries **at most one** of them: adding a second through `AddAnnotationCommand` displaces the incumbent rather than stacking. The rule lives in the command path, not the resolver — a hand-authored spec that breaks it paints both. `image` belongs to the family by intent only; its region anchor has no observation form, so an image neither displaces nor is displaced.
 
-**Failure is soft.** An annotation is a decoration, never a hard failure: every annotation diagnostic is a warning that drops that one annotation and renders the rest of the chart. The codes an author hits: `UNKNOWN_LAYER_ID`, `ANNOTATION_ANCHOR_UNRESOLVED`, `ANNOTATION_REF_NOT_FOUND`, `INCOMPARABLE_ARROW_ENDPOINTS`, and `ANNOTATION_DUPLICATE_ID` (the first annotation to declare an id keeps it; later claimants get a generated one, which silently breaks any `annotation` anchor pointed at them).
+**Failure is soft.** An annotation is a decoration, never a hard failure: every annotation diagnostic is a warning that drops that one annotation and renders the rest of the chart. The codes an author hits: `UNKNOWN_LAYER_ID`, `ANNOTATION_ANCHOR_UNRESOLVED`, `ANNOTATION_REF_NOT_FOUND`, and `ANNOTATION_DUPLICATE_ID` (the first annotation to declare an id keeps it; later claimants get a generated one, which silently breaks any `annotation` anchor pointed at them). `INCOMPARABLE_ARROW_ENDPOINTS` is the one warning that keeps the annotation (below).
 
 ### The anchor system
 
@@ -115,10 +115,10 @@ Annotations position through anchors that re-resolve every compile — they re-f
 
 | Field | Meaning |
 |---|---|
-| `anchorValue` | value on the main axis (x in cartesian, y under `coord.flip()`) |
+| `anchorValue` | value on the main axis (x in cartesian, y under `coord.flip()`); a pie/donut has no x variable, so it names the slice's group |
 | `groupValue` | the series to match; omitted matches any group |
 | `crossValue` | value on the cross (y) axis; narrows a geom indexed in two dimensions — a `tile`'s cells, a `point` layer's cloud — where `anchorValue` names a whole column. Ignored elsewhere; on a tile it replaces `groupValue` |
-| `layerId` | a layer's authored `id`; picks one out when several layers share the same address. An id no layer carries raises `UNKNOWN_LAYER_ID` and drops the annotation |
+| `layerId` | a layer's authored `id`; picks one out when several layers share the same address. An anchor without it skips `interactive: false` layers (a trendline), so name the layer to reach one. An id no layer carries raises `UNKNOWN_LAYER_ID` and drops the annotation |
 | `align` | which point of the matched geom's box to resolve to; omitted means the geom-natural point (e.g. a bar's top-edge midpoint, a tile's centre) |
 
 **Survival semantics**: the anchor's values are re-parsed through the anchored column's `ValueFormat` before matching, so `'2024-01-05'`, a `Date`, and a stored ISO string all name the same observation. The anchor holds as long as that address exists in the data — rows can be inserted, reordered, or revalued around it. It detaches only when the address disappears.
@@ -127,7 +127,7 @@ Annotations position through anchors that re-resolve every compile — they re-f
 
 | `anchorType` | Shape | Notes |
 |---|---|---|
-| `panel` | `{ x, y }` | fractions of the plot rect `[0,1]`, top-left origin; never snaps to data. Takes no `align` |
+| `panel` | `{ x, y }` | fractions of the panel rect `[0,1]`, top-left origin; never snaps to data. Takes no `align` |
 | `observation` | `{ anchorValue, groupValue?, crossValue?, layerId?, align? }` | pinned to one observation, fields as above |
 | `axis` | `{ x: DataValue, y: DataValue, align? }` | a point given in **axis values**, mapped through the position scales. Dropped when either coordinate fails to map: a value outside a discrete domain, a missing scale, or a polar coord |
 | `selection` | `{ predicate, align }` | the box of **every** observation the predicate matches, reduced to the named box point. `align` is **required** here. Dropped when nothing matches |
@@ -137,15 +137,15 @@ Annotations position through anchors that re-resolve every compile — they re-f
 
 | `anchorType` | Shape | Notes |
 |---|---|---|
-| `panel` | `{ x, y, width, height }` | plot-rect fractions |
-| `selection` | `{ predicate, padding? }` | the tight bounding box of every match, grown by `padding` — a number pads both axes in panel fractions, an `AnchorOffset` pads each axis in its own unit. Omitted padding is `{ x: 8, y: 8, unit: 'px' }`. Dropped when nothing matches |
+| `panel` | `{ x, y, width, height }` | panel-rect fractions |
+| `selection` | `{ predicate, padding? }` | the tight bounding box of every match, grown by `padding` — a number pads both axes in fractions of the resolving frame, an `AnchorOffset` pads each axis in its own unit. A `shape` with no padding gets `{ x: 8, y: 8, unit: 'px' }`; an `image` gets none. Dropped when nothing matches |
 | `annotation` | `{ ref }` | copies the referenced annotation's box. Dropped on a missing ref, a cycle, or a zero-area target |
 
 `AnchorAlign` is `'center' | 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'`.
 
-**Offsets.** Every point-anchor arm takes `offset?: AnchorOffset` — `{ x?, y?, unit?: 'panel' | 'px' }`, `unit` defaulting to `'panel'` (a plot-rect fraction); `'px'` is device pixels, applied in the runtime pass. The offset is a nudge applied after the target resolves. Region anchors carry no offset; the `selection` region's `padding` takes the same type.
+**Offsets.** Every point-anchor arm takes `offset?: AnchorOffset` — `{ x?, y?, unit?: 'panel' | 'px' }`, `unit` defaulting to `'panel'` (a panel-rect fraction); `'px'` is device pixels, applied in the runtime pass. The offset is a nudge applied after the target resolves. Region anchors carry no offset; the `selection` region's `padding` takes the same type.
 
-Arrow endpoints get an automatic **4 px stand-off** from the edge or corner they snap to, so an arrowhead points at a bar without touching it. It applies to a data anchor (`observation`, `selection`, `annotation`) with a directional `align` and no author-supplied `offset`; a `panel` or `axis` anchor, an `align: 'center'`, or an explicit `offset` gets none.
+`annotation.arrow` endpoints get an automatic **4 px stand-off** from the edge or corner they snap to, so an arrowhead points at a bar without touching it (difference arrows get none). It applies to a data anchor (`observation`, `selection`, `annotation`) with a directional `align` and no author-supplied `offset`; a `panel` or `axis` anchor, an `align: 'center'`, or an explicit `offset` gets none.
 
 Anchoring one annotation to another:
 
@@ -186,9 +186,9 @@ style.annotation.differenceArrow({ color: '#e15759', strokeWidth: 2 }, { annotat
 style.annotation.differenceArrow.label({ fontSize: 12, fontWeight: 600 }, { annotation: 'eu-lift' });
 ```
 
-The built-in arrow is the theme's arrow colour at `strokeWidth: 2`, its label a small boxed number.
+The built-in arrow is the `annotationArrow` token's color at `strokeWidth: 2`, its label a small boxed number.
 
-**Endpoints must be comparable.** A difference only means something when both ends measure one quantity, so the two observations must sit on the **same y scale** (primary or secondary, not one of each) **and** carry the **same value format** — currency compared including its `iso`, so `$` and `€` do not match either. Anything else raises `INCOMPARABLE_ARROW_ENDPOINTS` and the arrow is dropped.
+**Endpoints must be comparable.** A difference only means something when both ends measure one quantity, so the two observations must sit on the **same y scale** (primary or secondary, not one of each) **and** carry the **same value format** — currency compared including its `iso`, so `$` and `€` do not match either. Anything else raises an `INCOMPARABLE_ARROW_ENDPOINTS` warning; the arrow still paints, labelling a quantity that does not exist.
 
 Both halves are read per observation, so this catches an arrow inside a single layer too. That is the trap in the wide→long reshape `reference/data.md` recommends: melting revenue and margin into one value column puts `$` and `%` observations on one axis, and an arrow spanning them measures nothing. Reshape only columns that share a unit, or keep the two measures on separate layers with their own scales.
 
@@ -196,7 +196,7 @@ Overflow past the panel edge is governed by `config({ panel: { overflow: { diffe
 
 ### `annotation.shape` — band, box or outline
 
-A rectangle over a region. Left alone it is a translucent box in the theme's shape colour with a 1 px border, drawn **on top of** the geoms — a shaded band behind them sets `zOrder` and takes its wash from the stylesheet.
+A rectangle over a region. Left alone it is a translucent box in the `annotationShape` token's color with a 1 px border, drawn **on top of** the geoms — a shaded band behind them sets `zOrder` and takes its wash from the stylesheet.
 
 ```ts
 annotation.shape({
@@ -227,7 +227,7 @@ style.annotation.shape({ alpha: 0, borderWidth: 2 }, { annotation: 'eu-box' });
 
 ### `annotation.arrow` — free-form arrow
 
-Each endpoint is a point anchor, so an arrow can float in panel space, pin both ends to observations, or mix — a label in panel space pointing at a data point.
+Each endpoint is a point anchor, so an arrow can float in panel space, pin both ends to observations, or mix — a label in panel space pointing at an observation.
 
 ```ts
 annotation.arrow({
@@ -241,11 +241,11 @@ annotation.arrow({
 style.annotation.arrow({ color: '#e15759', strokeWidth: 4, lineType: 'solid' }, { annotation: 'launch-arrow' });
 ```
 
-The built-in arrow is the theme's arrow colour, `strokeWidth: 4`, solid, no border. For the raised sticker look, add a `borderWidth: 2` and a `shadow` such as `{ offsetX: 0, offsetY: 1.15, blur: 1.15, color: 'rgba(0, 0, 0, 0.16)' }`.
+The built-in arrow is `token('annotationArrow')`, `strokeWidth: 4`, solid, no border. For the raised sticker look, add a `borderWidth: 2` and a `shadow` such as `{ offsetX: 0, offsetY: 1.15, blur: 1.15, color: 'rgba(0, 0, 0, 0.16)' }` (exported as `ARROW_STICKER_DECLARATIONS`; `ARROW_STROKE_WIDTHS` holds the thin/medium/thick presets 2/4/8, `DIFFERENCE_ARROW_SIZE_DECLARATIONS` the small/medium/large difference-arrow bundles, and `TEXT_ANNOTATION_FADE_ALPHA` is `0.5`).
 
 ### `annotation.text` — rich-text label
 
-The text's box is centred on its point anchor: `align` names which point of that box sits at `at`, and defaults to `'center'` — pass `'top-left'` to put the box's corner on the anchor. `width` is a fraction of plot width; height is intrinsic to the content. `content` is a TipTap-compatible tree (`RichTextContent`): nodes with `type`, `content`, `text`, `marks`, `attrs`. Recognized attrs: `heading.level` (1–3), `paragraph.textAlign`; on the `textStyle` mark: `color`, `font`, `fontSize`. `fontSize` is a number of pixels, scaled with the graph's text like every other `fontSize` in the API; a string is ignored.
+The text's box is centred on its point anchor: `align` names which point of that box sits at `at`, and defaults to `'center'` — pass `'top-left'` to put the box's corner on the anchor. `width` is a fraction of plot width; height is intrinsic to the content. `content` is a TipTap-compatible tree (`RichTextContent`): nodes with `type`, `content`, `text`, `marks`, `attrs`. Recognized attrs: `heading.level` (1–3), `paragraph.textAlign`; on the `textStyle` mark: `color`, `font` (alias `fontFamily`), `fontSize`. A numeric `fontSize` renders as `n/10` em of the annotation's base type (`12` ≈ 1.2em); a string is passed through as a CSS length.
 
 ```ts
 annotation.text({
@@ -269,6 +269,7 @@ annotation.text({
 });
 
 // A faded plate behind the words; the built-in background is transparent and `alpha` dims the plate alone.
+// Setting a background also reveals the built-in 1.5px border (radius 9), darkened from it unless `borderColor` is declared.
 style.annotation.text({ background: '#ffffff', alpha: 0.5 }, { annotation: 'launch-note' });
 ```
 
@@ -299,7 +300,7 @@ annotation.sticker({
 
 ### `annotation.pinnedNumber` — live value bubble
 
-A marker dot pinned to one observation whose mini view shows the observation's measurement value; hovering it reveals the full chart tooltip (x + y + trend). No content to author — the value is read live from the data.
+A marker pinned to one observation whose mini view shows the observation's measurement value; hovering it reveals the full chart tooltip (x + y + trend). No content to author — the value is read live from the data.
 
 ```ts
 annotation.pinnedNumber({ at: { anchorValue: 'Q4', groupValue: 'EU' } });
@@ -307,7 +308,7 @@ annotation.pinnedNumber({ at: { anchorValue: 'Q4', groupValue: 'EU' } });
 
 ### `annotation.comment` — pinned rich-text note
 
-Same marker-dot mechanism carrying rich text; the mini view shows a truncated comment, hover reveals the full text.
+Same marker mechanism carrying rich text; the mini view shows a truncated comment, hover reveals the full text.
 
 ```ts
 annotation.comment({
@@ -352,13 +353,13 @@ styles({
 });
 ```
 
-Built-in rule styling is `color: token('ruleColor')`, `strokeWidth: 1`, `lineType: 'dashed'`, label `fontSize: 11 / fontWeight: 500 / lineHeight: 1`; the label pill takes the rule's own colour and picks its text colour by contrast. See `reference/styling.md`.
+Built-in rule styling is `color: token('ruleLine')`, `strokeWidth: 1`, `lineType: 'dashed'`, label `fontSize: 11.5 / fontWeight: 500 / lineHeight: 1`; the label pill takes the rule's own color and picks its text color by contrast (the label target has no `textColor`). A rule mapping both `x` and `y` values, or neither, fails with `INVALID_RULE_MAPPING`. See `reference/styling.md`.
 
 Rules default to `interactive: false` and paint in spec order — declared after `geom.bar()` they render in front of the bars. Stack several rules for floor/target/ceiling.
 
 ### Average lines — `stat.mean`
 
-`stat.mean` reduces a layer's data to one observation holding the mean of `y` — on a rule layer that is a data-driven average line. Requires a numeric `y` mapping.
+`stat.mean` reduces a layer's data to one observation holding the mean of `y` — on a rule layer that is a data-driven average line. Requires `y` mapped to a column, not a constant (`MISSING_STAT_VARIABLE` otherwise, a hard error).
 
 ```ts
 geom.rule({
@@ -368,7 +369,7 @@ geom.rule({
 });
 ```
 
-For a per-series average, add a layer transform filtering to that series before the stat runs. When the chart has a categorical colour scale with more than one group, a `stat.mean` rule's label pill also carries the source geom's swatch shape in that group's colour, so a per-series average reads as belonging to its series.
+For a per-series average, add a layer transform filtering to that series before the stat runs. When the chart has a categorical color scale with more than one group, a `stat.mean` rule's label pill also carries the source geom's swatch shape in that group's color, so a per-series average reads as belonging to its series.
 
 Goal, trend and average lines are recognised by their shape — rule + identity stat + constant mapping, line + smooth stat, rule + mean stat — so the three recipes here are the canonical forms and the editor round-trips them.
 
@@ -390,7 +391,7 @@ pipe(
 );
 ```
 
-Methods: `'linear' | 'loess' | 'exponential' | 'logarithmic' | 'quadratic' | 'power' | 'polynomial'`. Extra params: `order` (polynomial only, default 3), `bandwidth` (loess only, default 0.3). The `stat.smooth()` builder requires `method`; only the string shorthand `stat: 'smooth'` defaults to `'linear'`.
+Methods: `'linear' | 'loess' | 'exponential' | 'logarithmic' | 'quadratic' | 'power' | 'polynomial'`. Extra params: `order` (polynomial only, default 3), `bandwidth` (loess only, default 0.3). The `stat.smooth()` builder requires `method`; only the string shorthand `stat: 'smooth'` defaults to `'linear'`. A temporal x is rebased to days and a categorical x to its rank; a group with fewer than 2 points is skipped.
 
 ## Headline numbers — `config({ headline })`
 
@@ -407,11 +408,11 @@ config({ headline: { show: 'current', compareWith: 'previous', size: 'auto', pos
 | `size` | `'auto' \| 'small' \| 'medium' \| 'large'` | |
 | `position` | `'above'` (header region, default) `\| 'center'` (inside a donut hole; donut charts only) | |
 
-Mode split: **cartesian** charts show a **per-group** strip — one figure per color group, each with its swatch and label, computed from that group's values (a per-group headline replaces the legend, which would name the same groups). **Polar** charts (pie/donut) show a single **grand total** — the plain signed sum of every slice's measure; only `show: 'total'` applies there. `show: 'total'` is suppressed on a stack-fill layer (totalling shares of a whole is meaningless).
+Mode split: **cartesian** charts show a **per-group** strip — one figure per color group, each with its swatch, label and a caption (the latest x for `current`; a first–last range for an aggregate on a datetime main axis only), computed from that group's values (a per-group headline replaces the pill legend, which would name the same groups; direct end labels survive). **Polar** charts (pie/donut) show a single **grand total** — the plain signed sum of every slice's measure; only `show: 'total'` applies there. `show: 'total'` is suppressed on a stack-fill layer (totalling shares of a whole is meaningless). Only bar, line, area and point layers feed a headline; a tile or rule-only chart shows none.
 
 ## Data labels — layer `dataLabels`
 
-Per-layer config on any geom; defaults in the table below.
+Per-layer config on bar, line, area, point and tile (polar labels exist for bars only; `rule` has none); defaults in the table below.
 
 ```ts
 geom.bar({
@@ -423,15 +424,16 @@ geom.bar({
 | Key | Values (default) | Notes |
 |---|---|---|
 | `showDataLabels` | `boolean` (`false`; `true` on `tile`) | one value label per observation |
-| `format` | `'absolute' \| 'percentage'` (`'absolute'`) | on a tile `'percentage'` falls back to absolute — no denominator |
+| `labelSource` | `AestheticValue` (the layer's raw y) | the column the label text reads; `mapping.label` sets it too |
+| `format` | `'absolute' \| 'percentage'` (`'absolute'`; `'percentage'` on polar bars) | on tile, point and line `'percentage'` falls back to absolute — no denominator |
 | `position` | `'auto' \| 'inside' \| 'outside'` (`'auto'`) | `auto` fits/flips/drops/rotates as needed and ignores `justify`/`align`; explicit values render exactly as asked. Stacked/filled cartesian segments coerce `'outside'` to `'inside'` |
-| `justify` | `'start' \| 'center' \| 'end' \| 'panel-start' \| 'panel-end'` (`'end'`; `'center'` for stacked/filled bars) | anchor along the value axis; `'end'` is the value tip regardless of orientation or sign; `panel-*` pins to the panel edge |
+| `justify` | `'start' \| 'center' \| 'end' \| 'panel-start' \| 'panel-end'` (`'end'`; `'center'` for stacked/filled bars) | anchor along the cross axis; `'end'` is the value tip regardless of orientation or sign; `panel-*` pins to the panel edge |
 | `align` | `'start' \| 'center' \| 'end'` (`'center'`) | anchor across the geom: bandwidth for bars, angular for pie wedges, x for point/line/area |
-| `offset` | px (`4` bars/wedges, `12` point/line/area) | gap between geom edge and label box; stack totals ignore it |
+| `offset` | px (`4` bars/wedges/tiles/points, `8` line/area) | gap between geom edge and label box (a point adds its marker radius); stack totals ignore it |
 | `showStackTotals` | `boolean` (`false`) | total at the end of each stack — use instead of `'outside'` on stacked segments |
 | `showCategoryLabels` | `boolean` (`false`) | polar bars prepend the category to the value ("Europe · 35%"); cartesian bars emit a second label per observation, placed by the `category*` fields independently of `showDataLabels` |
 | `categoryPosition` / `categoryJustify` / `categoryAlign` / `categoryOffset` | as above, no `'auto'` (`'inside'` / `'start'` / `'center'` / `4`) | placement of the cartesian category label |
 
-These keys decide **where** a label goes. How it looks — font, text colour, background, padding, border, radius — is the `style.dataLabel` target, partitioned by role (`observation` / `category` / `aggregate`) and position (`inside` / `outside`), e.g. `style.dataLabel.observation.outside({ background: '#FFF', borderWidth: 1 })`. Stack totals are the `aggregate` role and always sit outside, so they take no position partition. See `reference/styling.md`.
+These keys decide **where** a label goes. How it looks — font, text color, background, padding, border, radius — is the `style.dataLabel` target, partitioned by role (`observation` / `category` / `aggregate`) and position (`inside` / `outside`), e.g. `style.dataLabel.observation.outside({ background: '#FFF', borderWidth: 1 })`. Stack totals are the `aggregate` role and always sit outside, so they take no position partition. See `reference/styling.md`.
 
 Labels overflowing the panel are governed by `config({ panel: { overflow: { dataLabels: { x, y } } } })`.

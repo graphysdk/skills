@@ -52,9 +52,10 @@ export function CohortRetention() {
 
 ## Color is the encoding
 
-**Declare the color scale.** With none in the spec the engine appends the *ordinal*
-`scale.color.palette()` — a numeric column then gets one palette hue per distinct value instead of a
-ramp.
+**The color scale is inferred from the column.** With none in the spec a tile layer reads its
+`color` column: a numeric value already lands on the default sequential ramp; only a categorical
+column falls back to the palette. Declare `scale.color.continuous()` to choose the `scheme`, `range`
+or `domainMid`. Omitting `color` altogether fails with `MISSING_AESTHETIC`; tile declares only `color`, so any other mapping (`size`, `alpha`, …) warns `UNDECLARED_AESTHETIC` and is ignored.
 
 ```ts
 scale.color.continuous();                                  // brand sequential ramp
@@ -63,8 +64,11 @@ scale.color.continuous({ range: ['#FFFFFF', '#0B5FFF'] }); // explicit ramp
 ```
 
 Data that crosses zero wants a diverging scheme with `domainMid: 0`; without the pin the neutral
-color lands on the data's midpoint rather than zero. It also turns `symmetric` on, so ±8 get equal
-intensity. Full ramp options: `reference/spec-api.md` → `scale`.
+color lands on the data's midpoint rather than zero (`DIVERGING_SCHEME_WITHOUT_MIDPOINT`). It also
+turns `symmetric` on, so ±8 get equal intensity. `range` supersedes `scheme` — setting both raises
+`CONFLICTING_COLOR_RAMP`. Remaining ramp options: `reverse`, `transform: 'log' | 'sqrt'`, `domainMin`/`domainMax`,
+`symmetric`, `interpolate` (default `'lab'`), `clamp` (default `true` for non-position scales). Full list:
+`reference/spec-api.md` → `scale`.
 
 ## Wide matrix data
 
@@ -108,19 +112,24 @@ scale.x.discrete({ domain: ['Q1', 'Q2', 'Q3', 'Q4'] }),
 ## Value labels
 
 On by default here — a heatmap is read cell by cell. Each label centres in its cell, is dropped when
-the cell is too small to hold it, and flips ink dark/light against the fill beneath it.
+its box plus 4 px exceeds the inset cell, and flips ink dark/light against the fill beneath it.
 
 ```ts
 geom.tile({ dataLabels: { showDataLabels: false } }),
 ```
 
 Label text is the `color` value (or `mapping.label`), not a y value. `format: 'percentage'` has no
-denominator and falls back to absolute; `showStackTotals` / `showCategoryLabels` warn as ignored.
+denominator and falls back to absolute; `showStackTotals` warns `DATA_LABEL_SETTING_IGNORED`, and
+`showCategoryLabels` is silently ignored.
 
 ## Waffle
 
 The same geom with a **discrete** color scale: a 10×10 field, one cell per percentage point. The grid
-indices are a layout device, so both axes are hidden.
+indices are a layout device, so both axes are hidden. The explicit `range` matters: tiles touch, so
+the default palette (`{ type: 'default' }`, which the inferred scale for a categorical column also
+uses) always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable.
+Other escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-color Graphy
+brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`.
 
 ```ts
 // rows: one per cell — { col: 0..9, row: 0..9, channel: 'Organic search' | … }
@@ -149,12 +158,13 @@ const input = pipe(
 | Grid lines hidden on both axes | The cells already partition the panel |
 | The legend is never suppressed | Its gradient color bar is the only place the value scale is written down |
 | Data labels on | See above |
-| Position is `identity` | No value axis to stack or dodge along |
+| Position is `identity` | No cross axis to stack or dodge along |
 
 ## Paint and hover
 
 No `style.geom.tile` target — the fill comes from the color scale, and the radius and inset are
-fixed. `style.geom({ color, alpha, saturation })` and the `hovered` / `dimmed` states still apply.
+fixed (inset 3% of the band horizontally, 5% vertically). `style.geom({ color, alpha, saturation })`
+and the `hovered` / `dimmed` states still apply.
 
 Hover hit-tests the whole band, inset included, so the grid is live wherever a cell exists. The
 tooltip heads with the cell's `x` category and lists the one value `color` encodes.
@@ -180,7 +190,7 @@ The value rides on the fill, so there is no extent to grow: the grid fades up as
 <GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
 ```
 
-`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area; above it the entrance is skipped.
 
 ## Gotchas
 
@@ -188,3 +198,5 @@ The value rides on the fill, so there is no extent to grow: the grid fades up as
   mappings instead of flipping.
 - **`identity` position only.** `'stack'`, `'dodge'` and `'fill'` raise `UNSUPPORTED_POSITION`.
 - Both axes are bands even for a numeric or temporal column — a year becomes a category, not an axis.
+- A tile and a bar sharing one y raise `CONFLICTING_SCALE_DEMANDS` (band vs zero-anchored continuous);
+  put the bar on `yScaleType: 'secondary'`.

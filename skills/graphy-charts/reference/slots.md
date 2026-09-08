@@ -41,7 +41,9 @@ default is a no-op; `@graphysdk/react-renderer/editable` is what fills it (see
 ### `measure` rules
 
 - `measure` mirrors the built-in layout measurer for that region; regions you don't override keep
-  their built-in measurer.
+  their built-in measurer. `Legend` and `AxisTicks` overrides are skipped for an empty band (no items;
+  hidden axis or no ticks) and reserve 0; `AxisLabel` and `Headline` overrides are always called, so
+  they must return 0 themselves for an absent region.
 - **Give `measure` a stable reference** (module scope, or `useCallback`/`useMemo`). An identity that
   changes each render takes effect on the next paint but does not retrigger layout.
 - Second argument is a `SlotMeasureContext`:
@@ -51,8 +53,8 @@ default is a no-op; `@graphysdk/react-renderer/editable` is what fills it (see
     measure at (a fixed px size ignores it).
 - Return values: `Legend`, `AxisTicks`, `AxisLabel` return the band thickness in pixels — height for
   top/bottom edges, width for left/right. `Headline` supplies a full `HeadlineMeasurer`:
-  `measureHeadline(headline, size)` → `{ width, height }` and
-  `measureHeadlineItemWidths(headline, size)` → `number[]`.
+  `measureHeadline(headline, size, isInDonutHole?)` → `{ width, height }` and
+  `measureHeadlineItemWidths(headline, size)` → `number[]` (per-group headlines only).
 
 ## Slot props
 
@@ -68,7 +70,8 @@ default is a no-op; `@graphysdk/react-renderer/editable` is what fills it (see
 | `brandMark: BrandMarkVisual` | **Required.** `'full' \| 'mini' \| 'hidden'` — the resolved "Made with Graphy" badge for header placement. `'hidden'` when the mark is off, the frame is below the minimum footprint, or the mark is placed in the footer |
 
 Render the badge with the exported `<BrandMark visual={brandMark} placement="header" />` when it is
-not `'hidden'`; an override that ignores the prop drops the badge.
+not `'hidden'`; an override that ignores the prop drops the badge. `resolveBrandMarkVisual` is
+exported too: hidden below 120×80 px, `mini` below 200 px wide or when the variant is `'mini'`.
 
 ### Footer — `FooterSlotProps`
 
@@ -94,9 +97,10 @@ interface TooltipContent {
 
 `header` and `comment` share one slot: when the pointer is over a comment bubble, `comment` holds its
 rich text and `header` is `null`. Handle both or comment bubbles paint empty. `TooltipRow` carries
-`label`, `value` (formatted strings), `swatchColor`, `swatchLineType`, `geom`, `isPrimary`, `key`.
+`label`, `value` (formatted strings), `swatchColor` (`string | null` — null when the chart has no
+color scale), `swatchLineType`, `geom`, `isPrimary`, `key`.
 
-Rows follow legend order. The hovered row is the one with `isPrimary` set, not the first; emphasise
+Rows follow layer-declaration order across layers and legend order within a layer. The hovered row is the one with `isPrimary` set, not the first; emphasise
 it in place rather than sorting it to the top.
 
 Content arrives fully formatted by the viz-engine runtime. Hit-testing, open/close, cursor tracking,
@@ -106,7 +110,7 @@ pinned anchors, and positioning stay in the internal wrapper — the override pa
 
 | Field | Meaning |
 |---|---|
-| `axes: FormattedAxis[]` | Per-axis ticks with normalized `position` in [0,1], plus `gridVisible` |
+| `axes: FormattedAxis[]` | Per-axis ticks with normalized `position` in [0,1] (y is data-up: 0 = bottom, invert as `1 - y` for SVG), plus `gridVisible` |
 | `panelBorderSizes: EdgeSizes` | `Record<'top' \| 'right' \| 'bottom' \| 'left', number>` — the border thickness reserved on each edge |
 | `panelFrameRect`, `panelRect` | SVG-local rects; paint inside the frame, position ticks against `panelRect` |
 
@@ -122,9 +126,10 @@ from the chrome style cascade — `style.gridLine`, see `reference/styling.md`.
 | `surface: SwatchSurface` | `'legend' \| 'tooltip' \| 'headline' \| 'callout' \| 'rule-label'` |
 | `label?: string` | The label the swatch accompanies |
 | `lineType?: LineStyleType` | Stroke style for line/area shapes |
+| `strokeWidth?: number` | Line/area stroke width; `DefaultSwatch` draws 2 when absent |
 | `width?`, `height?: number` | The box to paint inside (defaults 12×12) |
 
-The shape glyph is shared by the legend, tooltip, headline, callouts, and rule labels — **one Swatch
+The swatch shape is shared by the legend, tooltip, headline, callouts, and rule labels — **one Swatch
 override restyles it everywhere**. Switch on `surface`/`shape` and delegate the rest to
 `DefaultSwatch` (which takes `Omit<SwatchSlotProps, 'surface' | 'label'>`) to restyle only one
 context.
@@ -140,7 +145,7 @@ context.
 
 | Field | Meaning |
 |---|---|
-| `formattedLegends: FormattedLegend[]` | Each: `position`, `align`, `display` (`pill`/`direct`), `title`, `aesthetics`, `items` (with `formattedLabel`, `value`, `geom`, `visual.color/size/alpha/strokeWidth/lineType`, `normalizedY`) |
+| `formattedLegends: FormattedLegend[]` | Each: `position`, `align`, `display` (`pill`/`direct`), `title`, `aesthetics`, `items` (with `formattedLabel`, `label`, `value`, `valueFormat`, `geom`, `visual.color/size/alpha/strokeWidth/lineType` — `size` is a symbol diameter in px on bubble legends, skip the item when it is non-finite or ≤ 0 — `normalizedY`) |
 | `rects: Partial<Record<LayoutEdge, Rect>>` | The reserved band per edge (whatever your `measure` returned) |
 | `textScale: number` | Active text-scale multiplier |
 
@@ -152,6 +157,7 @@ context.
 | `rect: Rect` | The reserved band |
 | `resolvedSize: ResolvedHeadlineSize` | Size step to paint at (also passed to your measurer) |
 | `visibleItemCount: number` | Paint only the first N items; the rest would overflow the band |
+| `isInDonutHole?: boolean` | A polar grand total centred in the donut hole |
 
 A `perGroup` item is:
 
@@ -160,12 +166,12 @@ interface FormattedHeadlineItem {
   swatch: { color: string; geom: string } | null; // present only at ≥2 groups
   label: string;
   value: string | null;
-  observationLabel: string | null;
+  caption: string | null; // main-axis point ("Q3") or first–last range ("Jan 2025 – Mar 2025")
   comparison: { direction: 'up' | 'down' | 'flat'; percentage: string; reference: string } | null;
 }
 ```
 
-`label`, `value` and `observationLabel` are final display strings — render them verbatim.
+`label`, `value` and `caption` are final display strings — render them verbatim.
 `comparison` is an **object**: read `direction`, `percentage` and `reference` off it. Dropping it into
 JSX as a child throws "Objects are not valid as a React child".
 
@@ -173,7 +179,7 @@ JSX as a child throws "Objects are not valid as a React child".
 
 | Field | Meaning |
 |---|---|
-| `formattedAxes: FormattedAxis[]` | Per axis: `position` (edge), `geometry` (paint only `'linear'`; polar axes render elsewhere), `isVisible`, `ticksVisible`, `ticks` (`value`, `formattedLabel`, normalized `position`), `labelRotation`, `labelMaxWidthPx` |
+| `formattedAxes: FormattedAxis[]` | Per axis: `scaleAestheticKey` (`ySecondary` folds into `y`), `position` (edge), `geometry` (paint only `'linear'`; polar axes render elsewhere), `label` (the axis title), `isVisible`, `ticksVisible`, `gridVisible`, `scaleType`, `tickMode`, `valueFormat`, `ticks` (`value`, `formattedLabel`, normalized `position` — y is data-up), `bandwidth` (discrete band width), `labelRotation`, `labelMaxWidthPx`. Ticks arrive selected and formatted — paint `formattedLabel` verbatim; re-selecting or re-formatting desyncs paint from the reserved band |
 | `tickRects` / `labelRects: Partial<Record<LayoutEdge, Rect>>` | SVG-local reserved band per edge |
 
 Tick band and axis title are **separate slots** — overriding `AxisTicks` leaves the title on the

@@ -4,7 +4,7 @@
 spec, compiles, recompiles on change) wrapping `<GraphRenderer>` (owns layout and DOM). The nesting
 is mandatory — the renderer has no standalone mode and throws outside a provider.
 
-Styles ship inside the JS bundle: importing the components is all it takes to paint.
+The JS entry imports its own stylesheet; you never import one yourself (`reference/install.md`).
 
 ## Minimal component
 
@@ -46,12 +46,12 @@ Default sizing is responsive, so the chart fills whatever sized container you gi
 | `children` | `ReactNode` | **Required.** Usually one `<GraphRenderer>` or `<EditableGraphRenderer>`. |
 | `plugins` | `readonly Plugin[]` | Custom geoms/stats/transforms and their render halves (see `reference/plugins.md`). Default `[]`. **Frozen at mount** — to change the set, remount with a React `key`. |
 | `formattingLocale` | `Locale` | Display locale for ticks, tooltips, legends, headline. See "Locales" below. |
-| `handleRef` | `Ref<GraphHandle>` | Filled with this graph's imperative handle (`commands`, `subscribe`, `getCompiled`, `undo`, `redo`, selection), for surfaces mounted outside the provider where the hooks can't reach. |
+| `handleRef` | `Ref<GraphHandle>` | Filled with this graph's imperative handle (`commands`, `subscribe`, `getCompiled`, `undo`, `redo`, `getSelection`/`setSelection`/`subscribeSelection`), for surfaces mounted outside the provider where the hooks can't reach. |
 | `onChange` | `(next: SpecInput) => void` | Fires when the live spec changes via commands. Irrelevant for plain chart building. |
 | `onError` | `(errors: VizDiagnostic[]) => void` | Compile failures and caught render-throws. |
 | `onWarnings` | `(warnings: VizDiagnostic[]) => void` | Advisory diagnostics from a successful compile. |
-| `colorScheme` | `ColorScheme` (`'light' \| 'dark'`) | Default `'light'`. Drives both the theme tokens and the stylesheet's light-dark resolution. |
-| `themeOverrides` | `ThemeOverrides` | Token-level restyling of the HTML chrome (see `reference/theming.md`). |
+| `colorScheme` | `ColorScheme` (`'light' \| 'dark'`) | Default `'light'`. Resolves the stylesheet's `{ light, dark }` colors and picks the base theme tokens. |
+| `themeOverrides` | `ThemeOverrides` | Theme tokens for the few HTML-chrome details the stylesheet has no target for (see `reference/styling.md`). |
 | `customPalettes` | `CustomPalettesInput` | Named palettes (`Record<string, CustomPaletteColor[]>`) that specs reference by id. |
 
 `VizDiagnostic` is a plain serializable object: `{ message, severity, kind, code, context?, suggestion? }`.
@@ -65,10 +65,10 @@ Every prop is optional.
 |---|---|---|
 | `sizing` | `GraphSizing` | How the chart claims space. Default `{ mode: 'responsive' }` (fill the parent). |
 | `onResize` | `ResizeObserverOnResize` | `(state: ResizeObserverState) => void`, i.e. `{ width, height, isDefault }`. Fires in every sizing mode. |
-| `animation` | `GraphAnimation` | `boolean \| { intro?, transitions?, maxAnimatedGeoms? }`. Default: everything on. See below. |
+| `animation` | `GraphAnimation` | `boolean \| { intro?, transitions? }`. Default: everything on. See below. |
 | `showTooltips` | `boolean` | Hover tooltips. Default `true`. |
-| `mode` | `GraphMode` (`'readonly' \| 'editable'`) | Default `'readonly'`, which is what chart building wants. `'editable'` takes effect only when the `EditorSurface` slot is filled — see "Editing" below. |
-| `slots` | `GraphSlots` | Per-region component overrides (header, footer, legend, tooltip, …); unspecified regions render their default. See `reference/slots.md`. |
+| `mode` | `GraphMode` (`'readonly' \| 'editable'`) | Default `'readonly'`, which is what chart building wants. `'editable'` only does anything under `EditableGraphRenderer` — see "Editing" below. |
+| `slots` | `GraphSlots` | Per-region overrides: bare components for `Header`, `Footer`, `Tooltip`, `Grid`, `Swatch`, `EditorSurface`; `{ render, measure }` for `Legend`, `Headline`, `AxisTicks`, `AxisLabel`. Unspecified regions render their default. See `reference/slots.md`. |
 
 ### GraphSizing
 
@@ -81,8 +81,9 @@ type GraphSizing =
   | { mode: 'keepAspectRatio'; intrinsicHeight: number; aspectRatio: number };
 ```
 
-With `'responsive'`, give the parent element a real height — a 0-height parent renders a 0-height
-chart. `'keepAspectRatio'` scales to the container width while holding the given ratio.
+`'fixed'` paints immediately. `'responsive'` and `'keepAspectRatio'` paint only once the container
+measures a positive width and height; a zero-size parent logs `[graphy] ZERO_SIZE_CONTAINER` and waits. `'keepAspectRatio'` reserves space
+with CSS `aspect-ratio`, then scales the intrinsic box to the container width with a CSS transform.
 
 ### GraphAnimation
 
@@ -94,13 +95,13 @@ interface GraphAnimationProps {
   intro?: boolean | Partial<IntroAnimationOptions>;
   /** Whether geoms animate to new positions when the data changes. */
   transitions?: boolean;
-  /** Geom count across all layers above which nothing animates. Default 1500. */
-  maxAnimatedGeoms?: number;
 }
 ```
 
-`IntroAnimationOptions` fields: `enabled`, `durationScale`, `stagger`, `staggerOrder`. The two
-kinds are independent — turning one off leaves the other running. A viewer's reduced-motion
+`IntroAnimationOptions` (not exported; reachable structurally) and defaults: `enabled: true`,
+`durationScale: 1`, `stagger: true`, `staggerOrder: 'main-axis'`, `maxAnimatedGeoms: 1500` — the
+geom count across all layers above which the intro is skipped (transitions are not gated by it).
+The two kinds are independent — turning one off leaves the other running. A viewer's reduced-motion
 preference disables all animation whatever you pass.
 
 Live data: push new `data` and keep `input` the same object, since a new `input` reference forces a
@@ -108,7 +109,7 @@ full compile. Pass `{ transitions: false }` when pushes come faster than a sprin
 
 ```tsx
 <GraphRenderer animation={false} />
-<GraphRenderer animation={{ intro: { durationScale: 0.5 }, transitions: true }} />
+<GraphRenderer animation={{ intro: { durationScale: 0.5, maxAnimatedGeoms: 3000 }, transitions: true }} />
 ```
 
 ## Locales
@@ -122,9 +123,10 @@ full compile. Pass `{ transitions: false }` when pushes come faster than a sprin
 
 ## Editing: the `./editable` entrypoint
 
-Editing lives at `@graphysdk/react-renderer/editable`, which exports `EditableGraphRenderer` (a
-`GraphRenderer` with the `EditorSurface` slot pre-filled), `EditorPanel`, its section and control
-components, and `IntlProvider`.
+Editing lives at `@graphysdk/react-renderer/editable`, which exports `EditableGraphRenderer` (the
+renderer body wrapped in the editor providers, taking the same `GraphRendererProps`; a caller-supplied
+`EditorSurface` slot replaces the editor's own layer), `EditorPanel`,
+its section, layout and control components, the panel hooks, and `IntlProvider`.
 
 ```tsx
 import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
@@ -139,17 +141,22 @@ panel, commands/undo and programmatic editing are the **`graphy-editor`** skill.
 
 `@graphysdk/react` is the standard install and wraps this package: the same surface plus the spec
 builders re-exported, with a `GraphProvider` whose "Made with Graphy" provenance badge is on by
-default (its editing half sits at `@graphysdk/react/editable`). `@graphysdk/react-renderer` — this
-package — is the advanced mode: the badge is off, for embedders and advanced integrators.
-Everything this file documents applies to both; only the import specifier differs. The badge
-reaches Header/Footer slot overrides as `brandMark: BrandMarkVisual`; see `reference/slots.md`.
+default — it seeds `config.content.brandMark.enabled` (and `isBrandMarkVisible`) beneath your
+`input`, so either key set explicitly wins. Its editing half sits at `@graphysdk/react/editable`.
+`@graphysdk/react-renderer` — this package — is the advanced mode: the badge is off, for embedders
+and advanced integrators. Everything this file documents applies to both; only the import specifier
+differs. The badge reaches Header/Footer slot overrides as `brandMark: BrandMarkVisual`; see
+`reference/slots.md`.
 
 ## Beyond rendering
 
 Exported and out of scope here, but worth knowing they exist: `GraphHandle` / `useGraphHandle` /
 `useHandleCompiled`, `useGraphCommands`, `useGraphHistory`, `useGraphHistoryShortcuts`,
 `useCompiledSelector`, `useGraphSelection`, `DevToolsPanel`, `TextMeasurerProvider` /
-`CanvasTextMeasurer` / `useTextMeasurer`, `HoverProvider` / `useHoverState`. Full signatures in
+`CanvasTextMeasurer` / `useTextMeasurer`, `HoverProvider` / `useHoverState`, `pruneSelection`, `lightenCss`, the theme exports
+`vars` / `ThemeProvider` / `lightTheme` / `darkTheme`, and the plugin surface (`createGraphyKit`,
+`defineGeomRenderer`, `UnitSpaceSvg`, `useStyleReaders`, `useGeomHitTest`, `useGeomHover`,
+`useElementScreenRect`, `DefaultSwatch` — `reference/plugins.md`). Full signatures in
 `reference/types.md`. The handle, commands, history and selection hooks are the editing surface —
 documented in the `graphy-editor` skill.
 

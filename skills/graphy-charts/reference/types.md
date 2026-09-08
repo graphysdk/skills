@@ -31,11 +31,6 @@ interface Data {
         key: string;
         /** Friendly label for the column. */
         label?: string;
-        /**
-         * How to read the column's cells instead of inferring it, e.g. `{ type: 'text' }` to keep digit strings
-         * categorical or `{ type: 'currency', iso: 'usd' }` to format bare numbers as dollars.
-         */
-        valueFormat?: ExplicitValueFormat;
         /* Excluded from this release type: _metadata */
     }>;
     /**
@@ -4075,8 +4070,8 @@ interface RichTextContent {
     /**
      * Per-node attributes the renderer recognizes: `heading.level` (1–3),
      * `paragraph.textAlign`, and on the `textStyle` mark `color`, `font` (a font
-     * id), and `fontSize` — pixels, scaled with the rest of the graph's text like
-     * every other `fontSize`. Unrecognized keys are ignored.
+     * id), and `fontSize` — a number read as `n/10` em. Unrecognized keys are
+     * ignored.
      */
     attrs?: Record<string, unknown>;
 }

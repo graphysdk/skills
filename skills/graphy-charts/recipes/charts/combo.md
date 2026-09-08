@@ -9,6 +9,7 @@ A combo chart is just multiple geom layers in one spec. Each layer can carry its
 | Dodged bars + reference line (shared axis) | line layer omits `yScaleType` — both layers share the primary y scale |
 | Area + threshold line | `geom.area` instead of `geom.bar`, line on the secondary axis |
 | Constant reference line | `geom.rule({ aes: { y: { value: 2500 } } })` |
+| Average line | `geom.rule({ aes: { y: 'total' }, stat: stat.mean() })` |
 | Paint one layer differently | `geom.line({ id: 'total' })` + `style.geom.line({ … }, { layer: 'total' })` |
 
 ## Base: stacked bars + total line
@@ -59,6 +60,8 @@ export function RegionalSalesCombo() {
 }
 ```
 
+The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too, and the 8-color default set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'` on the bars.
+
 ## Variants
 
 Bars + rate line, dual axis — both layers read plain columns, each synthesizing a series label; different units ($ vs %) force the line onto the secondary axis:
@@ -97,7 +100,7 @@ scale.ySecondary(),
 ## Painting one layer
 
 Give the layer an `id` and scope a stylesheet entry to it with `{ layer }` — the way to make the
-overlay read differently from the marks beneath it without touching them (`reference/styling.md`):
+overlay read differently from the geoms beneath it without touching them (`reference/styling.md`):
 
 ```ts
 geom.bar({ id: 'bars', position: 'stack', aes: { y: 'sales', color: 'region' } }),
@@ -110,15 +113,29 @@ styles({
 }),
 ```
 
-An `overrides` entry beats the color scale, so the overlay does not need a synthesized series label
-just to claim a palette slot. Keep the label when you also want the layer in the legend.
+An `overrides` entry for `color` (or `alpha` / `saturation`) beats the color scale, so the overlay
+does not need a synthesized series label just to claim a palette slot; `borderRadius` competes with
+nothing — no aesthetic maps to it. Keep the label when you also want the layer in the legend. Entries
+also scope by `{ where }` (a data predicate) and `{ state: 'hovered' | 'dimmed' }`.
 
 Constant reference line — `geom.rule` is the purpose-built geom. It reads a scalar from exactly one
-of `x` or `y`, spans the panel, and is non-interactive:
+of `x` or `y` (both or neither fails with `INVALID_RULE_MAPPING`), spans the panel, and is
+non-interactive. That `x`/`y` must be a constant `{ value }` or a stat-produced variable — a plain
+column name without a stat also fails `INVALID_RULE_MAPPING`. Params: `label` and `labelPosition`
+(default `'start'`); the label's type is styled via `style.geom.rule.label`. Built-in paint is
+`token('ruleLine')`, `strokeWidth: 1`, `lineType: 'dashed'`; cartesian/flip only
+(`UNSUPPORTED_COORD` under polar); a rule has no intro plan:
 
 ```ts
 geom.rule({ aes: { y: { value: 2500 } }, params: { label: 'Target', labelPosition: 'start' } }),
 styles({ defaults: [style.geom.rule({ color: '#e5484d', strokeWidth: 2, lineType: 'dashed' })] }),
+```
+
+Average line — a rule can carry `stat: stat.mean()` to draw the mean of a mapped column without
+precomputing it. `stat.mean()` collapses a layer to one observation — fine for a rule, degenerate on a line or bar:
+
+```ts
+geom.rule({ aes: { y: 'total' }, stat: stat.mean(), params: { label: 'Average' } }),
 ```
 
 ## Dual axis vs shared axis
@@ -129,7 +146,15 @@ styles({ defaults: [style.geom.rule({ color: '#e5484d', strokeWidth: 2, lineType
 ## Gotchas
 
 - The secondary y config key in `config()` is `axes.ySecondary` — there is no `hasDualYAxis` key in the viz-engine config. It is a sparse override, not a resolved axis: an unset field is inherited (`position` from the side opposite `y`; `isVisible`, `grid` and `ticks` from `y` itself), and pinning one field ends that inheritance for it.
-- `scale.ySecondary()` is auto-injected when any layer declares `yScaleType: 'secondary'`, but add it explicitly (or use `scale.ySecondary.continuous({ … })`) when you want to control its domain.
+- `scale.ySecondary()` is auto-injected when any layer declares `yScaleType: 'secondary'`, but add it explicitly (or use `scale.ySecondary.continuous({ … })`) when you want to control its domain. Label the second axis through the same sparse override:
+
+  ```ts
+  scale.ySecondary(),
+  config({ axes: { y: { label: 'sales' }, ySecondary: { label: 'total', position: 'right' } } }),
+  ```
+
+- Two layers demanding different scale kinds on one y — a tile (band) next to a bar (zero-anchored continuous) — fail with `CONFLICTING_SCALE_DEMANDS`; move one onto `yScaleType: 'secondary'`.
+- A mapping the geom does not declare (e.g. `size` on a bar) warns `UNDECLARED_AESTHETIC` and is ignored.
 - Map the synthesized constant column to `color` even for a single-series layer — without a `color` mapping the layer gets no legend entry and no palette slot.
 - Layer `transforms` reshape only that layer's view of the data; the sibling layers still see the original wide columns (the total line reads `total` untouched while the bars see reshaped rows).
-- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop), tuned together by `animation` on `GraphRenderer`. `animation.maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers, so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.
+- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop; a rule has none), tuned together by `animation` on `GraphRenderer`. `animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area — so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.

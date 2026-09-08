@@ -7,8 +7,10 @@
 | Flipped | append `coord.flip()` |
 | Smooth | `geom.area({ params: { interpolate: 'catmull-rom' } })` |
 | Missing values | `geom.area({ params: { missingValues: 'zero' \| 'connect' } })` |
-| Vertex dots | add `geom.point({ position: 'stack', interactive: false })` |
+| Vertex points | add `geom.point({ position: 'stack', interactive: false })` |
 | Opaque fill | `styles({ defaults: [style.geom.area({ alpha: 1 })] })` |
+| Data labels | `geom.area({ dataLabels: { showDataLabels: true } })` |
+| Radar | `geom.area({ position: 'identity' })` (area stacks by default) + append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
 
 ## Base: simple area
 
@@ -55,12 +57,14 @@ const wideData = {
 const input = pipe(
   createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
   geom.area(), // default position is 'stack' — no need to pass it
-  geom.point({ position: 'stack', interactive: false }), // optional vertex dots
+  geom.point({ position: 'stack', interactive: false }), // optional vertex points
   scale.x(),
   scale.y(),
   scale.color.palette()
 );
 ```
+
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable here. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or a non-touching position.
 
 ## Flipped
 
@@ -88,22 +92,31 @@ geom.area({ params: { interpolate: 'catmull-rom', missingValues: 'connect' } }),
 styles({ defaults: [style.geom.area({ alpha: 1, strokeAlpha: 1, strokeWidth: 3 })] }),
 ```
 
+The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in dimmed state is `alpha: 0.4`.
+
+`color`, `strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous()`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous()`.
+
+Like line, `geom.area` accepts a `stat` (e.g. `stat.smooth({ method: 'linear' })`) and an `id`, so `style.geom.area({ … }, { layer: 'trend' })` scopes paint to that layer.
+
+Data labels: `geom.area({ dataLabels: { showDataLabels: true } })` — offset `8` px under cartesian/flip; area labels always use the outside styling (`style.dataLabel.observation.outside`), since the translucent fill cannot back white text. Under `coord.polar` (radar) they warn `DATA_LABELS_UNSUPPORTED` and render nothing.
+
 ## Intro animation
 
-On mount the layer is revealed by a wipe travelling along the main axis; every band in the layer
-enters together. The renderer's `animation` prop tunes it:
+On mount, under cartesian or flipped coords, the layer is revealed by a wipe travelling along the
+main axis; every band in the layer enters together. A polar area (radar) has no entrance. The
+renderer's `animation` prop tunes it:
 
 ```tsx
 <GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
 ```
 
-`maxAnimatedGeoms` (default `1500`) counts geoms across **all** layers; above it the entrance is skipped.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
 
 ## Gotchas
 
-- **Area fills draw at `alpha: 0.3`** (the engine's `DEFAULT_AREA_ALPHA`) — colors read lighter than their palette hex. Good for overlapping areas; wrong for stacked bands or a saturated house style. Set `styles({ defaults: [style.geom.area({ alpha: 1 })] })` for solid bands; `strokeAlpha` stays independently controllable.
+- **Area fills draw at `alpha: 0.3`** (the built-in `style.geom.area` entry's `alpha`) — colors read lighter than their palette hex. Good for overlapping areas; wrong for stacked bands or a saturated house style. Set `styles({ defaults: [style.geom.area({ alpha: 1 })] })` for solid bands; `strokeAlpha` stays independently controllable.
 - A `defaults` entry loses to a mapped aesthetic, so recoloring a series that is mapped to `color` needs an `overrides` entry (`reference/styling.md`).
 - Area's default position is **`stack`** — multi-series areas stack without an explicit `position`.
 - Wide data needs `transform.reshape` before mapping `color`; with the no-option reshape the output columns are named `key` and `value`.
-- A companion dot layer on a stacked area must repeat `position: 'stack'` — point's own default is identity, so dots would otherwise sit at raw y values off the stacked surface.
+- A companion point layer on a stacked area must repeat `position: 'stack'` — point's own default is identity, so the points would otherwise sit at raw y values off the stacked surface.
 - Area's `missingValues` default is `'zero'`; `'gap'` normalises to `'zero'` because areas cannot render gaps mid-stack.

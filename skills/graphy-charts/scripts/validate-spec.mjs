@@ -6,6 +6,8 @@
 // The spec module must export:
 //   data  — the viz-engine Data shape ({ columns, rows })
 //   input — a SpecInput built with the spec builders (pipe, createSpec, mapping, geom, scale, …)
+// A spec that uses `scale.color.palette({ palette: { type: 'custom', id } })` needs the palette
+// registered: pass `customPalettes` (and `colorScheme`) to `compile` below if you validate one.
 // Exit code 0 = compiled OK, 1 = errors.
 //
 // Needs @graphysdk/viz-engine resolvable from the current working directory (the project whose
@@ -122,7 +124,7 @@ if (data === undefined || input === undefined) {
   process.exit(1);
 }
 
-const result = createCompiler().compile({ input, data, ctx: {} });
+const result = createCompiler().compile({ input, data });
 
 if (result.ok) {
   printSummary(result.compiled, result.warnings);

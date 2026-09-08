@@ -1,6 +1,6 @@
 # Treemap
 
-Technique: custom compile logic + custom hit-testing via `useGeomHitTest`.
+Technique: custom compile logic + a render-side `hitTest` factory.
 
 Reach for this pattern when a chart's geometry comes from a layout algorithm over the whole dataset, not from positional scales: `compile()` runs the layout and emits the finished geometry as the geom's own dataset columns, and the render side paints them and answers cursor queries itself. The geom declares `spatialKind: 'render-hit-test'` and supplies a `hitTest` factory on the render contract — the renderer registers it through `useGeomHitTest` on the geom's behalf, so the layer inherits central hover and the built-in tooltip with no pointer overlay. Requires `d3-hierarchy`.
 
@@ -30,7 +30,7 @@ export interface TreemapLayoutParams {
 /**
  * A laid-out tile in unit space. A `group` tile is a header-bearing cell containing leaves; a `leaf`
  * tile is a single rectangle whose area is proportional to its value. `shade` varies a leaf's lightness
- * within its group's hue (`0` for a group tile); the hue itself comes from the engine's colour scale.
+ * within its group's hue (`0` for a group tile); the hue itself comes from the engine's color scale.
  */
 export interface LaidOutTile {
   kind: 'group' | 'leaf';
@@ -164,7 +164,7 @@ function buildHierarchy(groups: GroupAggregate[], isFlat: boolean): TreeNodeInpu
   return { group: '', label: '', value: 0, children };
 }
 
-/** Larger leaves stay close to the base colour, smaller leaves lighten; clamped so every tile reads. */
+/** Larger leaves stay close to the base color, smaller leaves lighten; clamped so every tile reads. */
 function shadeFor(value: number, maxValue: number): number {
   if (maxValue <= 0) return 1;
   return 0.4 + 0.6 * (value / maxValue);
@@ -187,12 +187,12 @@ import {
   type CompiledLayer,
   type Dataset,
   type GeomCompilerInput,
+  type GeomStyleReaders,
   type IdentityKey,
   type Observation,
   createDatasetFromKindPartitions,
   extractVariableName,
   Geom,
-  getColor,
   readAuthoredNumber,
   readAuthoredString,
 } from '@graphysdk/viz-engine';
@@ -214,9 +214,6 @@ const TREEMAP_COLUMNS = {
   headerY1: 'headerY1',
 } as const;
 
-/** Fill used only if the colour scale is somehow absent — every tile is otherwise scale-coloured. */
-const FALLBACK_COLOR = '#888888';
-
 interface TreemapParams {
   /** Gap between sibling leaf tiles, as a unit fraction. */
   padding: number;
@@ -236,11 +233,16 @@ class TreemapGeom extends Geom<TreemapParams> {
   override readonly identityKey: IdentityKey = { variable: TREEMAP_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly highlightStrategy = null;
+  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
+  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
+  override readonly positionRoles = [] as const;
   // `label`/`value` are the hierarchy inputs the layout consumes (read from the mapped columns, not
-  // scaled). `group` is a universal aesthetic — recognised without declaring — that the layout reads
-  // when mapped; absent, the leaves form a single flat treemap. `color` is author-mapped (no forced
-  // encoding) to `group`, so the engine's categorical scale gives a group and its leaves one hue.
+  // scaled). `group` is a universal aesthetic the engine recognises without declaring, but it is
+  // declared here so the exact-aes builder admits it; the layout reads it when mapped, and absent, the
+  // leaves form a single flat treemap. `color` is author-mapped (no forced encoding) to `group`, so
+  // the engine's categorical scale gives a group and its leaves one hue.
   override readonly aesthetics = [
+    { kind: 'data', name: 'group' },
     { kind: 'data', name: 'label', required: true },
     { kind: 'data', name: 'value', required: true },
     { kind: 'visual', name: 'color' },
@@ -300,7 +302,11 @@ class TreemapGeom extends Geom<TreemapParams> {
       TREEMAP_COLUMNS.kind
     );
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`.
+    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`. Because
+    // this returns a fresh `Dataset`, every column a visual aesthetic maps to must be re-emitted under
+    // the same name (`group` here): `compile()` does not rewrite `layer.mapping.color`, the visual
+    // mapper resolves it against the compiled data, and a missing column silently falls every cell
+    // back to `token('geom')`.
     return {
       data: table,
       mapping: { label: { variable: TREEMAP_COLUMNS.label }, value: { variable: TREEMAP_COLUMNS.value } },
@@ -335,19 +341,26 @@ interface RenderTile {
   kind: 'group' | 'leaf';
   label: string;
   value: number;
-  /** The tile's base hue (its group's), stamped by the engine's colour scale. */
+  /** The tile's base hue (its group's), read through the style cascade (override → color scale → default). */
   color: string;
   shade: number;
   x0: number;
   y0: number;
   x1: number;
   y1: number;
-  /** Group only: bottom of the saturated header band (which carries the name and the hit). */
+  /**
+   * Group only: bottom of the saturated header band (which carries the name and the hit). A leaf's
+   * `null` reads as `0` through `readAuthoredNumber`, which the group hit-test below relies on.
+   */
   headerY1: number;
 }
 
-/** Reads the compiled dataset back into group cells and leaf tiles — the render-half inverse of compile. */
-function readTiles(data: Dataset): { groups: RenderTile[]; leaves: RenderTile[] } {
+/**
+ * Reads the compiled dataset back into group cells and leaf tiles — the render-half inverse of compile.
+ * Paint comes from `styleReaders` (this layer's cascade, resolved for the active scheme), not `getColor`,
+ * which sees the data tier only and is `undefined` whenever `color` is unmapped.
+ */
+function readTiles(data: Dataset, styleReaders: GeomStyleReaders): { groups: RenderTile[]; leaves: RenderTile[] } {
   const groups: RenderTile[] = [];
   const leaves: RenderTile[] = [];
   const toTile = (observation: Observation, kind: 'group' | 'leaf'): RenderTile => ({
@@ -355,7 +368,7 @@ function readTiles(data: Dataset): { groups: RenderTile[]; leaves: RenderTile[] 
     kind,
     label: readAuthoredString(observation, TREEMAP_COLUMNS.label),
     value: readAuthoredNumber(observation, TREEMAP_COLUMNS.value),
-    color: getColor(observation) ?? FALLBACK_COLOR,
+    color: styleReaders.get('color', observation),
     shade: readAuthoredNumber(observation, TREEMAP_COLUMNS.shade),
     x0: readAuthoredNumber(observation, TREEMAP_COLUMNS.x0),
     y0: readAuthoredNumber(observation, TREEMAP_COLUMNS.y0),
@@ -380,7 +393,8 @@ function readTiles(data: Dataset): { groups: RenderTile[]; leaves: RenderTile[] 
 /**
  * The cursor query over the tiles — a leaf rect first (leaves sit inside their group), then a group's
  * header band (the only part of a group cell that takes the hit; its body is the leaves). The renderer
- * memoizes this on `layer.data`, so the read above runs once per data change, not per cursor move.
+ * memoizes this on `layer.data` and the panel pixel rect (`input.panelRect`), so the read above runs once
+ * per data change or resize, not per cursor move.
  */
 function buildTreemapTester({ groups, leaves }: { groups: RenderTile[]; leaves: RenderTile[] }): RenderHitTester {
   return (cursor) => {
@@ -473,8 +487,8 @@ const TreemapLeafTile = ({ leaf }: { leaf: RenderTile }) => (
   </UnitBoxSvg>
 );
 
-const TreemapLayer = ({ layer }: { layer: CompiledLayer }) => {
-  const { groups, leaves } = useMemo(() => readTiles(layer.data), [layer.data]);
+const TreemapLayer = ({ layer, styleReaders }: { layer: CompiledLayer; styleReaders: GeomStyleReaders }) => {
+  const { groups, leaves } = useMemo(() => readTiles(layer.data, styleReaders), [layer.data, styleReaders]);
 
   return (
     <>
@@ -488,9 +502,17 @@ const TreemapLayer = ({ layer }: { layer: CompiledLayer }) => {
   );
 };
 
-/** Repaints the hovered leaf tile or the hovered group header band, above the base layer. */
-const TreemapHighlight = ({ layer, observation }: { layer: CompiledLayer; observation: Observation }) => {
-  const { groups, leaves } = useMemo(() => readTiles(layer.data), [layer.data]);
+/** Repaints the hovered leaf tile or group header band at full opacity, above the auto-dimmed base layer. */
+const TreemapHighlight = ({
+  layer,
+  styleReaders,
+  observation,
+}: {
+  layer: CompiledLayer;
+  styleReaders: GeomStyleReaders;
+  observation: Observation;
+}) => {
+  const { groups, leaves } = useMemo(() => readTiles(layer.data, styleReaders), [layer.data, styleReaders]);
   const markId = readAuthoredString(observation, TREEMAP_COLUMNS.markId);
 
   const group = groups.find((candidate) => candidate.markId === markId);
@@ -509,9 +531,12 @@ export const kit = createGraphyKit({
   plugins: [
     defineGeomRenderer(new TreemapGeom(), {
       coord: 'cartesian',
-      render: ({ layer }) => <TreemapLayer layer={layer} />,
-      hitTest: ({ layer }) => buildTreemapTester(readTiles(layer.data)),
-      renderHover: ({ layer, primary }) => <TreemapHighlight layer={layer} observation={primary.observation} />,
+      render: ({ layer, styleReaders }) => <TreemapLayer layer={layer} styleReaders={styleReaders} />,
+      hitTest: ({ layer, styleReaders }) => buildTreemapTester(readTiles(layer.data, styleReaders)),
+      // `primary` is an anchorless hit (no `x`/`y`); the tile is found from its observation.
+      renderHover: ({ layer, styleReaders, primary }) => (
+        <TreemapHighlight layer={layer} styleReaders={styleReaders} observation={primary.observation} />
+      ),
       renderHoverCompanions: () => null,
     }),
   ],
@@ -558,9 +583,10 @@ export const TreemapGraph = () => (
 ## Adapting
 
 - The `*_COLUMNS` constant is the whole compile→render contract: change the layout output, add a column there, write it in `compile()`, read it in `readTiles`. Non-scalar geometry must ride as JSON strings (the dataset stores scalars only — see the voronoi recipe).
-- `identityKey: { variable: markId }` plus the `hitTest` factory returning `{ key }` is what wires hover; keep mark ids stable across recompiles or hover will flicker on data updates.
+- `identityKey: { variable: markId }` plus the `hitTest` factory returning `{ key }` is what wires hover; keep `markId` values stable across recompiles or hover will flicker on data updates. The returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing.
 - Swap `computeTreemapLayout` for any other space-filling layout (icicle, circle packing); only the layout module and the tile paint change — hit-testing stays a rect/containment scan over the emitted geometry.
-- The `hitTest` factory is the declarative path; a geom that renders its own pointer surface can instead call `useGeomHitTest(layer.id, tester)` directly inside its render component.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at — a tile's centre, or its top edge for a callout — to make the marks annotatable and give the editor overlay a creation trigger on them.
-- The label and tile hex constants (`#fff`, `#1f2937`, `rgba(31, 41, 55, 0.62)`) sit outside the style cascade: the value readers expose the data tier only, so a user's `styles` overrides and the built-in defaults do not reach these marks and they hold their hex under `colorScheme="dark"` while the built-in layers flip. Expose them as geom params so a spec can set them per chart. See `reference/styling.md`.
+- The `hitTest` factory is the declarative path: it receives the full `GeomRenderInput` (including `panelRect`, layout pixels) and is re-memoized on `layer.data` and the panel pixel rect. A geom whose geometry only exists in live component state can instead call `useGeomHitTest(layer.id, tester)` inside its render component. Three diagnostics police this shape: `MISSING_RENDER_HIT_TEST` (a `'render-hit-test'` layer with neither a `hitTest` factory nor an overlay render), `CONFLICTING_RENDER_HIT_TEST` (both declared; the overlay wins) and `OVERLAY_REQUIRES_RENDER_HIT_TEST` (an overlay render on any other `spatialKind`).
+- Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it; `primary` on the pull path carries no `x`/`y` and the tooltip follows the live cursor. `intro` is `null` for a `render-hit-test` layer — tiles never animate in.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the tiles are painted and hit-tested in: a tile's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge for a callout `y: 1 - y0`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }` — so a pin and a value anchor can land on different points of the tile.
+- Tile fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every tile. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the label colors (`#fff`, `#1f2937`, `rgba(31, 41, 55, 0.62)`) are contrast choices against the tile, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
 - `d3-hierarchy` is a user-installed dependency: `npm i d3-hierarchy` plus `@types/d3-hierarchy` for TypeScript.

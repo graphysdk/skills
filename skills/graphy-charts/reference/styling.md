@@ -1,17 +1,13 @@
 # Styling
 
-Chart paint lives in a **stylesheet on the spec** — `styles({ ... })`, piped like any other spec item.
-This is where colors, stroke widths, corner radii, fonts and chrome appearance are decided.
+Chart paint lives in a **stylesheet on the spec** — `styles({ ... })`, piped like any other spec
+item. It owns everything the chart draws: geoms, grid, ticks, panel border, graph background, all
+chart text, the tooltip, the legend pills, the headline cards, direct labels, and annotations. It is
+serializable and travels with the spec.
 
-Two surfaces, and the split is strict:
-
-| Surface | Governs | Where |
-|---|---|---|
-| **Stylesheet** (`styles`) | everything the chart itself draws: marks, grid, ticks, axis/tick/data labels, panel border, graph background | on the spec, serializable |
-| **Theme tokens** (`themeOverrides`) | the HTML chrome around the plot: legend, tooltip, headline, footer, editor UI, default font family | on `GraphProvider`, React-only |
-
-If you are changing how a *mark or an axis* looks, it is the stylesheet. See `reference/theming.md`
-for the token surface.
+The `themeOverrides` prop on `GraphProvider` survives for the few HTML-chrome details the stylesheet
+has no target for (header/footer type, tooltip row gap, hover guide, legend overflow pill) — see
+**Theme tokens** at the end.
 
 > Full signatures, every declaration vocabulary and the serialized `StyleRule` shape: `reference/types.md` → **Styling API**.
 
@@ -28,7 +24,7 @@ const input = pipe(
   scale.y(),
   styles({
     tokens: { brand: { light: '#0B5FFF', dark: '#6AA1FF' } },
-    defaults: [style.geom({ color: token('brand') })],
+    defaults: [style.geom({ color: token('brand') }), style.tooltip({ borderRadius: 10 })],
     overrides: [style.geom.bar({ borderRadius: 'full' }, { where: { variable: 'sales', gt: 500 } })],
   }),
 );
@@ -38,81 +34,97 @@ A `Stylesheet` has four keys:
 
 | Key | Meaning |
 |---|---|
-| `defaults` | apply **only where no mapped aesthetic decided the value** — the look when nothing else speaks |
+| `defaults` | apply **only where no mapped aesthetic decided the value** |
 | `overrides` | **replace** what a mapping decided |
 | `tokens` | named colors that entries reference via `token('name')` |
 | `extends` | compose other stylesheets underneath this one — tokens merge name-by-name, lists concatenate, later wins |
 
-Piping several `styles()` items stacks them in order; each sits above everything piped before it,
-including the presets it extends. Within one list, **order is specificity** — the last matching entry
-that declares a property wins.
+Piping several `styles()` items stacks them in order; each sits above everything piped before it.
+Within one list, **order is specificity** — the last matching entry that declares a property wins.
 
 ## The cascade
 
-Per property, resolution runs **override → data → default**, and reports which tier answered
-(`StyleResolutionTier` is `'override' | 'data' | 'default' | 'unresolved'`).
+Per property, resolution runs **override → data → default**:
 
 1. **override** — a stylesheet `overrides` entry.
 2. **data** — the encoding: a mapped aesthetic (`color`, `size`, `alpha`, …) resolved through its scale.
 3. **default** — a stylesheet `defaults` entry, with the engine's `BUILTIN_STYLES` at the front.
 
 So `defaults` never fight your mappings, and `overrides` always do. To recolor a series **that is
-mapped to `color`**, you need an `overrides` entry — a `defaults` entry loses to the scale.
+mapped to `color`**, use `overrides` — a `defaults` entry loses to the scale. Chrome targets have no
+data tier; for them `defaults` is simply the lower list.
 
 State-scoped entries (`{ state: 'hovered' | 'dimmed' }`) sit above the whole stateless cascade.
+States are paint-only and never move layout.
 
 ## Targets
 
-`style.<target>(declarations, options?)`. Geom targets take `options`; **chrome targets are
-chart-scoped and condition-free** — they take no `where` and no `state`. Annotation targets take one
-option, `{ annotation: id }`, which addresses a single annotation; without it the entry styles every
-annotation of that kind.
+`style.<target>(declarations, options?)`. Geom targets take `{ where, state, layer, id }`. **Chrome
+targets are chart-scoped and condition-free** — `{ id }` only. Annotation targets take
+`{ annotation: id }` to address one annotation; without it the entry styles every annotation of that kind.
+
+Text vocabulary, shared by every text target: `fontFamily`, `fontSize` (px, before `textScale`),
+`fontWeight`, `lineHeight` (multiple of `fontSize`), `textColor`. Box vocabulary, shared by labels
+in a box: `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderWidth`, `borderRadius` (px).
 
 | Target | Partitions | Declarations |
 |---|---|---|
 | `style.geom` | `.bar` `.line` `.area` `.point` `.rule`, plus `{ layer }` | shared: `color`, `alpha`, `saturation` — `tile` has no partition of its own, only these |
-| `style.geom.bar` | | + `borderRadius`, `borderColor`, `borderWidth` |
-| `style.geom.line` | | + `strokeWidth`, `lineType`, `fillAlpha` |
+| `style.geom.bar` | | + `borderRadius` (token), `borderColor`, `borderWidth` |
+| `style.geom.line` | | + `strokeWidth`, `lineType`, `fillAlpha` (gradient wash under the line; undeclared draws none) |
 | `style.geom.area` | | + `strokeWidth`, `lineType`, `strokeAlpha` |
 | `style.geom.point` | | + `size`, `borderColor`, `borderWidth` |
 | `style.geom.rule` | `.label` | `color`, `strokeWidth`, `lineType` |
-| `style.geom.rule.label` | | `fontFamily`, `fontSize`, `fontWeight`, `lineHeight` |
+| `style.geom.rule.label` | `{ layer }` | `fontFamily`, `fontSize`, `fontWeight`, `lineHeight` |
 | `style.gridLine` | `.x` `.y` | `color`, `strokeWidth`, `lineType` |
 | `style.tickLine` | `.x` `.y` | `color`, `strokeWidth`, `lineType`, `length` |
-| `style.axisLabel` | `.x` `.y` | text: `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `textColor` |
-| `style.tickLabel` | `.x` `.y` | text + `offset` |
-| `style.dataLabel` | `.observation` / `.category` (each `.inside` `.outside`), `.aggregate` | text + `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderWidth`, `borderRadius` |
+| `style.axisLabel` | `.x` `.y` | text |
+| `style.tickLabel` | `.x` `.y` | text + `offset` (px from the panel edge) |
+| `style.dataLabel` | `.observation` / `.category` (each `.inside` `.outside`), `.aggregate` | text + box |
 | `style.panelBorder` | `.top` `.right` `.bottom` `.left` | `color`, `strokeWidth`, `lineType` (+ `borderRadius` on the bare builder) |
-| `style.graph` | | `background`, `borderColor`, `borderWidth`, `borderRadius`, `fontFamily` (base family for every text target) |
+| `style.graph` | | `background`, `borderColor`, `borderWidth`, `borderRadius`, `fontFamily` (base family every text target inherits) |
+| `style.tooltip` | `.heading` `.label` `.value` `.primaryRow` | box: `background`, `borderColor`, `borderWidth`, `borderRadius`, `paddingInline`, `paddingBlock`, `shadow`; parts: text; `primaryRow`: `background` |
+| `style.headline` | | `gap` (between cards) |
+| `style.headlineItem` | `.number` (`.center` for the donut hole), `.caption`, `.label`, `.trend`, `.swatch`, `.trend.up` `.trend.down` `.trend.flat` | text parts: text; `swatch`: `size`; `trend.*`: `textColor`. No bare `style.headlineItem` |
+| `style.legend` | | `gap` (between pills) |
+| `style.legendItem` | `.swatch` | pill: text + box; `swatch`: `size`, `strokeWidth` |
+| `style.directLabel` | | text + `strokeWidth`, `lineType` (the overlap connector). An authored `textColor` replaces the per-series color on every end label |
 | `style.annotation` | `.shape` `.arrow` `.differenceArrow` `.text` `.image` `.pinnedNumber` `.comment`, plus `{ annotation: id }` | shared: `color`, `alpha` |
 | `style.annotation.shape` | | `color`, `alpha` (fill only), `borderColor`, `borderWidth` |
 | `style.annotation.arrow` | | `color`, `strokeWidth`, `lineType`, `borderColor`, `borderWidth`, `shadow` |
-| `style.annotation.differenceArrow` | `.label` | `color`, `strokeWidth`; label: text + `background`, `borderColor`, `borderWidth`, `borderRadius`, `paddingInline`, `paddingBlock` |
-| `style.annotation.text` | | text + `background`, `alpha` (background only), `borderColor`, `borderWidth`, `borderRadius`, `paddingInline`, `paddingBlock` |
+| `style.annotation.differenceArrow` | `.label` | `color`, `strokeWidth`; label: text + box |
+| `style.annotation.text` | | text + box + `alpha` (background only) |
 | `style.annotation.image` | | `alpha`, `borderRadius` |
 | `style.annotation.pinnedNumber` / `.comment` | `.label` | marker: `color`, `size`, `borderColor`, `borderWidth`, `shadow`; label: text + box + `shadow` |
+
+`shadow` is `{ offsetX, offsetY, blur, color }` or `'none'`. `lineType` is `'solid' | 'dashed' | 'dotted'`.
 
 Notes that bite:
 
 - **`borderRadius` on a bar is a token, not pixels**: `'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full'`.
-  On `dataLabel`, `panelBorder` and `graph` it is a plain number.
-- **Hide a panel-border edge with `strokeWidth: 0`** — there is no `isVisible`.
+  Everywhere else it is a plain number.
+- **Hide a panel-border edge with `strokeWidth: 0`** — it then reserves no space. A tick line's space is
+  `max(tickLabel.offset, tickLine.length)`, so set `length: 0` to free it. Tick lines are hidden by
+  default (`strokeWidth: 0, length: 0`): to show them declare both, not just `color`.
+- **Only the y grid has a built-in stroke.** An x grid shown by config paints nothing until a
+  `style.gridLine({ … })` or `style.gridLine.x({ … })` entry declares one.
 - `aggregate` data labels (stack totals) always sit outside, so they take no `.inside`/`.outside`.
 - **A tile has no `style.geom.tile`** — its fill comes from the `color` scale, its radius and inset are fixed.
-- **Chart text never inherits the container's font** — every text node carries an inline family. Use
-  `style.graph({ fontFamily })`; a target's own `fontFamily` overrides it.
+- A bare `style.tooltip` / `style.legendItem` entry is the box, not a wildcard over its parts.
+- A declaration outside a target's vocabulary, or an invalid value, is dropped with an
+  `INVALID_STYLE_RULE` warning.
 
 ## Colors
 
 Any color-valued property accepts three forms:
 
 ```ts
-style.geom({ color: '#e5484d' })                          // literal
+style.geom({ color: '#e5484d' })                              // literal
 style.geom({ color: { light: '#e5484d', dark: '#ff6369' } }) // one per scheme
-style.geom({ color: token('alert') })                      // token reference
+style.geom({ color: token('alert') })                         // token reference
 ```
 
-`{ light, dark }` and `token(...)` resolve against the active `colorScheme` on `GraphProvider`
+`{ light, dark }` and light-dark tokens resolve against `colorScheme` on `GraphProvider`
 (`'light' | 'dark'`). Prefer them over literals — a literal is the same in both schemes.
 
 ## Conditions
@@ -124,13 +136,15 @@ styles({
   overrides: [
     style.geom({ color: token('alert') }, { where: { variable: 'sales', lt: 0 } }),
     style.geom.line({ strokeWidth: 4 }, { layer: 'total' }),
-    style.geom({ alpha: 0.15 }, { state: 'dimmed' }),
+    style.geom({ alpha: 0.15, saturation: 0 }, { state: 'dimmed' }),
   ],
 });
 ```
 
 `layer` scopes an entry to one authored layer id — the way to style one series of a multi-layer or
-combo chart without touching the others.
+combo chart without touching the others. `style.geom.rule.label` takes `layer` too. A `where` entry
+is evaluated per layer: on a layer that does not carry the variable (a constant-value rule) it is
+dropped with an `INVALID_STYLE_RULE` warning — add `{ layer }` to scope it.
 
 ## Re-skinning without writing rules
 
@@ -138,34 +152,115 @@ combo chart without touching the others.
 tokens. **Redefining a built-in token name restyles the default it backs**, with no entries at all:
 
 ```ts
-styles({ tokens: { gridLineColor: '#E9E9E9', textPrimary: '#1A1A1A' } });
+styles({ tokens: { gridLine: '#E9E9E9', textPrimary: '#1A1A1A', geom: '#0B5FFF' } });
 ```
 
 The built-in token names:
 
 | Token | Backs |
 |---|---|
-| `geomColor` | every mark's fill when nothing is mapped to `color` |
-| `ruleColor` | reference/goal/average lines |
-| `pointBorderColor` | point outlines |
-| `hoverAffordanceColor` | the hovered outline on bars and points |
-| `gridLineColor` | grid lines **and** the panel border |
-| `tickLineColor` | tick marks |
-| `graphBackground` | the graph plate |
-| `textPrimary` | axis labels, data labels |
-| `textSecondary` | tick labels |
+| `geom` | every geom's fill when nothing is mapped to `color` |
+| `geomBorder` | bar borders |
+| `ruleLine` | reference/goal/average lines |
+| `hoverAffordance` | the hovered outline on bars and points; point outlines |
+| `gridLine` | grid lines **and** the panel border |
+| `graphBackground`, `graphBorder` | the graph plate and its ring; difference-arrow label pills |
+| `textPrimary` | axis labels, data labels, tooltip heading/label, headline numbers, direct labels, callout markers and labels, text annotations, difference-arrow labels |
+| `textSecondary` | tick labels, legend pills, tooltip values, headline captions/labels |
+| `tooltipBackground`, `tooltipBorder`, `tooltipPrimaryRow` | the tooltip box, the callout label pills and the callout marker ring |
+| `annotationShape`, `annotationArrow` | shape fill; arrow and difference-arrow strokes |
+| `trendPositive`, `trendNegative`, `trendNeutral` | headline trend colors |
+| `hoverGuideFill`, `hoverGuideLine` | declared, but the hover guide reads theme tokens (below) — redefining these moves nothing |
 
-The built-in defaults worth knowing: bar `borderRadius: 'sm'`, border width `1`; line/area
-`strokeWidth: 2`, `lineType: 'solid'`; area `alpha: 0.3`; point `size: 8`; rule `lineType: 'dashed'`;
-grid line `dashed`; panel border `dashed`, radius `8`; tick label `offset: 10`; dimmed state
+Built-in defaults worth knowing: geom color `#B84737`; graph background `#F5F1E9` light / `#1F1E1C` dark, border `1`,
+radius `8`; bar `borderRadius: 'sm'`, border width `1`; line/area `strokeWidth: 2`, `lineType:
+'solid'`; area `alpha: 0.3`; point `size: 8`; rule `lineType: 'dashed'`; y grid lines `1px dashed`;
+panel border `dashed`, radius `6`; tick lines `strokeWidth: 0`; tick label `offset: 10`; labels
+`11.5px / 500`, outside data labels `12.5px / 600`; tooltip radius `6`, padding `8 × 10`; headline
+number `26px / 700`, card gap `24`; legend pill `11.5px / 500`, padding `2 × 4`, no background or border (already bare text), gap `8`,
+swatch `12`; inside data labels white; direct labels `12px / 500` with a `1px dashed` connector; text
+annotation `15px / 500`, transparent background, border `1.5`, radius `9`; shape annotation
+`alpha: 0.25`, border `1`; arrow `strokeWidth: 4`; callout marker `8` with a `2px` ring; dimmed state
 `alpha: 0.4`.
 
-## Two token namespaces
+## Fonts
 
-`textPrimary`, `textSecondary` and `gridLineColor` name a stylesheet token **and** a theme token.
-They are separate values in separate namespaces. The stylesheet tokens above drive the plot; the
-`themeOverrides` keys of the same name drive the surrounding HTML chrome. When a change by name has
-no visible effect, check which namespace you set.
+Chart text never inherits the container's font — every text node carries an inline family. The
+resolution order for a stylesheet text target is: its own `fontFamily` → `style.graph({ fontFamily })`
+→ the host CSS variable `--typography-chart-font-family` → `themeOverrides.fontFamilyDefault` → the
+built-in stack.
+
+- `style.graph({ fontFamily })` is the one spec-level knob and reaches every stylesheet text target,
+  not the header/footer or the legend overflow pill (theme tokens).
+- The CSS variable repaints only: layout measurement cannot read `var()`, so reserved space keeps the
+  fallback metrics. Prefer `style.graph` or `fontFamilyDefault`, which move both.
+- Fonts must be loaded before the chart measures text: the renderer waits for `document.fonts.ready`
+  and re-measures on every `loadingdone`, so a late `@font-face` is picked up; a family swapped in
+  without a font load keeps the earlier metrics.
+
+## Series colors
+
+Series colors come from the spec's color scale, not the stylesheet:
+
+```ts
+scale.color.palette();                                                 // { type: 'default' }
+scale.color.palette({ palette: { type: 'mono', base: 'blue' } });
+scale.color.palette({ palette: { type: 'custom', id: 'brand' } });   // registered below
+scale.color.palette({ overrides: { 1: { hex: '#FF5A5F' } } });        // 1-indexed group
+```
+
+Palette types and bases are in `reference/spec-api.md` → `scale`. `customPalettes` on
+`GraphProvider` (`Record<string, CustomPaletteColor[]>`, each `{ id, hex, name? }`) registers the
+palettes a `custom` id resolves against; an unregistered id warns `PALETTE_NOT_FOUND` and falls back
+to the default. A stylesheet `overrides` entry declaring `color` beats the palette.
+
+## Theme tokens
+
+`themeOverrides` on `GraphProvider` is a partial map of CSS custom properties (`--graphy-*`); every
+token takes a raw CSS string except `fontLegendLabel`, which takes a structured object because layout
+measures it. Both props are reactive.
+
+```tsx
+import type { ThemeOverrides } from '@graphysdk/react-renderer';
+
+const chrome: ThemeOverrides = {
+  fontFamilyDefault: "'IBM Plex Sans', sans-serif",
+  fontTextEditorH3: "700 18px/1.3 'IBM Plex Sans', sans-serif", // chart title
+  tooltipRowGap: '6px',
+  hoverGuideLineColor: '#D5CDBA',
+};
+
+<GraphProvider data={data} input={input} colorScheme="dark" themeOverrides={chrome}>
+  <GraphRenderer />
+</GraphProvider>;
+```
+
+What only a theme token reaches on a read-only chart:
+
+| Region | Tokens |
+|---|---|
+| Header and footer type | `fontTextEditorH3` (plain-string title, family from `fontFamilyHeading`), `fontTextEditorBody` (subtitle), `fontTextEditorH6` (caption), `fontSourceLabel`, `fontSourceLink`. A rich-text title inherits the page font unless its `textStyle` mark names `font` |
+| Chart root text color and secondary text | `textPrimary` (title, subtitle, caption, headline flat-trend disc, legend overflow popover), `textSecondary` (source line, headline trend reference) |
+| Base font family and measurement fallback | `fontFamilyDefault` (`textScale` exists too, but only CSS reads it — set text scale in `config({ appearance })` so layout follows) |
+| Tooltip row spacing | `tooltipRowGap` |
+| Headline card internals | `headlineRowGap` (rows inside one card) |
+| Legend swatch-to-label gap | `legendSwatchGap` |
+| Hover guide | `hoverGuideLineColor`, `hoverGuideFillColor` |
+| Legend overflow "+N" pill and popover | `legendBackground`, `legendBorderColor`, `legendTextColor`, `legendFocusOutlineColor`, `legendPill*`, `fontLegendLabel`, `tooltip*` |
+| Trend icon ink | `iconPrimary` (defaults to `currentColor`) |
+
+`legendSwatchGap`, `legendPill*`, `headlineRowGap` and `fontLegendLabel` also move layout; give them
+plain `px` values. `fontLegendLabel` is `{ family?, weight?, style?, size?: { value, unit: 'px' | 'em' }, lineHeight? }`.
+
+Tokens with no effect on a rendered chart: `graphBackground` (the stylesheet writes over it),
+`gridLineColor`, `gridLineWidth`, `axisTickColor`, `originLineColor`, `tooltipValueTextColor` and
+the base color palette (`grey*`, `blue*`, …), which only the editor UI reads.
+
+**Two namespaces.** `textPrimary`, `textSecondary`, `graphBackground`, `tooltipBackground` and the
+hover-guide names exist as a stylesheet token *and* a theme token. They are independent values: the
+stylesheet token drives the SVG chart, the theme token the HTML chrome above. The grid token is
+`gridLine` in the stylesheet and `gridLineColor` (dead) in the theme. When a change by name has no
+visible effect, check which namespace you set.
 
 ## Failure mode
 
@@ -174,17 +269,17 @@ styling never takes a chart down. Run `scripts/validate-spec.mjs` to see diagnos
 
 ## Plugins
 
-Custom geom renderers read their paint through the accessors on the render input (`getColor`,
-`getAlpha`, `getSize`, …), which expose the **data tier** — stylesheet `overrides` and the built-in
-defaults resolve outside that path. To read the full cascade, build a resolver over the layer:
+Custom geom renderers receive `styleReaders` (this layer's full cascade, resolved for the active
+scheme) and `colorScheme` on every render input; `useStyleReaders(layer)` is the hook form. The bare
+value readers (`getColor`, …) expose the data tier only. See `reference/plugins.md`.
 
-```tsx
-import { createStyleResolver } from '@graphysdk/viz-engine';
+## Building a theme (checklist)
 
-const fill = createStyleResolver({ colorScheme }).geomReaders(layer).get('color', observation);
-```
-
-The plugin supplies `colorScheme` itself (it defaults to `'light'`); no exported hook carries the
-chart's active scheme into a renderer. The `dimmed` state does not reach a custom geom either — the
-layer-level dim comes from a highlight composition keyed on built-in geom names — so a custom geom
-paints its own de-emphasis. See `reference/plugins.md`.
+1. **Constants** — named color and font constants so both maps read as intent.
+2. **A `Stylesheet` constant** — tokens + defaults for everything the chart draws, including
+   tooltip, legend pills, headline cards and `style.graph({ fontFamily })`. This is the bulk of a theme.
+3. **A small `ThemeOverrides`** — header/footer type, `fontFamilyDefault`, hover guide. Often nothing.
+4. **A shared `config()` builder** — *structure* only: legend position, axis visibility, layout
+   padding, number format.
+5. Apply as `<GraphProvider colorScheme={scheme} themeOverrides={chrome}>` with the stylesheet piped
+   into every spec (or shared via `extends`).
