@@ -99,6 +99,7 @@ export {
   DefaultTooltip,
   GraphRenderer,
   lightenCss,
+  UnitBoxSvg,
   UnitSpaceSvg,
   useCompiledSelector,
   useElementScreenRect,

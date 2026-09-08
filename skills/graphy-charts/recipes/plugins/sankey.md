@@ -9,12 +9,13 @@ Third-party dependency: `d3-sankey` (plus `@types/d3-sankey`).
 ## Plugin
 
 ```tsx
-import { type ReactNode, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import {
   createGraphyKit,
   defineGeomRenderer,
   type RenderHitTester,
+  UnitBoxSvg,
   UnitSpaceSvg,
   useCompiledSelector,
 } from '@graphysdk/react-renderer';
@@ -380,31 +381,6 @@ const FLOW_LABEL_MIN_BAND = 0.028;
 /** Fraction along the ribbon to sit the value label — clear of both node ends. */
 const FLOW_LABEL_T = 0.18;
 
-interface UnitBox {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/**
- * A nested SVG viewport occupying a node's unit-space box, placed in panel-relative percentages. Its
- * children live in the node's OWN coordinate space (`100%` fills the box) and are clipped to the box
- * by the viewport, so a rect fills it exactly while text keeps its shape.
- */
-const TileSvg = ({ box, children }: { box: UnitBox; children: ReactNode }) => (
-  <svg
-    x={toPercent(box.x0)}
-    y={toPercent(box.y0)}
-    width={toPercent(box.x1 - box.x0)}
-    height={toPercent(box.y1 - box.y0)}
-    overflow="hidden"
-    pointerEvents="none"
-  >
-    {children}
-  </svg>
-);
-
 /** Picks dark or white label text for legibility on a node's fill, by relative luminance. */
 function readableTextColor(fill: string): string {
   const hex = fill.replace('#', '');
@@ -454,10 +430,10 @@ const FlowLabel = ({ flow }: { flow: RenderFlow }) => {
 
 /** A node block plus its clipped in-block label. One component for base and hover paint. */
 const SankeyNodeMark = ({ node, fill }: { node: RenderNode; fill: string }) => (
-  <TileSvg box={node}>
+  <UnitBoxSvg box={node}>
     <rect width="100%" height="100%" fill={fill} />
     <NodeLabel node={node} fill={fill} />
-  </TileSvg>
+  </UnitBoxSvg>
 );
 
 /**

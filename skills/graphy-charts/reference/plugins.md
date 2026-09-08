@@ -64,20 +64,24 @@ Registry key is the `(geom, coord)` pair — one contract per coordinate system 
 
 ### Drawing in unit space
 
-Render handlers receive **no pixel sizes**. All compiled positions are normalized `[0,1]`. Paint into a nested SVG that stretches the unit square onto the panel:
+Render handlers receive **no pixel sizes**. All compiled positions are normalized `[0,1]`.
+
+`UnitSpaceSvg` stretches the `[0, 1]` square onto the panel (`preserveAspectRatio="none"`) so paint and hit-test share one frame. Paths belong there. A `<circle>` in that frame becomes an ellipse on a non-square panel.
+
+Round marks and glyphs go in `UnitBoxSvg`: a nested SVG over a unit-space box with no viewBox. Children live in an unscaled local space — `50%` is the box centre, a pixel radius stays a pixel.
 
 ```tsx
-import { UnitSpaceSvg } from '@graphysdk/react-renderer';
+import { UnitBoxSvg, UnitSpaceSvg } from '@graphysdk/react-renderer';
 
-// Children use raw [0,1] coordinates, top-left origin.
-render: ({ layer }) => (
-  <UnitSpaceSvg>
-    <circle cx={0.5} cy={0.5} r={0.02} vectorEffect="non-scaling-stroke" />
-  </UnitSpaceSvg>
-);
+<UnitSpaceSvg>
+  <path d={cellPath} />
+</UnitSpaceSvg>
+<UnitBoxSvg box={{ x0, y0, x1, y1 }}>
+  <circle cx="50%" cy="50%" r={4} />
+</UnitBoxSvg>
 ```
 
-`UnitSpaceSvg` is `viewBox="0 0 1 1"` + `preserveAspectRatio="none"` + `width/height="100%"` + `pointerEvents="none"` (set before `{...rest}`, so a geom that wants its own pointer handling without going overlay-hosted overrides it). Use `vectorEffect="non-scaling-stroke"` on paths so stroke widths survive the non-uniform stretch. Alternative for percentage positioning: `toPercent(value)` produces `"42.5%"` strings. Helpers `toViewBoxX` (identity) and `toViewBoxY` (`1 - y`; data y grows up, SVG y grows down) convert scaled positions to top-left-origin unit coords. All three are exported by `@graphysdk/viz-engine`.
+`UnitSpaceSvg` is `viewBox="0 0 1 1"` + `preserveAspectRatio="none"` + `width/height="100%"` + `pointerEvents="none"` (set before `{...rest}`, so a geom that wants its own pointer handling without going overlay-hosted overrides it). Use `vectorEffect="non-scaling-stroke"` on paths so stroke widths survive the non-uniform stretch. A point circle can also sit as a sibling of `UnitSpaceSvg` with percent positions and a pixel radius, the same way the built-in point geom paints. Alternative for percentage positioning: `toPercent(value)` produces `"42.5%"` strings. Helpers `toViewBoxX` (identity) and `toViewBoxY` (`1 - y`; data y grows up, SVG y grows down) convert scaled positions to top-left-origin unit coords. All three are exported by `@graphysdk/viz-engine`.
 
 ### Reading compiled observations — value readers only
 
