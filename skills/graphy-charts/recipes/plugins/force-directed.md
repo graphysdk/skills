@@ -384,7 +384,7 @@ interface GraphEdge {
   markId: string;
   label: string;
   value: number;
-  /** The edge's fill — its source node's colour, read through the style cascade. */
+  /** The edge's fill — its source node's color, read through the style cascade. */
   color: string;
   sourceIndex: number;
   targetIndex: number;
@@ -403,7 +403,7 @@ interface Focus {
 }
 
 /**
- * Splits the mixed node/edge dataset into the two mark sets, dispatching on `kind`. Paint comes from
+ * Splits the mixed node/edge dataset into the two geometry sets, dispatching on `kind`. Paint comes from
  * `styleReaders` (this layer's cascade, resolved for the active scheme), not `getColor`, which sees the
  * data tier only and is `undefined` whenever `color` is unmapped.
  */
@@ -541,7 +541,7 @@ const ForceCanvas = ({
     ensureRunning();
   }, [rect.width, rect.height, ensureRunning]);
 
-  // Stable handlers (one per kind) that read the mark index off the event target's `data-index`, so
+  // Stable handlers (one per kind) that read the observation index off the event target's `data-index`, so
   // the ~60fps frame ticks don't reallocate a closure for every node and edge.
   const handleNodePointerDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>) => {
@@ -716,7 +716,7 @@ function computeFocus(hover: FocusHover | null, edges: GraphEdge[]): Focus {
 }
 
 // Clamp the value/max ratio to [0, 1] before scaling: a negative weight would otherwise drive
-// `Math.sqrt` to NaN and vanish the mark with no error.
+// `Math.sqrt` to NaN and vanish the node with no error.
 function nodeRadius(value: number, maxValue: number): number {
   const ratio = Math.min(1, Math.max(0, value / maxValue));
   return MIN_NODE_RADIUS + Math.sqrt(ratio) * (MAX_NODE_RADIUS - MIN_NODE_RADIUS);
@@ -760,7 +760,7 @@ import { config, type Data } from '@graphysdk/viz-engine';
 
 import { kit } from './force-directed-plugin';
 
-// `color` maps to the derived `node` identity, so the categorical scale colours each node and its
+// `color` maps to the derived `node` identity, so the categorical scale colors each node and its
 // outgoing edges. The legend is suppressed: every node is labelled in place.
 const spec = kit.pipe(
   kit.createSpec({}),
@@ -790,9 +790,9 @@ export const ForceDirectedChart = () => (
 ## Adapting
 
 - Tune the physics through geom params: `kit.geom.forceDirected({ params: { chargeStrength, linkDistance }, aes: { ... } })` — both are consumed render-side when the simulation is built.
-- The overlay + push-hover mechanics generalise to any geom whose marks move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` — like a key that misses — clears only when this layer holds the primary hit, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. An overlay render is mounted only for a `spatialKind: 'render-hit-test'` layer (never otherwise), is exempt from `MISSING_RENDER_HIT_TEST`, and its `fn` is invoked from a component that mounts as a unit, so hooks inside it are safe. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
+- The overlay + push-hover mechanics generalise to any geom whose geometries move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` — like a key that misses — clears only when this layer holds the primary hit, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. An overlay render is mounted only for a `spatialKind: 'render-hit-test'` layer (never otherwise), is exempt from `MISSING_RENDER_HIT_TEST`, and its `fn` is invoked from a component that mounts as a unit, so hooks inside it are safe. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
 - Two diagnostics define this shape. `OVERLAY_REQUIRES_RENDER_HIT_TEST`: an overlay render on a layer whose `spatialKind` is not `'render-hit-test'` — `pushHover` then resolves against no index — which is why the geom declares `'render-hit-test'`. `CONFLICTING_RENDER_HIT_TEST`: declaring both a `hitTest` factory and an overlay render; the overlay wins. An overlay-hosted geom is skipped by the panel-SVG paint and the highlight repaint; `highlightStrategy = null` is documentation only, since a custom geom's `layer.highlight` is `null` regardless. The hover dim the renderer applies to panel-SVG layers does not reach the overlay, so the neighbourhood fade here is the geom's own de-emphasis.
 - Requires `d3-force` (`@types/d3-force` for TypeScript), both user-installed. Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom): a pixel position `(px, py)` in the overlay becomes `{ x: px / width, y: 1 - py / height }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`. A node's live position is known only to the running simulation, so an anchor here is a snapshot at best.
-- Node and edge fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the node stroke and label colours (`#fff`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom): a pixel position `(px, py)` in the overlay becomes `{ x: px / width, y: 1 - py / height }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`. A node's live position is known only to the running simulation, so an anchor here is a snapshot at best.
+- Node and edge fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the node stroke and label colors (`#fff`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
 - An overlay-hosted render is not handed an intro plan at all (`input.intro` is `undefined`), and a `render-hit-test` layer has no plan anyway (`null`) — right for a live simulation, which settles into place under its own physics.

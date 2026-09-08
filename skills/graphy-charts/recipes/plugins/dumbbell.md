@@ -1,8 +1,8 @@
 # Dumbbell
 
-Technique: custom geom composing two marks per observation.
+Technique: custom geom composing two geometries per observation.
 
-Reach for this when one observation carries two comparable values (before/after, min/max, group A/group B) that should render as paired marks — here two dots joined by a connector per category. The pattern shows custom-named positional aesthetics: `start` and `end` are declared as a y `min`/`max` interval, so the engine fills and scales them into `yMin`/`yMax` and trains the value axis over both; it also shows a custom `tooltip` declaration and a representative `y` for hover hit-testing.
+Reach for this when one observation carries two comparable values (before/after, min/max, group A/group B) that should render as paired geometries — here two points joined by a connector per category. The pattern shows custom-named positional aesthetics: `start` and `end` are declared as a y `min`/`max` interval, so the engine fills and scales them into `yMin`/`yMax` and trains the cross axis over both; it also shows a custom `tooltip` declaration and a representative `y` for hover hit-testing.
 
 ```tsx
 import { useMemo } from 'react';
@@ -12,13 +12,13 @@ import type { CompiledGeom, CompiledLayer, GeomCompilerInput, GeomStyleReaders, 
 import { Geom, getX, getYMax, getYMin, toPercent, toViewBoxX, toViewBoxY } from '@graphysdk/viz-engine';
 
 interface DumbbellParams {
-  /** Endpoint dot radius, in pixels. */
-  dotRadius: number;
+  /** Endpoint point radius, in pixels. */
+  pointRadius: number;
   /** Connector stroke width, in pixels. */
   connectorWidth: number;
-  /** Fill of the start dot. */
+  /** Fill of the start point. */
   startColor: string;
-  /** Fill of the end dot. */
+  /** Fill of the end point. */
   endColor: string;
 }
 
@@ -26,12 +26,12 @@ interface DumbbellParams {
  * Compares two values per category. `start` and `end` are custom y aesthetics declared as a
  * `min`/`max` interval, so the engine fills and scales them into yMin/yMax and trains the value
  * axis over both. `compile()` injects a representative `y` that serves both the hover index and the
- * y-scale domain; the paint half just draws a connector and two dots.
+ * y-scale domain; the paint half just draws a connector and two points.
  */
 class DumbbellGeom extends Geom<DumbbellParams> {
   readonly type = 'dumbbell' as const;
   override readonly defaultParams: DumbbellParams = {
-    dotRadius: 5,
+    pointRadius: 5,
     connectorWidth: 2,
     startColor: '#a0a8c0',
     endColor: '#4e79a7',
@@ -70,7 +70,7 @@ interface Dumbbell {
   x: number;
   start: number;
   end: number;
-  /** The layer's cascade colour: a user `style.geom` entry, else the `geom` token for the active scheme. */
+  /** The layer's cascade color: a user `style.geom` entry, else the `geom` token for the active scheme. */
   connectorColor: string;
   alpha: number;
 }
@@ -90,38 +90,38 @@ const readDumbbell = (observation: Observation, styleReaders: GeomStyleReaders):
   };
 };
 
-const DumbbellMark = ({ mark, params }: { mark: Dumbbell; params: DumbbellParams }) => {
-  const cx = toPercent(toViewBoxX(mark.x));
+const DumbbellPaint = ({ dumbbell, params }: { dumbbell: Dumbbell; params: DumbbellParams }) => {
+  const cx = toPercent(toViewBoxX(dumbbell.x));
   return (
-    <g opacity={mark.alpha}>
+    <g opacity={dumbbell.alpha}>
       <line
         x1={cx}
         x2={cx}
-        y1={toPercent(toViewBoxY(mark.start))}
-        y2={toPercent(toViewBoxY(mark.end))}
-        stroke={mark.connectorColor}
+        y1={toPercent(toViewBoxY(dumbbell.start))}
+        y2={toPercent(toViewBoxY(dumbbell.end))}
+        stroke={dumbbell.connectorColor}
         strokeWidth={params.connectorWidth}
         strokeLinecap="round"
       />
-      <circle cx={cx} cy={toPercent(toViewBoxY(mark.start))} r={params.dotRadius} fill={params.startColor} />
-      <circle cx={cx} cy={toPercent(toViewBoxY(mark.end))} r={params.dotRadius} fill={params.endColor} />
+      <circle cx={cx} cy={toPercent(toViewBoxY(dumbbell.start))} r={params.pointRadius} fill={params.startColor} />
+      <circle cx={cx} cy={toPercent(toViewBoxY(dumbbell.end))} r={params.pointRadius} fill={params.endColor} />
     </g>
   );
 };
 
 const DumbbellLayer = ({ layer, styleReaders }: { layer: CompiledLayer; styleReaders: GeomStyleReaders }) => {
   const params = layer.params as unknown as DumbbellParams;
-  const marks = useMemo(
+  const dumbbells = useMemo(
     () =>
       [...layer.data]
         .map((observation) => readDumbbell(observation, styleReaders))
-        .filter((mark): mark is Dumbbell => mark !== null),
+        .filter((dumbbell): dumbbell is Dumbbell => dumbbell !== null),
     [layer.data, styleReaders]
   );
   return (
     <>
-      {marks.map((mark, index) => (
-        <DumbbellMark key={index} mark={mark} params={params} />
+      {dumbbells.map((dumbbell, index) => (
+        <DumbbellPaint key={index} dumbbell={dumbbell} params={params} />
       ))}
     </>
   );
@@ -143,8 +143,8 @@ const HoveredDumbbell = ({
   styleReaders: GeomStyleReaders;
 }) => {
   const params = layer.params as unknown as DumbbellParams;
-  const mark = readDumbbell(observation, styleReaders);
-  return mark ? <DumbbellMark mark={mark} params={params} /> : null;
+  const dumbbell = readDumbbell(observation, styleReaders);
+  return dumbbell ? <DumbbellPaint dumbbell={dumbbell} params={params} /> : null;
 };
 
 export const dumbbell = defineGeomRenderer(new DumbbellGeom(), {
@@ -159,7 +159,7 @@ export const dumbbell = defineGeomRenderer(new DumbbellGeom(), {
 });
 ```
 
-`start` and `end` are required aesthetics — a `min`/`max` role carrying an `aes` is required — so omitting either is a mapping error. The marks are `%`-positioned children of the panel SVG, so the renderer never needs pixel sizes; `input.panelRect` (the panel's layout-pixel `Rect`, x/y already applied — paint in local 0…width / 0…height) is the escape hatch when it does. `spatialKind: 'buckets'` means `input.intro` offers a wipe plan; this renderer ignores it (plans are offered, never imposed), so the dumbbells pop in while built-in layers animate.
+`start` and `end` are required aesthetics — a `min`/`max` role carrying an `aes` is required — so omitting either is a mapping error. The geometries are `%`-positioned children of the panel SVG, so the renderer never needs pixel sizes; `input.panelRect` (the panel's layout-pixel `Rect`, x/y already applied — paint in local 0…width / 0…height) is the escape hatch when it does. `spatialKind: 'buckets'` means `input.intro` offers a wipe plan; this renderer ignores it (plans are offered, never imposed), so the dumbbells pop in while built-in layers animate.
 
 ## Usage
 
@@ -188,7 +188,7 @@ const spec = kit.pipe(
     params: { startColor: '#c9a96e', endColor: '#2e7d5b' },
   }),
   kit.scale.x.discrete(),
-  // The value axis zooms to the data so the comparison gaps read clearly.
+  // The cross axis zooms to the data so the comparison gaps read clearly.
   kit.scale.y.continuous({ zero: false })
 );
 
@@ -201,7 +201,7 @@ export const DumbbellChart = () => (
 
 ## Adapting
 
-- Dot colors, radius, and connector width are all params — override per layer via `params: { ... }` or change `defaultParams` for a house default. For per-observation color instead of fixed endpoint colors, add a `color` visual aesthetic and read it through `styleReaders.get('color', observation)`.
+- Point colors, radius, and connector width are all params — override per layer via `params: { ... }` or change `defaultParams` for a house default. For per-observation color instead of fixed endpoint colors, add a `color` visual aesthetic and read it through `styleReaders.get('color', observation)`.
 - Paint is inside the style cascade: the connector and the group opacity read `styleReaders.get('color' | 'alpha', observation)`, which honours a user's `style.geom` entries and dark-scheme tokens (`getColor`/`getAlpha` expose the encoding only). Geom params are reserved for what the stylesheet has no vocabulary for — two endpoint fills per observation. The fixed hex `startColor`/`endColor` ignore the scheme; branch on `input.colorScheme` (`'light' | 'dark'`) for a light/dark pair. See `reference/styling.md`.
 - Rename the endpoint aesthetics (`aes: 'start'` / `aes: 'end'` in `positionRoles`) to fit the domain (`before`/`after`, `low`/`high`) — the typed `kit.geom.<name>({ aes })` keys and the `tooltip` entries follow the declared names.
 - `zero: false` on the y scale is usually right for dumbbells (the gap is the message); drop it when absolute magnitude matters.

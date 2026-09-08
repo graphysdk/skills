@@ -7,7 +7,7 @@
 | Flipped | append `coord.flip()` |
 | Smooth | `geom.area({ params: { interpolate: 'catmull-rom' } })` |
 | Missing values | `geom.area({ params: { missingValues: 'zero' \| 'connect' } })` |
-| Vertex dots | add `geom.point({ position: 'stack', interactive: false })` |
+| Vertex points | add `geom.point({ position: 'stack', interactive: false })` |
 | Opaque fill | `styles({ defaults: [style.geom.area({ alpha: 1 })] })` |
 | Data labels | `geom.area({ dataLabels: { showDataLabels: true } })` |
 | Radar | `geom.area({ position: 'identity' })` (area stacks by default) + append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
@@ -57,14 +57,14 @@ const wideData = {
 const input = pipe(
   createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
   geom.area(), // default position is 'stack' — no need to pass it
-  geom.point({ position: 'stack', interactive: false }), // optional vertex dots
+  geom.point({ position: 'stack', interactive: false }), // optional vertex points
   scale.x(),
   scale.y(),
   scale.color.palette()
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp — the 8-colour default set is unreachable here. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or a non-touching position.
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable here. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or a non-touching position.
 
 ## Flipped
 
@@ -118,5 +118,5 @@ renderer's `animation` prop tunes it:
 - A `defaults` entry loses to a mapped aesthetic, so recoloring a series that is mapped to `color` needs an `overrides` entry (`reference/styling.md`).
 - Area's default position is **`stack`** — multi-series areas stack without an explicit `position`.
 - Wide data needs `transform.reshape` before mapping `color`; with the no-option reshape the output columns are named `key` and `value`.
-- A companion dot layer on a stacked area must repeat `position: 'stack'` — point's own default is identity, so dots would otherwise sit at raw y values off the stacked surface.
+- A companion point layer on a stacked area must repeat `position: 'stack'` — point's own default is identity, so the points would otherwise sit at raw y values off the stacked surface.
 - Area's `missingValues` default is `'zero'`; `'gap'` normalises to `'zero'` because areas cannot render gaps mid-stack.

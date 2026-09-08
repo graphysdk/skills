@@ -2,7 +2,7 @@
 
 All builders import from `@graphysdk/viz-engine`.
 
-This file covers chart **structure**: layers, mappings, scales, coords, stats, transforms and `config()`. Chart **paint** — every fill, border, stroke width, corner radius, mark size, grid/tick line and label font — is a separate spec item, the stylesheet: `reference/styling.md`. Exact signatures: `reference/types.md`.
+This file covers chart **structure**: layers, mappings, scales, coords, stats, transforms and `config()`. Chart **paint** — every fill, border, stroke width, corner radius, geom size, grid/tick line and label font — is a separate spec item, the stylesheet: `reference/styling.md`. Exact signatures: `reference/types.md`.
 
 ## Composition model: `createSpec` + `pipe`
 
@@ -42,7 +42,7 @@ const input = pipe(
 | `x`, `y` | position |
 | `label` | data-label text source |
 | `color` | fill/stroke color |
-| `size` | mark size (point diameter) |
+| `size` | geom size (point diameter) |
 | `alpha` | opacity 0–1 |
 | `group` | series splitting only — no visual channel |
 | `strokeWidth` | stroke width |
@@ -122,7 +122,7 @@ pipe(
 );
 ```
 
-**`geom.tile()`** — the heatmap mark: a cell filling its `(x, y)` band on **both** axes, value on `color` rather than on a length. Default position `'identity'` and the only one accepted (`UNSUPPORTED_POSITION` otherwise); cartesian only (`UNSUPPORTED_COORD` under flip/polar). `color` is **required**. No params (`TileGeomParams` is empty) — a cell's geometry is the two bands it sits in.
+**`geom.tile()`** — the heatmap geom: a cell filling its `(x, y)` band on **both** axes, value on `color` rather than on a length. Default position `'identity'` and the only one accepted (`UNSUPPORTED_POSITION` otherwise); cartesian only (`UNSUPPORTED_COORD` under flip/polar). `color` is **required**. No params (`TileGeomParams` is empty) — a cell's geometry is the two bands it sits in.
 
 Defaults it brings: both position scales forced to bands with `padding: 0`; the cross-axis band `reverse: true` (first category at top); grid hidden on both axes; legend never suppressed; `showDataLabels` **`true`**, the one geom where it is. With no color scale the engine infers one from the `color` column — a measure lands on a continuous ramp, a category on the palette; declare `scale.color.continuous()` to control the ramp. Paint: **no `style.geom.tile`** — fill comes from the color scale, radius and inset fixed. Recipe: `recipes/charts/heatmap.md`.
 
@@ -182,7 +182,7 @@ Options per scale type:
 | datetime | `domainMin` / `domainMax` | data | epoch milliseconds |
 | | `nice` | `false` | rounding temporal bounds is surprising, so off by default |
 | | `reverse` / `clamp` | `false` | as continuous |
-| palette | `palette` | `{ type: 'default' }` | `{ type: 'graphy' \| 'pastel' }`, `{ type: 'neon', base }`, `{ type: 'mono', base }`, `{ type: 'custom', id }`. `'default'` is context-derived: a graph whose geoms touch (stacked/filled bars or areas, tiles) gets the `brick` mono ramp spread over its groups (up to 7; more fall back to the 8-tone ramp) and tuned to the color scheme; every other graph gets the 8-colour multicolour set. graphy/pastel/neon accept `variant: 'waterfall'`, mono `variant: 'light' \| 'dark'` (default `'light'`). Mono bases: `'brick'` (default) `'grey' 'red' 'orange' 'yellow' 'green' 'cyan' 'blue' 'purple' 'pink'`; neon bases: `'cyan' 'pink' 'purple' 'red' 'orange' 'yellow' 'green' 'blue'` |
+| palette | `palette` | `{ type: 'default' }` | `{ type: 'graphy' \| 'pastel' }`, `{ type: 'neon', base }`, `{ type: 'mono', base }`, `{ type: 'custom', id }`. `'default'` is context-derived: a graph whose geoms touch (stacked/filled bars or areas, tiles) gets the `brick` mono ramp spread over its groups (up to 7; more fall back to the 8-tone ramp) and tuned to the color scheme; every other graph gets the 8-color multicolor set. graphy/pastel/neon accept `variant: 'waterfall'`, mono `variant: 'light' \| 'dark'` (default `'light'`). Mono bases: `'brick'` (default) `'grey' 'red' 'orange' 'yellow' 'green' 'cyan' 'blue' 'purple' 'pink'`; neon bases: `'cyan' 'pink' 'purple' 'red' 'orange' 'yellow' 'green' 'blue'` |
 | | `overrides` | none | `{ [groupNumber]: { hex?, id? } }` per-series color overrides (1-indexed); `id` looks up a color in the active custom palette, `hex` wins if both set |
 | identity | — | — | data values pass through as visual values (`scale.size.identity()`: `{ size: 10 }` → 10 px) |
 
@@ -196,7 +196,7 @@ Options per scale type:
 | `domainMid` | none | pins the ramp's neutral stop to a data value (usually `0`) instead of the data midpoint — a diverging scheme without it raises `DIVERGING_SCHEME_WITHOUT_MIDPOINT` |
 | `symmetric` | `true` when `domainMid` is set | symmetrise the domain about `domainMid` so equal magnitudes get equal intensity; `false` keeps the raw extent |
 
-`size.continuous` defaults `transform: 'sqrt'` so value maps to mark **area**, not radius.
+`size.continuous` defaults `transform: 'sqrt'` so value maps to geom **area**, not radius.
 
 ```ts
 scale.y.continuous({ domainMin: 0, domainMax: 100 });
@@ -270,7 +270,7 @@ Each axis takes the same shape. Defaults: x below, y beside.
 | `ticks.isVisible` | `boolean` | `true` | `false` | tick labels |
 | `ticks.mode` | `'auto' \| 'edges'` | `'auto'` | `'auto'` | `'edges'` shows only first/last tick |
 
-These keys decide whether a grid line is drawn; its stroke comes from `style.gridLine({ color, strokeWidth, lineType })` / `.x` / `.y` (only `.y` has a built-in stroke, `1` / `'dashed'`; an x grid needs an entry to paint). Tick marks are `style.tickLine`; tick and axis label type are `style.tickLabel` / `style.axisLabel`.
+These keys decide whether a grid line is drawn; its stroke comes from `style.gridLine({ color, strokeWidth, lineType })` / `.x` / `.y` (only `.y` has a built-in stroke, `1` / `'dashed'`; an x grid needs an entry to paint). Tick lines are `style.tickLine`; tick and axis label type are `style.tickLabel` / `style.axisLabel`.
 
 Dual axis: setting `yScaleType: 'secondary'` on a layer is the switch — it auto-injects the `ySecondary` scale and renders the second axis opposite the primary y. `axes.ySecondary` is a **sparse** `DeepPartial<YAxisConfig>`: an unset field is inherited at compile time — `position` from the side opposite `y`, `isVisible`/`grid`/`ticks` from `y`, `label` from nothing. One exception: a `grid.isVisible` left `null` resolves hidden on `ySecondary` (visible on `y`). An absent override means "mirror the primary axis", so pinning a field trades that mirroring away.
 

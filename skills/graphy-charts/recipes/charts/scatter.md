@@ -110,7 +110,7 @@ and an `overrides` entry wins over the mapping.
 
 The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries.
 
-`scale.size.continuous()`'s default range `[4, 20]` and `style.geom.point({ size })` are the **same diameter units** — the renderer halves once for the radius. `scale.size.discrete({ range: [4, 8, 12] })` and `scale.size.identity()` also exist; `alpha` is mappable too (`scale.alpha.continuous()`). Points render under `coord.polar` as radar vertex dots (`recipes/charts/radar.md`).
+`scale.size.continuous()`'s default range `[4, 20]` and `style.geom.point({ size })` are the **same diameter units** — the renderer halves once for the radius. `scale.size.discrete({ range: [4, 8, 12] })` and `scale.size.identity()` also exist; `alpha` is mappable too (`scale.alpha.continuous()`). Points render under `coord.polar` as radar vertex points (`recipes/charts/radar.md`).
 
 ## Intro animation
 

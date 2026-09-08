@@ -22,7 +22,7 @@ Later entries win: renderers are applied in array order onto the built-in regist
 
 ## Tier 1 — render-only paint override
 
-Replace how a built-in geom is painted without touching its compile half. Positions, stacking, scales, axes, tooltip, and hover indexing all keep working — you only redraw the marks. The paint is yours in full, including the parts the style cascade resolves for the built-in renderer (see Paint and the style cascade).
+Replace how a built-in geom is painted without touching its compile half. Positions, stacking, scales, axes, tooltip, and hover indexing all keep working — you only redraw the geoms. The paint is yours in full, including the parts the style cascade resolves for the built-in renderer (see Paint and the style cascade).
 
 ```tsx
 import { defineGeomRenderer, GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
@@ -55,12 +55,12 @@ Registry key is the `(geom, coord)` pair — one contract per coordinate system 
 | `coord` | yes | `'cartesian'` or `'polar'`. The coord system this contract paints under; handlers receive the matching `CoordSystem` |
 | `render` | yes | The paint: `(input) => ReactNode`, or `{ fn, options: { overlay: true } }` for overlay hosting (see Hover wiring). Input (`GeomRenderInput`): `{ layer, coordSystem, panelRect, colorScheme, styleReaders, shouldAnimateTransitions, formattingLocale, intro? }` |
 | `renderHover` | yes | Paint for the hovered observation. Input (`HoverRenderInput`, a separate shape): `{ layer, coordSystem, primary, group, related: HoverHit[], panelRect, colorScheme, styleReaders }`. Return `null` for no hover paint |
-| `renderHoverCompanions` | yes | Companion marks for hover-related observations (e.g. dots on sibling lines). Input: `{ layer, primary, related, colorScheme, styleReaders }`. Usually `() => null` |
+| `renderHoverCompanions` | yes | Companion geometries for hover-related observations (e.g. points on sibling lines). Input: `{ layer, primary, related, colorScheme, styleReaders }`. Usually `() => null` |
 | `renderHighlight` | no | Repaint of the highlight-matched subset; omit to fall back to `render`. Input (`HighlightRenderInput`) is `GeomRenderInput` plus `sourceLayer` (the full layer `layer` was filtered from — context the subset cannot see, like a stack's silhouette). Override when the plain render would misgroup an isolated subset (a bar repainting a lone mid-stack segment) |
-| `swatchShape` | no | Legend/tooltip/headline mark: `'square' \| 'line' \| 'circle' \| 'area' \| 'slice'` |
+| `swatchShape` | no | Legend/tooltip/headline swatch: `'square' \| 'line' \| 'circle' \| 'area' \| 'slice'` |
 | `guideMode` | no | Hover guide this layer draws when hovered: `'band'` (category rectangle — bars), `'crosshair'` (rule at the value — line/area), omit/`null` for none (scatter) |
 | `hitTest` | no | Factory `(input) => RenderHitTester` for `'render-hit-test'` geoms with precomputed geometry (tier 2 only; see Hover wiring) |
-| `getOverlayAnchor` | no | `({ layer, coordSystem, observation }) => { x, y } \| null` in `[0,1]` panel space. A render-only override of `line`, `area` or `point` **must** supply it — without it every highlight overlay dot and value label vanishes, silently. On a custom geom it is never called today (see dimming below) |
+| `getOverlayAnchor` | no | `({ layer, coordSystem, observation }) => { x, y } \| null` in `[0,1]` panel space. A render-only override of `line`, `area` or `point` **must** supply it — without it every highlight overlay point and value label vanishes, silently. On a custom geom it is never called today (see dimming below) |
 
 ### Drawing in unit space
 
@@ -159,7 +159,7 @@ Plugin mistakes surface as `VizDiagnostic` entries rather than throws. Most are 
 
 ## Tier 2 — fully custom geom
 
-A new mark kind: subclass `Geom` (compile half), write a `GeomRenderContract` (paint half), pair them with `defineGeomRenderer(definition, contract)`, and hand the result to `createGraphyKit`.
+A new geom: subclass `Geom` (compile half), write a `GeomRenderContract` (paint half), pair them with `defineGeomRenderer(definition, contract)`, and hand the result to `createGraphyKit`.
 
 ### The `Geom` subclass
 
@@ -203,11 +203,11 @@ Key declarations:
 | `positionRoles` | `[]` | The position columns the compile half injects and the render half reads — the cross-half contract. Roles: `point` (sources its axis aesthetic), `min`/`max` (interval ends), `scalar` (scaled in place). A role's `aes` is a plain string, so a geom can bind **custom positional aesthetics** (`'open'`, `'low'`, `'close'`) the engine trains and scales like built-in channels; a `min`/`max` role without `aes` is compile-written |
 | `aesthetics` | `[]` | Non-positional channels: `{ kind: 'visual', name }` (scaled — `color`, `size`; built-in vocabulary) or `{ kind: 'data', name }` (read raw from the mapped column, no scale — a sankey's `source`/`target`/`value`; free-form name). `required: true` enforces presence |
 | `derivedVariables` | `[]` | Names the geom computes in its own output that authors may map to (exempt from unknown-variable checks) |
-| `scaleConstraints` | unset | `{ discreteMainAxis?, discreteCrossAxis?, zeroBaseline?, bandPadding?, inferredColor? }` — demands the geom imposes on its scales. `discreteMainAxis`/`zeroBaseline` only steer bare inferred scales; `discreteCrossAxis` is a hard band demand that coerces a declared continuous scale back (`UNSUPPORTED_SCALE_TYPE`); `inferredColor` infers the colour scale from the mapped column instead of the palette |
+| `scaleConstraints` | unset | `{ discreteMainAxis?, discreteCrossAxis?, zeroBaseline?, bandPadding?, inferredColor? }` — demands the geom imposes on its scales. `discreteMainAxis`/`zeroBaseline` only steer bare inferred scales; `discreteCrossAxis` is a hard band demand that coerces a declared continuous scale back (`UNSUPPORTED_SCALE_TYPE`); `inferredColor` infers the color scale from the mapped column instead of the palette |
 | `supportedCoordTypes` | `['cartesian', 'flip']` | Coords the geom renders under |
 | `spatialKind` | `'points'` | Hover hit-test shape: `'points'` (nearest point), `'rects'` (banded rects, needs `xMin`/`xMax`), `'cells'` (cartesian enclosure, a tile grid), `'buckets'` (nearest main-axis value, needs `x` and `y`), `'noop'`, `'render-hit-test'` (geometry from a layout algorithm; you supply the tester) |
 | `identityKey` | `'x-group'` | What makes "the same observation" across recompiles: `'x-group'`, `'index'`, `'x-y'` (both position columns), or `{ variable: 'nodeId' }` for a geom keyed by its own id column |
-| `isComposite` | `false` | `true` when the geom draws one geometry per group (a line's path) rather than one mark per observation |
+| `isComposite` | `false` | `true` when the geom draws one geometry per group (a line's path) rather than one geometry per observation |
 | `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` (contract must supply `getOverlayAnchor`) \| `'observation-rerender'` \| `null` (opt out) |
 | `defaultPosition`, `defaultInteractive` | `'identity'`, `true` | Layer-resolution defaults |
 | `supportedPositions` | all four | Position adjusters the geom accepts; others are rejected |
@@ -326,7 +326,7 @@ const forceDirected = defineGeomRenderer(new ForceDirectedGeom(), {
 ```
 
 - `overlay.pushHover(key, { clientX, clientY })` feeds the hovered observation's identity key into the unified hover store and anchors the tooltip at the supplied cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` clears this layer's hover only.
-- `overlay.panelRect` is the panel's on-screen rect in client pixels (`ScreenRect`), for placing marks — distinct from `input.panelRect`, which is in layout pixels. `useElementScreenRect` is the exported measurement primitive behind it.
+- `overlay.panelRect` is the panel's on-screen rect in client pixels (`ScreenRect`), for placing geometries — distinct from `input.panelRect`, which is in layout pixels. `useElementScreenRect` is the exported measurement primitive behind it.
 - `useGeomHover(layerId)` is the standalone escape hatch returning the same push function — reach for it only when the overlay-hosted `render` form is not enough.
 
 ## Recipe index
@@ -337,7 +337,7 @@ Full worked implementations, one technique each:
 |---|---|
 | Render-only paint override of a built-in geom | `recipes/plugins/sketchy-bar.md` |
 | Minimal full custom geom (compile + paint) | `recipes/plugins/lollipop.md` |
-| Two marks per observation | `recipes/plugins/dumbbell.md` |
+| Two geometries per observation | `recipes/plugins/dumbbell.md` |
 | Custom positional aesthetics (open/high/low/close) | `recipes/plugins/candlestick.md` |
 | Custom compile logic + custom hit-testing | `recipes/plugins/treemap.md` |
 | Computed-geometry hit regions | `recipes/plugins/voronoi.md` |

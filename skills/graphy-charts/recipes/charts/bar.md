@@ -66,7 +66,7 @@ const input = pipe(
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp there, while dodged bars (nothing touches) get the 8-colour default set. On a touching chart that set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
+With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp there, while dodged bars (nothing touches) get the 8-color default set. On a touching chart that set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
 
 Data already in long form (a series column per row) skips the reshape — map `color` directly:
 

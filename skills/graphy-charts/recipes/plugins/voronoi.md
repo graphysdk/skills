@@ -2,7 +2,7 @@
 
 Technique: computed-geometry hit regions.
 
-Reach for this pattern when the hover region is a computed shape rather than the painted mark: a Voronoi cell is the locus of points nearest its seed site, so the rule that defines the painted polygon and the rule that hit-tests it are the same function — a nearest-site scan never misses and needs no polygon containment test. The geometry is computed once in `compile()`, rides in the compiled spec as plain columns (polygons as JSON strings), and the render half paints it and answers cursor queries via the `hitTest` factory. Requires `d3-delaunay`.
+Reach for this pattern when the hover region is a computed shape rather than the painted geometry: a Voronoi cell is the locus of points nearest its seed site, so the rule that defines the painted polygon and the rule that hit-tests it are the same function — a nearest-site scan never misses and needs no polygon containment test. The geometry is computed once in `compile()`, rides in the compiled spec as plain columns (polygons as JSON strings), and the render half paints it and answers cursor queries via the `hitTest` factory. Requires `d3-delaunay`.
 
 ## Layout (`voronoi-layout.ts`)
 
@@ -124,7 +124,7 @@ interface VoronoiParams {
   showDelaunay: boolean;
   /** Whether to draw each point's label next to its seed (off for dense clouds). */
   showLabels: boolean;
-  /** Cell fill opacity; cell borders and seed dots paint at full strength over it. */
+  /** Cell fill opacity; cell borders and seed points paint at full strength over it. */
   fillOpacity: number;
 }
 
@@ -261,7 +261,7 @@ interface RenderSite {
   siteY: number;
   polygon: Array<[number, number]>;
   neighbors: number[];
-  /** The cell's fill, read through the style cascade (override → colour scale → default). */
+  /** The cell's fill, read through the style cascade (override → color scale → default). */
   color: string;
 }
 
@@ -460,7 +460,7 @@ const coffeeShops: Data = {
   ],
 };
 
-// `color` maps to the real `category` column, so the engine's categorical scale colours each cell.
+// `color` maps to the real `category` column, so the engine's categorical scale colors each cell.
 const catchmentsSpec = kit.pipe(
   kit.createSpec({}),
   kit.geom.voronoi({
@@ -481,9 +481,9 @@ export const VoronoiGraph = () => (
 
 - The nearest-site shortcut only works because the painted region IS the nearest-site locus. For arbitrary computed shapes (ribbons, arcs), keep the same structure but replace the tester body with a containment or distance-to-path test over the parsed geometry — the cursor is always panel-local `[0, 1]`, top-left origin, the same frame the geom paints in. The factory receives the full `GeomRenderInput` (including `panelRect`, layout pixels) and is re-memoized on `layer.data` and the panel pixel rect. The returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing.
 - Serialise any non-scalar geometry into a categorical column via `JSON.stringify` in `compile()` and parse it back in the render half; the dataset stores scalars only.
-- `UnitSpaceSvg` gives children the `[0, 1]` coordinate frame directly (use `vectorEffect="non-scaling-stroke"` so strokes stay pixel-constant). A `<circle>` in that frame becomes an ellipse on a non-square panel — round marks and glyphs go in `UnitBoxSvg`, or as siblings of `UnitSpaceSvg` with percent positions and a pixel radius (as the site dots do here).
+- `UnitSpaceSvg` gives children the `[0, 1]` coordinate frame directly (use `vectorEffect="non-scaling-stroke"` so strokes stay pixel-constant). A `<circle>` in that frame becomes an ellipse on a non-square panel — round geometries and pixel-sized symbols go in `UnitBoxSvg`, or as siblings of `UnitSpaceSvg` with percent positions and a pixel radius (as the site points do here).
 - Geom `params` (here `showDelaunay`/`showLabels`/`fillOpacity`) are the right home for render toggles: authors set them per layer in the spec, and the render half reads them from `layer.params`.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the cells are painted and hit-tested in, so the stored seed site — the natural anchor — becomes `{ x: siteX, y: 1 - siteY }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
-- Cell fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every cell. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the border, dot and label colours (`#fff`, `#1f2937`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the cells are painted and hit-tested in, so the stored seed site — the natural anchor — becomes `{ x: siteX, y: 1 - siteY }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
+- Cell fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every cell. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the border, point and label colors (`#fff`, `#1f2937`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
 - Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it; `primary` on the pull path carries no `x`/`y` and the tooltip follows the live cursor. `intro` is `null` for a `render-hit-test` layer — cells never animate in.
 - `d3-delaunay` is a dependency of `@graphysdk/viz-engine`, but strict installs (pnpm, Yarn PnP) do not hoist it — install it directly, with `@types/d3-delaunay` for TypeScript.

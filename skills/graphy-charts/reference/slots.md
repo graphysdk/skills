@@ -129,7 +129,7 @@ from the chrome style cascade — `style.gridLine`, see `reference/styling.md`.
 | `strokeWidth?: number` | Line/area stroke width; `DefaultSwatch` draws 2 when absent |
 | `width?`, `height?: number` | The box to paint inside (defaults 12×12) |
 
-The shape glyph is shared by the legend, tooltip, headline, callouts, and rule labels — **one Swatch
+The swatch shape is shared by the legend, tooltip, headline, callouts, and rule labels — **one Swatch
 override restyles it everywhere**. Switch on `surface`/`shape` and delegate the rest to
 `DefaultSwatch` (which takes `Omit<SwatchSlotProps, 'surface' | 'label'>`) to restyle only one
 context.

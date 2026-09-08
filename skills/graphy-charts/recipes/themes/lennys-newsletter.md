@@ -92,7 +92,7 @@ const cartesianPanel = {
 const cartesianPlateStyles = styles({
   defaults: [
     style.gridLine({ lineType: 'solid', color: LENNY_COLORS.gridLine }),
-    // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+    // The built-in tick line is 0 wide and 0 long, so a color alone paints nothing.
     style.tickLine({ color: LENNY_COLORS.gridLine, strokeWidth: 1, length: 4 }),
     style.panelBorder({ strokeWidth: 0 }),
     style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: LENNY_COLORS.ink }),
@@ -191,7 +191,7 @@ export function CpmChart() {
 
 ## Example: line race with direct end labels
 
-The lead series takes the full-strength orange, the follower the muted brown. Thick 6px strokes carry the newsletter's hand-drawn weight, and the traces stay bare — a line washes a gradient beneath it only where `fillAlpha` is declared. `style.directLabel` is not authored, so each end label keeps its series colour.
+The lead series takes the full-strength orange, the follower the muted brown. Thick 6px strokes carry the newsletter's hand-drawn weight, and the traces stay bare — a line washes a gradient beneath it only where `fillAlpha` is declared. `style.directLabel` is not authored, so each end label keeps its series color.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -242,7 +242,7 @@ export function ProductRaceChart() {
 }
 ```
 
-`GraphProvider` takes `colorScheme="light" | "dark"` when a chart needs to be pinned to one scheme; these charts leave it at the default and rely on the card's own colours.
+`GraphProvider` takes `colorScheme="light" | "dark"` when a chart needs to be pinned to one scheme; these charts leave it at the default and rely on the card's own colors.
 
 ## Fonts
 
@@ -256,7 +256,7 @@ export function ProductRaceChart() {
 
 Each pipes its `config({ ...cartesianPanel | ...polarPanel, appearance: cardAppearance })`, then `cardChromeStyles`, then the matching plate stylesheet.
 
-- Stacked columns: `geom.bar({ position: 'stack' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: LENNY_COLORS.card, borderWidth: 1 })] })` with `scale.x({ padding: 0.3 })` — card-coloured hairlines cut the stack into slabs; segments in `[LENNY_COLORS.actual, ROSE_REST]`.
-- Donut: the same bar entry at `borderWidth: 2` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`, colours from `AUTUMN_RAMP`, percentage + category labels outside, `polarPanel` + `polarPlateStyles`.
+- Stacked columns: `geom.bar({ position: 'stack' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: LENNY_COLORS.card, borderWidth: 1 })] })` with `scale.x({ padding: 0.3 })` — card-colored hairlines cut the stack into slabs; segments in `[LENNY_COLORS.actual, ROSE_REST]`.
+- Donut: the same bar entry at `borderWidth: 2` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`, colors from `AUTUMN_RAMP`, percentage + category labels outside, `polarPanel` + `polarPlateStyles`.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: LENNY_COLORS.card, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; golden-quarter months in `BRAND_ORANGE`, the rest in `ROSE_REST`.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `BRAND_ORANGE`, remainder in `TRACK_REMAINING`.

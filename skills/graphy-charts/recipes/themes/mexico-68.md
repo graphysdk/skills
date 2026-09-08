@@ -2,7 +2,7 @@
 
 **Tier: config + stylesheet + theme tokens + render-only geom paint plugins.** This is the plugin-tier exemplar: the spec, stylesheet and theme are ordinary, and every geom's paint is replaced via `defineGeomRenderer` render-only overrides passed as `plugins` to `GraphProvider`. The chart chrome — card ground, ink baseline, engine text, legend, tooltip — is a `styles()` stylesheet on the spec (`reference/styling.md`); the theme tokens dress only the header and footer type.
 
-Op-art style after the Mexico 68 Olympic identity: a hot magenta lead with orange, purple, cyan, and green radiating behind it, Righteous uppercase headlines over Rubik engine text, and no gridlines — the vibration needs quiet ground. The whole grammar is the echo: every mark is drawn as concentric outlines with no solid core. Bars radiate as arches, lines as parallel echoes with a ringed-target terminus, points as ringed targets, and polar slices as single outlines with ink echoes fanning outward.
+Op-art style after the Mexico 68 Olympic identity: a hot magenta lead with orange, purple, cyan, and green radiating behind it, Righteous uppercase headlines over Rubik engine text, and no gridlines — the vibration needs quiet ground. The whole grammar is the echo: every geom is drawn as concentric outlines with no solid core. Bars radiate as arches, lines as parallel echoes with a ringed-target terminus, points as ringed targets, and polar slices as single outlines with ink echoes fanning outward.
 
 The overrides replace only the paint half of each built-in geom for one coordinate system; compile, scales, layout, legends, tooltips, and hover hit-testing are all reused unchanged. The `plugins` array is frozen at mount — remount `GraphProvider` with a React `key` to change it.
 
@@ -24,7 +24,7 @@ export const MEXICO_COLORS = {
   card: '#FFFFFF', // chart background
   ink: '#1A1A1A', // baselines, printed values, echo halos
   pink: '#EC008C', // the lead — Actual, North, Product A
-  orange: '#F7931E', // the "next colour" — Forecast, South
+  orange: '#F7931E', // the "next color" — Forecast, South
   purple: '#662D91', // East
   cyan: '#27AAE1', // West
   green: '#39B54A', // Central
@@ -142,9 +142,9 @@ export const createMexicoTitle = (segments: Array<{ text: string; color?: string
 
 ## Module: `mexico68.plugins.tsx` (render-only geom paint overrides)
 
-Four overrides, one per `(geom, coord)` pair the style repaints: `mexicoBar` (bar, cartesian) draws radiating arches, `mexicoSlice` (bar, polar) draws outlined arcs with outward ink echoes, `mexicoPoint` (point, cartesian) draws ringed targets, and `mexicoLine` (line, cartesian) draws parallel echoes with a ringed-target terminus. Each also supplies `renderHover` (redraw the hovered mark bolder, with a faint solid core — the one place the "no solid core" rule relaxes) and `renderHoverCompanions` (faint targets marking where a hovered reading lands on the other layers of a combo). `mexicoPoint` and `mexicoLine` also supply `getOverlayAnchor` — without it a highlight on those layers paints nothing, silently — and `mexicoLine` declares `guideMode: 'crosshair'`. Not consumed here: `params.interpolate` (`MexicoLines` draws straight polylines), `renderHighlight` (the highlight layer falls back to `render`), `intro`, `shouldAnimateTransitions`, and the `saturation` reader.
+Four overrides, one per `(geom, coord)` pair the style repaints: `mexicoBar` (bar, cartesian) draws radiating arches, `mexicoSlice` (bar, polar) draws outlined arcs with outward ink echoes, `mexicoPoint` (point, cartesian) draws ringed targets, and `mexicoLine` (line, cartesian) draws parallel echoes with a ringed-target terminus. Each also supplies `renderHover` (redraw the hovered geometry bolder, with a faint solid core — the one place the "no solid core" rule relaxes) and `renderHoverCompanions` (faint targets marking where a hovered reading lands on the other layers of a combo). `mexicoPoint` and `mexicoLine` also supply `getOverlayAnchor` — without it a highlight on those layers paints nothing, silently — and `mexicoLine` declares `guideMode: 'crosshair'`. Not consumed here: `params.interpolate` (`MexicoLines` draws straight polylines), `renderHighlight` (the highlight layer falls back to `render`), `intro`, `shouldAnimateTransitions`, and the `saturation` reader.
 
-Every colour and opacity these renderers draw is read through `styleReaders` on the render input — this layer's full cascade, resolved for the provider's `colorScheme`. Precedence is override → data → default: `styleReaders.get('color', observation)` returns a user's `overrides` entry where one matches (it beats the mapped colour), else the mapped series colour where the `color` scale decided it, else the last matching `defaults` entry, and the built-in `geom` token only when none matches — so a stylesheet, `{ light, dark }` colours and the dark scheme all reach the marks. The bare `getColor(observation)` / `getAlpha(observation)` accessors see the data tier only and would miss all of that. The ink echo halos behind a slice are the one literal left (`MEXICO_COLORS.ink`): they are the grammar, not the mark's colour. `renderHover` carries the same `styleReaders`, and its `group` and `related` are hits on the primary's own layer, so reading them through it is right. `renderHoverCompanions` runs on the companion layer's own renderer with that layer's readers; a plugin that needs a different layer's stylesheet defaults builds readers with `createStyleResolver({ colorScheme }).geomReaders(otherLayer)`. Inside a component rendered under the provider, `useStyleReaders(layer)` is the exported hook form. See `reference/plugins.md` → Paint and the style cascade.
+Every color and opacity these renderers draw is read through `styleReaders` on the render input — this layer's full cascade, resolved for the provider's `colorScheme`. Precedence is override → data → default: `styleReaders.get('color', observation)` returns a user's `overrides` entry where one matches (it beats the mapped color), else the mapped series color where the `color` scale decided it, else the last matching `defaults` entry, and the built-in `geom` token only when none matches — so a stylesheet, `{ light, dark }` colors and the dark scheme all reach the geoms. The bare `getColor(observation)` / `getAlpha(observation)` accessors see the data tier only and would miss all of that. The ink echo halos behind a slice are the one literal left (`MEXICO_COLORS.ink`): they are the grammar, not the geom's color. `renderHover` carries the same `styleReaders`, and its `group` and `related` are hits on the primary's own layer, so reading them through it is right. `renderHoverCompanions` runs on the companion layer's own renderer with that layer's readers; a plugin that needs a different layer's stylesheet defaults builds readers with `createStyleResolver({ colorScheme }).geomReaders(otherLayer)`. Inside a component rendered under the provider, `useStyleReaders(layer)` is the exported hook form. See `reference/plugins.md` → Paint and the style cascade.
 
 ```tsx
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
@@ -179,13 +179,13 @@ import {
 import { MEXICO_COLORS } from './mexico68.theme';
 
 // ─── The echo (the whole grammar) ────────────────────────────────────────────
-// Every mark is drawn as concentric outlines with no solid core: three echoes,
-// 5.5px apart, each a 2px stroke. Thin marks degrade to fewer echoes.
+// Every geom is drawn as concentric outlines with no solid core: three echoes,
+// 5.5px apart, each a 2px stroke. Thin geometries degrade to fewer echoes.
 const ECHOES = 3;
 const ECHO_STEP = 5.5;
 const ECHO_STROKE = 2;
 
-// Ringed target: a small dot inside two rings, the outer one faded — the scatter
+// Ringed target: a small disc inside two rings, the outer one faded — the scatter
 // point, the line terminus, and the legend key all share it.
 const TARGET_DOT = 3;
 const TARGET_RING_MID = 7.5;
@@ -200,7 +200,7 @@ const SLICE_ECHO_STEP_PX = 4;
 const SLICE_ECHO_OPACITY = 0.5;
 
 // ─── Hover emphasis ──────────────────────────────────────────────────────────
-// Focus does not change the grammar, it turns the vibration up: the hovered mark
+// Focus does not change the grammar, it turns the vibration up: the hovered geometry
 // keeps its echoes but gains a bolder stroke and, where it has a body, a faint
 // solid core — the one place the "no solid core" rule relaxes, so a reading pops.
 // Everything else dims via the renderer's own hover-dim on the base layer.
@@ -223,12 +223,12 @@ interface PixelSize {
  * fixed 5.5px), which the normalized `[0,1]` position space can't give directly.
  *
  * The engine mounts each geom into a panel-sized `<svg>` (its `ownerSVGElement`) whose user
- * units are already pixels, so the marks paint straight into a `<g>` at pixel coordinates —
+ * units are already pixels, so the geometries paint straight into a `<g>` at pixel coordinates —
  * no nested `<svg>`, which never establishes its own size from a `<g>` parent. (The exported
  * `UnitSpaceSvg` is the nested-svg primitive for unit-space paint; the built-in polar bar paints
  * in one with `viewBox="-1 -1 2 2"`.) That owner svg
  * carries the panel dimensions on its `width`/`height` attributes; an inner `<svg>` reports a
- * zero `getBoundingClientRect`, so the size is read off `baseVal` instead. Marks stay hidden
+ * zero `getBoundingClientRect`, so the size is read off `baseVal` instead. Geometries stay hidden
  * until the panel reports a size.
  *
  * `render` and `renderHover` receive `panelRect` on their input and never touch this — only
@@ -259,7 +259,7 @@ const usePanelSize = (): { ref: RefObject<SVGGElement | null>; size: PixelSize }
   return { ref, size };
 };
 
-/** A ringed target — dot inside two rings, outer ring faded — at a pixel centre. */
+/** A ringed target — a disc inside two rings, outer ring faded — at a pixel centre. */
 const RingedTarget = ({
   cx,
   cy,
@@ -329,7 +329,7 @@ const buildArchPath = (centerX: number, baselineY: number, capCenterY: number, r
   return `M ${left} ${baselineY} L ${left} ${capCenterY} A ${radius} ${radius} 0 0 1 ${right} ${capCenterY} L ${right} ${baselineY}`;
 };
 
-/** An arch's geometry, colour, and stack role from its normalized bar rect. Paint reads the cascade. */
+/** An arch's geometry, color, and stack role from its normalized bar rect. Paint reads the cascade. */
 const toArchSegment = (
   observation: Observation,
   mainAxis: MainAxis,
@@ -472,7 +472,7 @@ const MexicoArchHover = ({
 
 // ─── mexicoSlice — outlined arcs with outward echoes (bar, polar) ─────────────
 // Donut, rose, and racetrack all arrive here. Each slice is one closed outline in
-// its own colour with a hairline gap to its neighbour; ink echoes then radiate
+// its own color with a hairline gap to its neighbour; ink echoes then radiate
 // outward from the slice's rim, fading as they go.
 
 interface SliceArc {
@@ -510,7 +510,7 @@ const PolarStage = ({ size, children }: { size: PixelSize; children: ReactNode }
   return <g transform={`translate(${size.width / 2} ${size.height / 2}) scale(${minSide / 2})`}>{children}</g>;
 };
 
-/** One slice: its coloured outline with a hairline gap, plus ink echoes radiating outward. */
+/** One slice: its colored outline with a hairline gap, plus ink echoes radiating outward. */
 const SliceShape = ({
   slice,
   unitsPerPx,
@@ -641,7 +641,7 @@ interface TargetPoint {
   opacity: number;
 }
 
-/** A ringed target's position/colour from its observation, in normalized [0,1] panel space. */
+/** A ringed target's position/color from its observation, in normalized [0,1] panel space. */
 const toTargetPoint = (observation: Observation, key: string, styleReaders: GeomStyleReaders): TargetPoint | null => {
   const x = getX(observation);
   const y = getY(observation);
@@ -761,7 +761,7 @@ interface LineTrace {
   opacity: number;
 }
 
-/** A trace's points/colour from an ordered run of observations, in normalized [0,1] space. */
+/** A trace's points/color from an ordered run of observations, in normalized [0,1] space. */
 const toLineTrace = (observations: Observation[], key: string, styleReaders: GeomStyleReaders): LineTrace | null => {
   const points: LinePoint[] = [];
   for (const observation of observations) {
@@ -890,11 +890,11 @@ const MexicoLineHover = ({
 // ─── Plugin registrations ─────────────────────────────────────────────────────
 // Render-only overrides by name: each replaces the paint half of a built-in geom
 // for one coordinate system, reusing the unchanged compile/scale/layout half.
-// Every handler forwards its input's `styleReaders`, so the marks read the same
+// Every handler forwards its input's `styleReaders`, so the geoms read the same
 // cascade the built-in renderer would, and `render`/`renderHover` pass their input's
 // `panelRect` down as the pixel size. Hover keeps the same grammar and turns the
-// vibration up on the hovered mark, while the base layer dims itself; companions
-// mark where the reading lands on the other layers of a combo.
+// vibration up on the hovered geometry, while the base layer dims itself; companions
+// show where the reading lands on the other layers of a combo.
 
 const rectSize = (panelRect: { width: number; height: number }): PixelSize => ({
   width: panelRect.width,
@@ -1010,7 +1010,7 @@ export const mexicoPlugins = [mexicoBar, mexicoSlice, mexicoPoint, mexicoLine] a
 
 ## Example: arch bars, actual vs forecast
 
-The spec is a plain bar spec — the arches come entirely from `mexicoBar` in the `plugins` array. One arch per quarter with its value printed above; the actual quarters take the magenta, the forecast the next palette colour.
+The spec is a plain bar spec — the arches come entirely from `mexicoBar` in the `plugins` array. One arch per quarter with its value printed above; the actual quarters take the magenta, the forecast the next palette color.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';

@@ -127,8 +127,8 @@ denominator and falls back to absolute; `showStackTotals` warns `DATA_LABEL_SETT
 The same geom with a **discrete** color scale: a 10×10 field, one cell per percentage point. The grid
 indices are a layout device, so both axes are hidden. The explicit `range` matters: tiles touch, so
 the default palette (`{ type: 'default' }`, which the inferred scale for a categorical column also
-uses) always resolves to the single-hue `brick` mono ramp — the 8-colour default set is unreachable.
-Other escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-colour Graphy
+uses) always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable.
+Other escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-color Graphy
 brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`.
 
 ```ts
@@ -158,7 +158,7 @@ const input = pipe(
 | Grid lines hidden on both axes | The cells already partition the panel |
 | The legend is never suppressed | Its gradient color bar is the only place the value scale is written down |
 | Data labels on | See above |
-| Position is `identity` | No value axis to stack or dodge along |
+| Position is `identity` | No cross axis to stack or dodge along |
 
 ## Paint and hover
 

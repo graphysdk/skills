@@ -18,7 +18,7 @@ export const NB_COLORS = {
   acidDim: '#9AB800', // overflow series slot
   greyMid: '#4A4A4A', // muted series
   greyDeep: '#2E2E2E', // ghost series / remainder tracks
-  chrome: '#333333', // grid rows, tick marks, and the dashed frame
+  chrome: '#333333', // grid rows, tick lines, and the dashed frame
   metaRule: '#3A3A3A', // dashed rule (page chrome)
 } as const;
 
@@ -54,7 +54,7 @@ export const neoBrutalistTheme: ThemeOverrides = {
 
 ## Shared stylesheet builder
 
-The sheet paint: square corners, chrome-grey dashed frame (the built-in 1px graph ring survives, so it is recoloured chrome too), solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow; `style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set, so they keep their built-in paint. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
+The sheet paint: square corners, chrome-grey dashed frame (the built-in 1px graph ring survives, so it is recolored chrome too), solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow; `style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set, so they keep their built-in paint. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
@@ -67,7 +67,7 @@ const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =
       style.axisLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
       style.tickLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.secondary }),
       style.dataLabel({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
-      // No `textColor`: an authored one replaces the series colour on every end label, and the
+      // No `textColor`: an authored one replaces the series color on every end label, and the
       // acid lead is meant to reach its own label.
       style.directLabel({ fontSize: 11, fontWeight: 500, lineHeight: 1.4 }),
       // The built-in legend item is already bare text (no background, no border); only type and ink are set.
@@ -89,7 +89,7 @@ const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =
       style.tooltip.label({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.secondary }),
       style.tooltip.value({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
       style.gridLine({ lineType: 'solid', strokeWidth: 1, color: NB_COLORS.chrome }),
-      // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+      // The built-in tick line is 0 wide and 0 long, so a color alone paints nothing.
       style.tickLine({ color: NB_COLORS.chrome, strokeWidth: 1, length: 4 }),
       style.panelBorder({ lineType: 'dashed', strokeWidth: 1, color: NB_COLORS.chrome, borderRadius: 0 }),
       ...(options.hasAcidBaseline === true
@@ -165,7 +165,7 @@ const createNeoBrutalistSubtitle = (segments: Array<{ text: string; color?: stri
 
 ## Example: stacked bars on an acid baseline
 
-Surface-coloured 1px borders cut hairline gaps between segments; the acid series carries the emphasis. Bar corner rounding is a token — `'none'` for the square corners this style is built on.
+Surface-colored 1px borders cut hairline gaps between segments; the acid series carries the emphasis. Bar corner rounding is a token — `'none'` for the square corners this style is built on.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -290,7 +290,7 @@ scale.color.discrete({ domain: ['actual', 'forecast'], range: [NB_COLORS.acid, '
 
 The fill comes from the `color` mapping and the border from the stylesheet, so the two never contend: `defaults` entries apply only where no mapped aesthetic decided the value, and nothing maps to `borderColor`.
 
-Because the forecast series colour is `transparent`, the default legend swatch would paint nothing. Fix with a `Swatch` slot (see `reference/slots.md`) that draws a hollow acid outline for that series:
+Because the forecast series color is `transparent`, the default legend swatch would paint nothing. Fix with a `Swatch` slot (see `reference/slots.md`) that draws a hollow acid outline for that series:
 
 ```tsx
 import { DefaultSwatch, type GraphSlots, type SwatchSlotProps } from '@graphysdk/react-renderer';
@@ -332,7 +332,7 @@ const neoBrutalistSwatchSlots: GraphSlots = { Swatch: NeoBrutalistSwatch };
 // <GraphRenderer sizing={{ mode: 'responsive' }} slots={neoBrutalistSwatchSlots} />
 ```
 
-The slot is handed every swatch surface — `legend | tooltip | headline | callout | rule-label` — which is why it delegates all but the legend to `DefaultSwatch`. Only needed when a series colour is `transparent`.
+The slot is handed every swatch surface — `legend | tooltip | headline | callout | rule-label` — which is why it delegates all but the legend to `DefaultSwatch`. Only needed when a series color is `transparent`.
 
 ## Fonts
 
@@ -349,6 +349,6 @@ The slot is handed every swatch surface — `legend | tooltip | headline | callo
 
 All three are polar, so they take `createNeoBrutalistStyles()` with no acid baseline, and carry their own bar entry for the cut between wedges.
 
-- Donut: `geom.bar({ position: 'fill' })` + `style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 3 })` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`; colours from `NB_DONUT_RAMP`; percentage + category data labels outside.
+- Donut: `geom.bar({ position: 'fill' })` + `style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 3 })` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`; colors from `NB_DONUT_RAMP`; percentage + category data labels outside.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 1 })` + `coord.polar({ theta: 'x' })`; emphasised wedges in `acid`, the rest in `greyDeep`.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `style.geom.bar({ borderRadius: 'none' })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `acid`, remainder in `greyDeep`; add `config({ layout: { gaps: { header: 20 } } })`.

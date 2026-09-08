@@ -47,7 +47,7 @@ export function BudgetPie() {
 }
 ```
 
-Every pie from this snippet is a single-hue ramp: with no `palette` option `scale.color.palette()` resolves `{ type: 'default' }`, and on a chart whose geoms touch (every pie, stacked/filled bars or areas, tiles) that always resolves to the `brick` mono ramp — the 8-colour default set is unreachable. Escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`; `scale.color.palette({ overrides: { 1: { hex: '#FF5A5F' } } })` recolors one slice (1-indexed group).
+Every pie from this snippet is a single-hue ramp: with no `palette` option `scale.color.palette()` resolves `{ type: 'default' }`, and on a chart whose geoms touch (every pie, stacked/filled bars or areas, tiles) that always resolves to the `brick` mono ramp — the 8-color default set is unreachable. Escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`; `scale.color.palette({ overrides: { 1: { hex: '#FF5A5F' } } })` recolors one slice (1-indexed group).
 
 ## Variants
 
@@ -57,7 +57,7 @@ Donut — hole radius is a fraction of the outer radius in `(0, 1)`:
 coord.polar({ theta: 'y', innerRadius: 0.55 })
 ```
 
-Slice borders — on by default (`borderColor: token('geomBorder')`, `borderWidth: 1`); this entry swaps in another colour/width, and `borderWidth: 0` removes them:
+Slice borders — on by default (`borderColor: token('geomBorder')`, `borderWidth: 1`); this entry swaps in another color/width, and `borderWidth: 0` removes them:
 
 ```ts
 geom.bar({ position: 'fill' }),

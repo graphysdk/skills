@@ -60,7 +60,7 @@ export function RegionalSalesCombo() {
 }
 ```
 
-The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too, and the 8-colour default set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'` on the bars.
+The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too, and the 8-color default set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'` on the bars.
 
 ## Variants
 
@@ -100,7 +100,7 @@ scale.ySecondary(),
 ## Painting one layer
 
 Give the layer an `id` and scope a stylesheet entry to it with `{ layer }` — the way to make the
-overlay read differently from the marks beneath it without touching them (`reference/styling.md`):
+overlay read differently from the geoms beneath it without touching them (`reference/styling.md`):
 
 ```ts
 geom.bar({ id: 'bars', position: 'stack', aes: { y: 'sales', color: 'region' } }),

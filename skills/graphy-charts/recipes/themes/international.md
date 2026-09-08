@@ -2,7 +2,7 @@
 
 **Tier: config + stylesheet + a few theme tokens for the header/footer.** No slots, no plugins — the look is spec `config()` for structure, a `styles()` stylesheet for paint (plot, tooltip, legend and headline alike), and `themeOverrides` for the header/footer type around the plot.
 
-Editorial newspaper style: white chart plates, an ink-and-grey series palette with **one red accent reserved for the key data point**, and Golos Text headlines over small Inter engine text. Charts show a horizontal major grid only, no side rules, and a single solid bottom border as the axis baseline; the headline repeats the accent color on its key phrase so title and chart read as one statement.
+Editorial newspaper style: white chart plates, an ink-and-grey series palette with **one red accent reserved for the key observation**, and Golos Text headlines over small Inter engine text. Charts show a horizontal major grid only, no side rules, and a single solid bottom border as the axis baseline; the headline repeats the accent color on its key phrase so title and chart read as one statement.
 
 ## Constants
 
@@ -12,13 +12,13 @@ export const INTL_COLORS = {
   paper: '#FFFFFF', // chart background
   heading: '#000000', // headlines
   body: '#1A1A1A', // body text
-  accent: '#D72B1C', // red, reserved for the key data point and headline key phrase
-  ink: '#111111', // primary series colour and hairline baselines
-  grey: '#8F8F8F', // axis, legend, and caption text; third series colour
-  greyLight: '#C9C9C9', // fourth series colour
-  greyDark: '#4A4A4A', // fifth series colour
+  accent: '#D72B1C', // red, reserved for the key observation and headline key phrase
+  ink: '#111111', // primary series color and hairline baselines
+  grey: '#8F8F8F', // axis, legend, and caption text; third series color
+  greyLight: '#C9C9C9', // fourth series color
+  greyDark: '#4A4A4A', // fifth series color
   greyFaint: '#E3E3E3', // de-emphasised remainder fills
-  gridLine: '#E9E9E9', // horizontal major grid and tick marks
+  gridLine: '#E9E9E9', // horizontal major grid and tick lines
 } as const;
 
 export const INTL_FONT_FAMILY = {
@@ -26,7 +26,7 @@ export const INTL_FONT_FAMILY = {
   body: "'Inter', 'Helvetica Neue', Arial, sans-serif",
 } as const;
 
-// Series palette in emphasis order: red only ever paints the key data point.
+// Series palette in emphasis order: red only ever paints the key observation.
 export const INTL_PALETTE = [
   INTL_COLORS.accent,
   INTL_COLORS.ink,
@@ -38,7 +38,7 @@ export const INTL_PALETTE = [
 
 ## Theme overrides
 
-The theme dresses only the HTML header and footer. `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback); `fontFamilyHeading` what a plain-string title takes — the rich-text title from `createInternationalTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — everything the chart draws, legend key, tooltip and headline included, takes its colour from the stylesheet below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
+The theme dresses only the HTML header and footer. `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback); `fontFamilyHeading` what a plain-string title takes — the rich-text title from `createInternationalTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — everything the chart draws, legend key, tooltip and headline included, takes its color from the stylesheet below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -62,7 +62,7 @@ const internationalChromeStyles = styles({
   defaults: [
     style.graph({ background: INTL_COLORS.paper, borderWidth: 0, fontFamily: INTL_FONT_FAMILY.body }),
     style.gridLine({ lineType: 'solid', strokeWidth: 1, color: INTL_COLORS.gridLine }),
-    // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+    // The built-in tick line is 0 wide and 0 long, so a color alone paints nothing.
     style.tickLine({ color: INTL_COLORS.gridLine, strokeWidth: 1, length: 4 }),
     // `strokeWidth: 0` takes an edge off the plate: no stroke, no reserved space.
     style.panelBorder({ strokeWidth: 0 }),
@@ -72,7 +72,7 @@ const internationalChromeStyles = styles({
     style.tickLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5, textColor: INTL_COLORS.grey }),
     // Pie labels are data labels too, so this one entry covers bars and wedges.
     style.dataLabel({ fontSize: 10.5, fontWeight: 500, textColor: INTL_COLORS.body }),
-    // No `textColor`: an authored one replaces the series colour on every end label, and the
+    // No `textColor`: an authored one replaces the series color on every end label, and the
     // red accent is meant to reach the key series' label.
     style.directLabel({ fontSize: 10.5, fontWeight: 500, lineHeight: 1.5 }),
 
@@ -204,7 +204,7 @@ export function CpmChart() {
 }
 ```
 
-Band width is geometry and belongs to the geom's `params`; corner shape, border and fill are paint and belong to the stylesheet. The bar entry lives in `defaults`, so the colour scale still decides which bar is red.
+Band width is geometry and belongs to the geom's `params`; corner shape, border and fill are paint and belong to the stylesheet. The bar entry lives in `defaults`, so the color scale still decides which bar is red.
 
 ## Example: donut
 
@@ -280,6 +280,6 @@ export function RevenueDonut() {
 Each pipes `createInternationalConfig()` + `internationalChromeStyles`, then its own geom stylesheet.
 
 - Stacked bars: `geom.bar({ position: 'stack', params: { width: 0.66 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })`; segments in `[INTL_COLORS.ink, INTL_COLORS.accent]`, legend below.
-- Line race: `geom.line()` + `geom.point({ interactive: false })` for a dot on every vertex, with `styles({ defaults: [style.geom.line({ strokeWidth: 1.75 }), style.geom.point({ size: 6.5 })] })`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry and coloured by their series.
-- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: INTL_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; the accent marks the emphasised months, the rest stay ink.
+- Line race: `geom.line()` + `geom.point({ interactive: false })` for a point on every vertex, with `styles({ defaults: [style.geom.line({ strokeWidth: 1.75 }), style.geom.point({ size: 6.5 })] })`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry and colored by their series.
+- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: INTL_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; the accent colors the emphasised months, the rest stay ink.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `ink`, remainder in `greyFaint`, and the red stays in the headline.

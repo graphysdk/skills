@@ -11,12 +11,12 @@ Build charts with **`@graphysdk/react`** — one package carrying the whole stac
 
 The engine is a grammar of graphics in the ggplot2 / Vega-Lite tradition. You do not pick a chart type from a menu; you compose one from orthogonal primitives:
 
-- A **layer** = a **geom** (mark kind: `point`, `line`, `area`, `bar`, `rule`, `tile`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `sum`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
+- A **layer** = a **geom** (geometry kind: `point`, `line`, `area`, `bar`, `rule`, `tile`) + an **aesthetic mapping** (data variable → visual channel) + a **stat** (per-layer reshape: `count`, `sum`, `mean`, `smooth`) + a **position adjuster** (`identity`, `stack`, `dodge`, `fill`).
 - Chart types are compositions: a pie chart is `bar` + `position: 'fill'` + `coord.polar({ theta: 'y' })`; a donut adds `innerRadius`; a horizontal bar chart is `coord.flip()`; a radar chart is `line`/`area` + `coord.polar({ theta: 'x' })`; a heatmap is `tile` with the value on `color`.
 - A reference line is `geom.rule()`. A trendline is `stat.smooth`. An average line is `stat.mean`.
 - **Transforms** reshape data declaratively inside the spec: `transform.filter`, `transform.sort`, `transform.aggregate`, `transform.reshape` (wide→long), `transform.constant`. Prefer them over preprocessing `rows` in JS. Full option tables in `reference/spec-api.md`.
 - **Scales** map data to visual values; **guides** (axes, legends, headline numbers) make scales legible. Calling `scale.x()` / `scale.y()` with no arguments infers the scale type from the data. Add a scale for every mapped positional aesthetic; `color` gets a default scale automatically.
-- A **stylesheet** (`styles({ tokens, defaults, overrides })`) is a spec item like any other and owns **all paint**: marks, grid and tick lines, panel border, graph background, every text, the tooltip, legend pills, headline cards, annotations (`reference/styling.md`).
+- A **stylesheet** (`styles({ tokens, defaults, overrides })`) is a spec item like any other and owns **all paint**: geoms, grid and tick lines, panel border, graph background, every text, the tooltip, legend pills, headline cards, annotations (`reference/styling.md`).
 - **Highlights** (predicate-driven emphasis) and **annotations** (arrows, text, shapes, images, …) are spec-level and serializable — the storytelling layer.
 
 Data flows one way: raw `Data` → resolved `Spec` (defaults applied, types inferred, the authored stylesheet folded onto the built-in one) → `CompiledSpec` (render-ready, paint resolved per observation) → painted React output. You author the first step; the rest is automatic.
@@ -60,10 +60,10 @@ use (`RichTextContent`, `Rect`, `IdentityKey`, `readAuthoredNumber`, …) still 
 ## The expressiveness ladder
 
 1. **Spec + `config()`** — chart structure and chart-level options: layers, scales, coords, legend/axes settings, titles, headline numbers, number formats, layout.
-2. **Stylesheet** — pipe `styles({ ... })` into the spec to repaint anything the chart draws, from mark fill to the tooltip box and legend pills. Predicate- and state-aware, serializable. This is the restyling tier — `reference/styling.md`.
+2. **Stylesheet** — pipe `styles({ ... })` into the spec to repaint anything the chart draws, from geom fill to the tooltip box and legend pills. Predicate- and state-aware, serializable. This is the restyling tier — `reference/styling.md`.
 3. **Theme tokens** — `themeOverrides` on `GraphProvider`, only for the HTML chrome the stylesheet has no target for: header/footer type, hover guide, tooltip row gap, legend overflow pill. React-only, not serializable.
 4. **Slots** — replace whole regions (header, footer, tooltip, legend, headline, grid, axis ticks, axis label, swatch) with your own React components via the `slots` prop on `GraphRenderer`.
-5. **Plugins** — change how marks are painted (render-only override of a built-in geom) or add entirely new geoms/stats/transforms (`defineGeomRenderer`, `createGraphyKit`).
+5. **Plugins** — change how a geom is painted (render-only override of a built-in geom) or add entirely new geoms/stats/transforms (`defineGeomRenderer`, `createGraphyKit`).
 
 See `recipes/themes/` for complete worked examples at each tier.
 
@@ -97,9 +97,9 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 | Combo chart, dual y-axes | `recipes/charts/combo.md` |
 | Heatmap, matrix, cohort grid, waffle | `recipes/charts/heatmap.md` |
 | Apply a complete house style | `recipes/themes/` — see the Themes section below |
-| Repaint a built-in geom's marks | `recipes/plugins/sketchy-bar.md` |
+| Repaint a built-in geom | `recipes/plugins/sketchy-bar.md` |
 | Minimal custom geom to model a new one after | `recipes/plugins/lollipop.md` |
-| Custom geom with two marks per observation | `recipes/plugins/dumbbell.md` |
+| Custom geom with two geometries per observation | `recipes/plugins/dumbbell.md` |
 | Custom positional aesthetics (open/high/low/close) | `recipes/plugins/candlestick.md` |
 | Custom layout + hit-testing geometry | `recipes/plugins/treemap.md`, `recipes/plugins/voronoi.md` |
 | Simulation-driven or pointer-owning geoms | `recipes/plugins/beeswarm.md`, `recipes/plugins/force-directed.md` |
@@ -108,7 +108,7 @@ Route by the intent of the request, not only the chart type it names. Comparativ
 
 ## Themes
 
-Complete house styles ready to apply or adapt. Each file states its tier, then gives palette/font constants, the spec stylesheet (marks, chrome, tooltip, legend, headline), a small `ThemeOverrides` for the header/footer chrome, a shared `config()` builder, and worked example specs. All are stylesheet + config unless noted.
+Complete house styles ready to apply or adapt. Each file states its tier, then gives palette/font constants, the spec stylesheet (geoms, chrome, tooltip, legend, headline), a small `ThemeOverrides` for the header/footer chrome, a shared `config()` builder, and worked example specs. All are stylesheet + config unless noted.
 
 | Theme | Look | File |
 |---|---|---|
@@ -117,7 +117,7 @@ Complete house styles ready to apply or adapt. Each file states its tier, then g
 | International | Newspaper style: white plates, ink-and-grey series, one red accent | `recipes/themes/international.md` |
 | Lenny's Newsletter | Warm newsletter: cream grounds, rounded corners, autumn orange ramp | `recipes/themes/lennys-newsletter.md` |
 | Neo Brutalist | Near-black sheets, dashed borders, acid `#C8FF00` for data only (one `Swatch` slot) | `recipes/themes/neo-brutalist.md` |
-| Mexico 68 | Olympic op-art: magenta-led palette, concentric outline marks (plugin tier) | `recipes/themes/mexico-68.md` |
+| Mexico 68 | Olympic op-art: magenta-led palette, concentric outline geoms (plugin tier) | `recipes/themes/mexico-68.md` |
 
 ## Validating without rendering
 

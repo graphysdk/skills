@@ -4,7 +4,7 @@ A radar chart is a line/point/area chart bent around a circle: `coord.polar({ th
 
 | Variant | Spec delta |
 |---|---|
-| Spider (outline + vertex dots) | base below: `geom.line()` + `geom.point({ interactive: false })` |
+| Spider (outline + vertex points) | base below: `geom.line()` + `geom.point({ interactive: false })` |
 | Points only | single `geom.point()` layer, no line |
 | Filled | `geom.area({ position: 'identity' })` + `geom.point({ interactive: false })` instead of the line |
 | Curved spider | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
@@ -60,8 +60,8 @@ Points only:
 geom.point(),
 ```
 
-Filled — a translucent polygon per series with vertex dots on top. The polygon's fill opacity is
-`style.geom.area({ alpha })` (default `0.3`), its outline `strokeAlpha` / `strokeWidth`, and the dots
+Filled — a translucent polygon per series with vertex points on top. The polygon's fill opacity is
+`style.geom.area({ alpha })` (default `0.3`), its outline `strokeAlpha` / `strokeWidth`, and the points
 `style.geom.point({ size })` (default `8`) — see `reference/styling.md`:
 
 ```ts
@@ -105,20 +105,20 @@ styles({ defaults: [style.geom.line({ strokeWidth: 3 })] }),
 
 ## Intro animation
 
-Only the vertex dots have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` sorts by the mapped `size`, falling back to x — a radar maps no size, so it reverses spoke order rather than sorting by score:
+Only the vertex points have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` sorts by the mapped `size`, falling back to x — a radar maps no size, so it reverses spoke order rather than sorting by score:
 
 ```tsx
 <GraphRenderer animation={{ intro: { staggerOrder: 'value-descending' } }} />
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area; a skip also kills the vertex-dot entrance.
+`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area; a skip also kills the vertex-point entrance.
 
 ## Gotchas
 
 - Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences. `domainMax` caps the outer ring (e.g. `{ domainMin: 0, domainMax: 10 }`); `nice` defaults to `true`.
 - The filled variant needs `position: 'identity'` — `geom.area` defaults to `'stack'`, which would pile the series' radii on top of each other instead of overlapping them.
 - Use `scale.x.discrete()` explicitly for the spokes; under `coord.polar` the compiler zeroes discrete-scale padding so the spokes distribute evenly around the full circle.
-- Mark the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the dots.
+- Set the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the points.
 - Data labels are unsupported under polar for line, area and point layers — `showDataLabels: true` warns `DATA_LABELS_UNSUPPORTED` and nothing renders.
 - `style.geom.line({ fillAlpha })` is inert here: the gradient wash under a line is cartesian-only. Use the filled variant for a tinted polygon.
 - No reference ring: `geom.rule` is cartesian/flip only and raises `UNSUPPORTED_COORD` under `coord.polar`.

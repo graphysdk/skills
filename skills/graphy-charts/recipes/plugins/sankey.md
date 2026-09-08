@@ -2,7 +2,7 @@
 
 Technique: complex multi-part geometry.
 
-Reach for this pattern when one geom must emit several mark kinds (here node rects and flow ribbons) from relational input. The compile half runs a pure layout in unit `[0, 1]` space and serialises everything into one dataset partitioned by a `kind` column; the render half reads it back, paints each kind, and derives paint, hit-test, and hover repaint from the same geometry so they can never disagree.
+Reach for this pattern when one geom must emit several geometry kinds (here node rects and flow ribbons) from relational input. The compile half runs a pure layout in unit `[0, 1]` space and serialises everything into one dataset partitioned by a `kind` column; the render half reads it back, paints each kind, and derives paint, hit-test, and hover repaint from the same geometry so they can never disagree.
 
 Third-party dependency: `d3-sankey` (plus `@types/d3-sankey`).
 
@@ -146,7 +146,7 @@ const SANKEY_COLUMNS = {
   // The geom's derived node identity (a node's own id, a flow's source id) — the field an author maps
   // `color` to; the engine's categorical scale keys on it.
   node: 'node',
-  // A flow's target node id — its gradient end, read off the same colour scale render-side.
+  // A flow's target node id — its gradient end, read off the same color scale render-side.
   targetKey: 'targetKey',
   // Node rect (unit space, top-left origin).
   x0: 'x0',
@@ -242,7 +242,7 @@ class SankeyGeom extends Geom<Record<string, never>> {
       SANKEY_COLUMNS.kind
     );
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`. Colour is
+    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`. Color is
     // NOT forced here: the author maps `color` to the derived `node` field, and the engine's
     // categorical scale resolves it — the renderer reads a flow's target end off that same scale.
     // Because this returns a fresh `Dataset`, every column a visual aesthetic maps to must be emitted
@@ -277,7 +277,7 @@ interface RenderFlow {
   /** Position in the flow list — a sanitised token for the gradient `id` (`markId` contains `#` and `>`). */
   index: number;
   value: number;
-  /** The flow's source-end fill (cascade-resolved); the target end is read off the colour scale at paint time. */
+  /** The flow's source-end fill (cascade-resolved); the target end is read off the color scale at paint time. */
   sourceColor: string;
   targetKey: string;
   sx: number;
@@ -390,7 +390,7 @@ function buildRibbonPath(flow: RenderFlow): string {
 /** Contrast pair for text — non-cascade decoration, chosen per fill or per `colorScheme`. */
 const LABEL_DARK = '#1f2933';
 const LABEL_LIGHT = '#ffffff';
-/** Only for a node id the colour scale cannot map (see `useColorFor`). */
+/** Only for a node id the color scale cannot map (see `useColorFor`). */
 const FALLBACK_COLOR = '#888888';
 /** Left padding (px) of the in-node label from the block's left edge. */
 const NODE_LABEL_PAD = 10;
@@ -432,7 +432,7 @@ const NodeLabel = ({ node, fill }: { node: RenderNode; fill: string }) => (
 
 /**
  * Flow value, centered on the ribbon a fraction in from the source; culled when the band is thin. It sits
- * over the panel background rather than a node fill, so its colour follows the chart's scheme.
+ * over the panel background rather than a node fill, so its color follows the chart's scheme.
  */
 const FlowLabel = ({ flow, colorScheme }: { flow: RenderFlow; colorScheme: ColorScheme }) => {
   if (flow.sy1 - flow.sy0 < FLOW_LABEL_MIN_BAND) return null;
@@ -463,7 +463,7 @@ const SankeyNodeMark = ({ node, fill }: { node: RenderNode; fill: string }) => (
 
 /**
  * A flow ribbon (path, unit space) plus its value label. The ribbon fades from its source node's
- * colour to its target node's colour. One component for base + hover paint.
+ * color to its target node's color. One component for base + hover paint.
  */
 const SankeyFlowMark = ({
   flow,
@@ -497,7 +497,7 @@ const SankeyFlowMark = ({
 };
 
 /**
- * Reads a node identity's colour off the compiled categorical colour scale (a flow's out-of-band end).
+ * Reads a node identity's color off the compiled categorical color scale (a flow's out-of-band end).
  * This is the data tier only — the cascade-correct alternative is in Adapting.
  */
 function useColorFor(): (key: string) => string {
@@ -568,7 +568,7 @@ export const kit = createGraphyKit({
       ),
       hitTest: ({ layer, styleReaders }) => buildSankeyTester(readSankey(layer.data, styleReaders)),
       // `renderHover` receives the same `styleReaders`/`colorScheme`/`panelRect`. `primary` is an
-      // anchorless hit (no `x`/`y`), so the mark is found from its observation.
+      // anchorless hit (no `x`/`y`), so the geometry is found from its observation.
       renderHover: ({ layer, styleReaders, colorScheme, primary }) => (
         <SankeyHighlight
           layer={layer}
@@ -594,7 +594,7 @@ import { kit } from './sankey-plugin';
 const COOL_PALETTE = ['#3F8EEB', '#5AA9E6', '#6C6CE0', '#8A5CD8', '#A64BC4', '#C13C9E', '#D6478A', '#2E3A8C', '#1F2A6B'];
 
 // The author maps `color` to the geom's derived `node` identity, so the engine's categorical scale
-// colours each node from the palette. Drop `color` and nodes render neutral — no forced encoding.
+// colors each node from the palette. Drop `color` and nodes render neutral — no forced encoding.
 const spec = kit.pipe(
   kit.createSpec({}),
   kit.geom.sankey({ aes: { source: 'source', target: 'target', value: 'value', color: 'node' } }),
@@ -625,10 +625,10 @@ export const SankeyChart = () => (
 
 ## Adapting
 
-- The `SANKEY_COLUMNS` handshake generalises to any multi-part geom: partition marks with `createDatasetFromKindPartitions`, dispatch on the `kind` column render-side, and keep `markId` as the identity both halves share. The tester's returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing. The `hitTest` factory receives the full `GeomRenderInput` (including `panelRect`) and is re-memoized on `layer.data` and the panel pixel rect.
+- The `SANKEY_COLUMNS` handshake generalises to any multi-part geom: partition geometries with `createDatasetFromKindPartitions`, dispatch on the `kind` column render-side, and keep `markId` as the identity both halves share. The tester's returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing. The `hitTest` factory receives the full `GeomRenderInput` (including `panelRect`) and is re-memoized on `layer.data` and the panel pixel rect.
 - Keep geometry a single source of truth (`ribbonEdges` here) so hit-test, base paint, and hover repaint cannot drift; tune `NODE_WIDTH` / `NODE_PAD` (unit-space fractions) and the label thresholds for your data density.
 - Requires `d3-sankey` (`@types/d3-sankey` for TypeScript), both user-installed; swap it for any layout that emits unit-space scalars — never store d3's circular node/link objects in the compiled dataset.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the marks are painted and hit-tested in: a node rect's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge `y: 1 - y0`, and a ribbon's midpoint flips the same way. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
-- Node and ribbon-source fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: `LABEL_DARK` / `LABEL_LIGHT` are contrast colours — `readableTextColor` picks one against the node fill, and `FlowLabel` picks one from `input.colorScheme` because it sits over the panel background (a fixed dark label is invisible on a dark panel). See `reference/styling.md`.
-- `useColorFor` reads `compiled.scales.color` directly — the data tier — so a `styles` override recolouring nodes reaches a ribbon's source end but not its target-end gradient stop. The cascade-correct alternative: find the target node's observation in `layer.data` (its `markId` is `node:${targetKey}`) and call `styleReaders.get('color', targetObservation)`.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the geometries are painted and hit-tested in: a node rect's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge `y: 1 - y0`, and a ribbon's midpoint flips the same way. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
+- Node and ribbon-source fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: `LABEL_DARK` / `LABEL_LIGHT` are contrast colors — `readableTextColor` picks one against the node fill, and `FlowLabel` picks one from `input.colorScheme` because it sits over the panel background (a fixed dark label is invisible on a dark panel). See `reference/styling.md`.
+- `useColorFor` reads `compiled.scales.color` directly — the data tier — so a `styles` override recoloring nodes reaches a ribbon's source end but not its target-end gradient stop. The cascade-correct alternative: find the target node's observation in `layer.data` (its `markId` is `node:${targetKey}`) and call `styleReaders.get('color', targetObservation)`.
 - Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it. `intro` is `null` for a `render-hit-test` layer — nodes and ribbons never animate in.

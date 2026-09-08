@@ -7,7 +7,7 @@
 | Per-series dash patterns | also map `lineType`, add `scale.lineType.discrete({ domain, range })` |
 | Smooth | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
 | Missing values | `geom.line({ params: { missingValues: 'gap' \| 'connect' \| 'zero' } })` |
-| Vertex dots | add a companion layer `geom.point({ interactive: false })` |
+| Vertex points | add a companion layer `geom.point({ interactive: false })` |
 | Fill beneath the line | `styles({ defaults: [style.geom.line({ fillAlpha: 0.15 })] })` |
 | One series painted differently | `geom.line({ id: 'trend' })` + `style.geom.line({ … }, { layer: 'trend' })` |
 | Trend overlay | second `geom.line({ stat: stat.smooth({ method: 'linear' }), interactive: false })` |
@@ -95,7 +95,7 @@ geom.line({ params: { missingValues: 'connect' } }) // drop nulls, span the gap
 geom.line({ params: { missingValues: 'zero' } })    // substitute zero
 ```
 
-## Vertex dots
+## Vertex points
 
 Add a point layer that reuses the spec-level mapping; `interactive: false` keeps hover hit-detection on the line:
 
@@ -163,4 +163,4 @@ renderer's `animation` prop tunes it:
 - Wide data needs `transform.reshape` before `color` (or `lineType`) can map to the series variable.
 - `lineType` scales are discrete-only — mapping `lineType` to a numeric variable errors at compile time. Valid range values: `'solid' | 'dashed' | 'dotted'`.
 - A mapped `alpha` dims the stroke; the wash beneath it follows `fillAlpha`, so the two are set separately.
-- Companion dot layers should set `interactive: false` so they do not compete with the line in hover hit-detection.
+- Companion point layers should set `interactive: false` so they do not compete with the line in hover hit-detection.

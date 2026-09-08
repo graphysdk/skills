@@ -1,7 +1,7 @@
 # Styling
 
 Chart paint lives in a **stylesheet on the spec** — `styles({ ... })`, piped like any other spec
-item. It owns everything the chart draws: marks, grid, ticks, panel border, graph background, all
+item. It owns everything the chart draws: geoms, grid, ticks, panel border, graph background, all
 chart text, the tooltip, the legend pills, the headline cards, direct labels, and annotations. It is
 serializable and travels with the spec.
 
@@ -88,7 +88,7 @@ in a box: `paddingInline`, `paddingBlock`, `background`, `borderColor`, `borderW
 | `style.headlineItem` | `.number` (`.center` for the donut hole), `.caption`, `.label`, `.trend`, `.swatch`, `.trend.up` `.trend.down` `.trend.flat` | text parts: text; `swatch`: `size`; `trend.*`: `textColor`. No bare `style.headlineItem` |
 | `style.legend` | | `gap` (between pills) |
 | `style.legendItem` | `.swatch` | pill: text + box; `swatch`: `size`, `strokeWidth` |
-| `style.directLabel` | | text + `strokeWidth`, `lineType` (the overlap connector). An authored `textColor` replaces the per-series colour on every end label |
+| `style.directLabel` | | text + `strokeWidth`, `lineType` (the overlap connector). An authored `textColor` replaces the per-series color on every end label |
 | `style.annotation` | `.shape` `.arrow` `.differenceArrow` `.text` `.image` `.pinnedNumber` `.comment`, plus `{ annotation: id }` | shared: `color`, `alpha` |
 | `style.annotation.shape` | | `color`, `alpha` (fill only), `borderColor`, `borderWidth` |
 | `style.annotation.arrow` | | `color`, `strokeWidth`, `lineType`, `borderColor`, `borderWidth`, `shadow` |
@@ -159,7 +159,7 @@ The built-in token names:
 
 | Token | Backs |
 |---|---|
-| `geom` | every mark's fill when nothing is mapped to `color` |
+| `geom` | every geom's fill when nothing is mapped to `color` |
 | `geomBorder` | bar borders |
 | `ruleLine` | reference/goal/average lines |
 | `hoverAffordance` | the hovered outline on bars and points; point outlines |
@@ -172,7 +172,7 @@ The built-in token names:
 | `trendPositive`, `trendNegative`, `trendNeutral` | headline trend colors |
 | `hoverGuideFill`, `hoverGuideLine` | declared, but the hover guide reads theme tokens (below) — redefining these moves nothing |
 
-Built-in defaults worth knowing: mark color `#B84737`; graph background `#F5F1E9` light / `#1F1E1C` dark, border `1`,
+Built-in defaults worth knowing: geom color `#B84737`; graph background `#F5F1E9` light / `#1F1E1C` dark, border `1`,
 radius `8`; bar `borderRadius: 'sm'`, border width `1`; line/area `strokeWidth: 2`, `lineType:
 'solid'`; area `alpha: 0.3`; point `size: 8`; rule `lineType: 'dashed'`; y grid lines `1px dashed`;
 panel border `dashed`, radius `6`; tick lines `strokeWidth: 0`; tick label `offset: 10`; labels
@@ -247,7 +247,7 @@ What only a theme token reaches on a read-only chart:
 | Legend swatch-to-label gap | `legendSwatchGap` |
 | Hover guide | `hoverGuideLineColor`, `hoverGuideFillColor` |
 | Legend overflow "+N" pill and popover | `legendBackground`, `legendBorderColor`, `legendTextColor`, `legendFocusOutlineColor`, `legendPill*`, `fontLegendLabel`, `tooltip*` |
-| Trend glyph ink | `iconPrimary` (defaults to `currentColor`) |
+| Trend icon ink | `iconPrimary` (defaults to `currentColor`) |
 
 `legendSwatchGap`, `legendPill*`, `headlineRowGap` and `fontLegendLabel` also move layout; give them
 plain `px` values. `fontLegendLabel` is `{ family?, weight?, style?, size?: { value, unit: 'px' | 'em' }, lineHeight? }`.
@@ -258,7 +258,7 @@ the base color palette (`grey*`, `blue*`, …), which only the editor UI reads.
 
 **Two namespaces.** `textPrimary`, `textSecondary`, `graphBackground`, `tooltipBackground` and the
 hover-guide names exist as a stylesheet token *and* a theme token. They are independent values: the
-stylesheet token drives the plot, the theme token the HTML chrome above. The grid token is
+stylesheet token drives the SVG chart, the theme token the HTML chrome above. The grid token is
 `gridLine` in the stylesheet and `gridLineColor` (dead) in the theme. When a change by name has no
 visible effect, check which namespace you set.
 

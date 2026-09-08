@@ -71,9 +71,9 @@ coord.polar({ theta: 'y', innerRadius: 0.15 }),
 
 `innerRadius` is not racetrack-only — `coord.polar({ theta: 'x', innerRadius: 0.2 })` hollows the centre of a rose too.
 
-Both stacked variants have touching geoms, so a bare `scale.color.palette()` (`{ type: 'default' }`) always resolves to the single-hue `brick` mono ramp for the whole chart — the 8-colour default set is unreachable there; the dodged rose gets it. Escape hatches: `{ type: 'graphy' }` (the 10-colour Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
+Both stacked variants have touching geoms, so a bare `scale.color.palette()` (`{ type: 'default' }`) always resolves to the single-hue `brick` mono ramp for the whole chart — the 8-color default set is unreachable there; the dodged rose gets it. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
 
-Geometry and paint — `width` is the fraction of the category band in `(0, 1]` (angular for rose petals, radial for tracks); the polar default is `1`, the full band, so the cartesian `0.7` must be asked for. Borders are on by default (`borderColor: token('geomBorder')`, `borderWidth: 1`) — this entry swaps in another colour/width, `borderWidth: 0` removes them, and a hovered segment gets a `token('hoverAffordance')` outline. Everything else the bar paints lives in the stylesheet (`reference/styling.md`):
+Geometry and paint — `width` is the fraction of the category band in `(0, 1]` (angular for rose petals, radial for tracks); the polar default is `1`, the full band, so the cartesian `0.7` must be asked for. Borders are on by default (`borderColor: token('geomBorder')`, `borderWidth: 1`) — this entry swaps in another color/width, `borderWidth: 0` removes them, and a hovered segment gets a `token('hoverAffordance')` outline. Everything else the bar paints lives in the stylesheet (`reference/styling.md`):
 
 ```ts
 geom.bar({ position: 'dodge', params: { width: 0.7 } }),
@@ -109,7 +109,7 @@ on one shared clock, unstaggered. The renderer's `animation` prop tunes both:
 ## Gotchas
 
 - Position scales are never auto-added — a layer that maps `y` without `scale.y()` renders raw, unscaled radii with no diagnostic.
-- Bars hold zero on their value axis, so petal length / arc sweep is proportional from zero without asking.
+- Bars hold zero on their cross axis, so petal length / arc sweep is proportional from zero without asking.
 - Under `coord.polar` the compiler zeroes discrete-scale padding automatically — spoke bands span the full circle; control gaps via the bar `width` param instead. Under polar the default `width` is `1` (the full band) and any out-of-range value — above `1` or otherwise invalid — is replaced with that same `1` plus an `INVALID_GEOM_PARAM` warning; `0.7` is the cartesian default, so petal gaps must be asked for explicitly.
 - `startAngle` is in degrees and rotates where the first discrete spoke lands (rose) or where arcs begin sweeping (racetrack).
 - Unlike pie/donut (which never draw axes), these charts keep a real categorical `x` mapping, so both axes render by default; hide or tune them via `config({ axes: { x: { isVisible: false } } })` etc.

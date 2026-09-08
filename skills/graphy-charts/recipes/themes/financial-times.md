@@ -2,7 +2,7 @@
 
 Technique: spec `config()` + a stylesheet + a few theme tokens for the header/footer (no slots, no plugins).
 
-The FT house look: charts sit on the signature salmon paper (`#FFF1E5`) with warm sand-toned rules for gridlines and panel edges, claret/wine-red data with a paler tint for forecasts, and Oxford blue as the counterpart series. Titles are large sentence-case headlines where key words take the series colour, so the headline doubles as the legend. Only horizontal structure: solid top rule, heavier 1.5px bottom rule, y gridlines on, no side borders.
+The FT house look: charts sit on the signature salmon paper (`#FFF1E5`) with warm sand-toned rules for gridlines and panel edges, claret/wine-red data with a paler tint for forecasts, and Oxford blue as the counterpart series. Titles are large sentence-case headlines where key words take the series color, so the headline doubles as the legend. Only horizontal structure: solid top rule, heavier 1.5px bottom rule, y gridlines on, no side borders.
 
 `config()` sets what the frame contains, a stylesheet paints it — paper, rules, text, and the tooltip, legend pills and headline cards — and `themeOverrides` dresses only the header/footer type around it (`reference/styling.md`).
 
@@ -14,12 +14,12 @@ export const FT_COLORS = {
   claret: '#990F3D', // emphasised headline accent
   claretBar: '#A8324A', // the wine-red used for solid bars
   forecastBar: '#E2A6BB', // paler claret tint used for forecast/estimate bars
-  oxford: '#0F5499', // FT Oxford blue — the counterpart series colour
+  oxford: '#0F5499', // FT Oxford blue — the counterpart series color
   steel: '#5D7C95', // muted steel blue for primary stacked segments
   steelLight: '#C3DDF0', // pale blue for secondary stacked segments
   black: '#33302E', // primary text — headline lead-in, subtitle, axis titles
   slate: '#66605C', // secondary text — axis tick labels
-  rule: '#E4D5C5', // warm rule shared by gridlines, tick marks and panel borders on the salmon paper
+  rule: '#E4D5C5', // warm rule shared by gridlines, tick lines and panel borders on the salmon paper
 } as const;
 
 export const FT_FONT_FAMILY = {
@@ -32,7 +32,7 @@ export const FT_CLARET_RAMP = ['#990F3D', '#BE4B75', '#D486A3', '#E5B0C4', '#F2D
 
 ## Theme
 
-Header and footer only. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback) — a rich-text title like `createFinancialTimesTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. The engine's default sizing stays, so nothing here is measured. These are theme tokens, not the stylesheet tokens of the same name — the plot text, legend items, tooltip and headline take their colour from the stylesheet below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
+Header and footer only. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback) — a rich-text title like `createFinancialTimesTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. The engine's default sizing stays, so nothing here is measured. These are theme tokens, not the stylesheet tokens of the same name — the plot text, legend items, tooltip and headline take their color from the stylesheet below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -47,7 +47,7 @@ export const financialTimesTheme: ThemeOverrides = {
 
 ## Shared frame stylesheet
 
-The FT frame: the paper and its family (with the built-in 1px frame ring retired so the paper runs edge to edge), the solid grid, the warm tick marks, a panel ruled top and bottom only, then the ink — black where text names things, slate for tick values — and the same split carried into the legend items, tooltip and headline.
+The FT frame: the paper and its family (with the built-in 1px frame ring retired so the paper runs edge to edge), the solid grid, the warm tick lines, a panel ruled top and bottom only, then the ink — black where text names things, slate for tick values — and the same split carried into the legend items, tooltip and headline.
 
 ```ts
 import { style, styles } from '@graphysdk/viz-engine';
@@ -56,7 +56,7 @@ const financialTimesChromeStyles = styles({
   defaults: [
     style.graph({ background: FT_COLORS.paper, borderWidth: 0, fontFamily: FT_FONT_FAMILY.body }),
     style.gridLine({ lineType: 'solid', color: FT_COLORS.rule }),
-    // The built-in tick line is 0 wide and 0 long, so a colour alone paints nothing.
+    // The built-in tick line is 0 wide and 0 long, so a color alone paints nothing.
     style.tickLine({ color: FT_COLORS.rule, strokeWidth: 1, length: 4 }),
     // The bare builder rules all four edges; the edge partitions then differ. Undeclared, the top
     // edge stays at the built-in 1px and the frame's corner radius at 6 (`borderRadius: 0` squares it).
@@ -67,8 +67,8 @@ const financialTimesChromeStyles = styles({
 
     style.axisLabel({ textColor: FT_COLORS.black }),
     style.tickLabel({ textColor: FT_COLORS.slate }),
-    // No `style.directLabel({ textColor })`: an authored colour replaces the series colour on every
-    // end label, and the line race keys them by colour.
+    // No `style.directLabel({ textColor })`: an authored color replaces the series color on every
+    // end label, and the line race keys them by color.
 
     // The built-in legend item is already bare text (no background, no border); only its ink is set.
     style.legendItem({ textColor: FT_COLORS.slate }),
@@ -105,7 +105,7 @@ const createFinancialTimesConfig = (options: { legendPosition?: 'none' | 'top' |
     },
   });
 
-// Headline title: Figtree, key words in the series colour. A mark `fontSize` is n/10 em of its
+// Headline title: Figtree, key words in the series color. A mark `fontSize` is n/10 em of its
 // parent, so 18 is 1.8em of the h1 (itself 2em of the 10px root), not 18px; the mark sets no
 // weight, so the h1's 700 stands.
 const createFinancialTimesTitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
@@ -133,7 +133,7 @@ const createFinancialTimesTitle = (segments: Array<{ text: string; color?: strin
 
 ## Example: bar chart with a paler forecast tint
 
-The last quarter is a forecast, painted in the paler claret tint via a discrete colour scale keyed on the `type` column. One observation per quarter, so `geom.bar` uses identity positioning. FT bars are square-cornered: on a geom, `borderRadius` takes a token, and square is `'none'`.
+The last quarter is a forecast, painted in the paler claret tint via a discrete color scale keyed on the `type` column. One observation per quarter, so `geom.bar` uses identity positioning. FT bars are square-cornered: on a geom, `borderRadius` takes a token, and square is `'none'`.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -179,11 +179,11 @@ export function FinancialTimesCpmChart() {
 }
 ```
 
-The bar entry sits in `defaults`, so it shapes the corners without touching the fill the colour scale assigns.
+The bar entry sits in `defaults`, so it shapes the corners without touching the fill the color scale assigns.
 
-## Example: line race with colour-keyed headline and direct labels
+## Example: line race with color-keyed headline and direct labels
 
-The headline names each series in its line colour, so no boxed legend is needed; direct labels sit at the line endpoints, typed by the frame's `style.directLabel` entry and coloured by their series. FT lines are 2.5px and unfilled — a line draws a gradient wash only where `fillAlpha` is declared, so leaving it out gives the bare stroke.
+The headline names each series in its line color, so no boxed legend is needed; direct labels sit at the line endpoints, typed by the frame's `style.directLabel` entry and colored by their series. FT lines are 2.5px and unfilled — a line draws a gradient wash only where `fillAlpha` is declared, so leaving it out gives the bare stroke.
 
 ```tsx
 import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -257,6 +257,6 @@ Figtree (stand-in for FT Metric) carries all chart text — `style.graph({ fontF
 Each pipes `createFinancialTimesConfig()` + `financialTimesChromeStyles`, then its own geom stylesheet.
 
 - Stacked bars: `geom.bar({ position: 'stack' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: '#000', borderWidth: 1 })] })`; segments in `[FT_COLORS.steel, FT_COLORS.steelLight]`; `createFinancialTimesConfig({ legendPosition: 'top' })`.
-- Donut: `geom.bar({ position: 'fill' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: FT_COLORS.paper, borderWidth: 2 })] })` + `coord.polar({ theta: 'y', innerRadius: 0.3 })`; colours from `FT_CLARET_RAMP`, percentage labels outside with `showCategoryLabels` (on polar the category merges into the same observation label); add `config({ layout: { gaps: { header: 24 } } })`.
+- Donut: `geom.bar({ position: 'fill' })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: FT_COLORS.paper, borderWidth: 2 })] })` + `coord.polar({ theta: 'y', innerRadius: 0.3 })`; colors from `FT_CLARET_RAMP`, percentage labels outside with `showCategoryLabels` (on polar the category merges into the same observation label); add `config({ layout: { gaps: { header: 24 } } })`.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: FT_COLORS.paper, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })`; emphasised months in `claretBar`, the rest in `forecastBar` — the same emphasis split the bar chart uses for actual vs forecast.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `claretBar`, remainder in `rule`; add `config({ layout: { gaps: { header: 24 } } })`.

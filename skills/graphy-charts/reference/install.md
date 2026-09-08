@@ -45,7 +45,7 @@ Entry points per package:
 Use the minimal chart in `SKILL.md`. When checking the result:
 
 - **You never import a stylesheet.** The JS entry imports it. A correct render shows axes, grid lines
-  and a coloured bar — not unstyled black-on-white text.
+  and a colored bar — not unstyled black-on-white text.
 - **Sizing.** The default `sizing={{ mode: 'responsive' }}` fills the parent, so the parent needs real
   width and height. Use `sizing={{ mode: 'fixed', width: 640, height: 400 }}` while verifying.
 

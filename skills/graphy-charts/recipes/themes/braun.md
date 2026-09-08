@@ -30,7 +30,7 @@ export const BRAUN_FONT_FAMILY = {
 
 ## Theme
 
-Four tokens for the HTML header and footer. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback). A rich-text title like `createBraunTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — the plot's own text, the legend key, the tooltip and the headline take their colour from the stylesheet below, which names it per target. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
+Four tokens for the HTML header and footer. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback). A rich-text title like `createBraunTitle` inherits the host page's font unless its `textStyle` mark names `font` (it does, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. These are theme tokens, not the stylesheet tokens of the same name — the plot's own text, the legend key, the tooltip and the headline take their color from the stylesheet below, which names it per target. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
 
 ```ts
 import type { ThemeOverrides } from '@graphysdk/react-renderer';
@@ -63,13 +63,13 @@ const braunChromeStyles = styles({
     style.tickLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4, textColor: BRAUN_COLORS.labelMuted }),
     // Printed readings sit heavier and slightly larger — the one number you read off a dial.
     style.dataLabel({ fontSize: 13, fontWeight: 600, textColor: BRAUN_COLORS.ink }),
-    // Outside readings sit on a panel-coloured plate (radius 4, padding 6×2): invisible against the
+    // Outside readings sit on a panel-colored plate (radius 4, padding 6×2): invisible against the
     // panel, but opaque — it occludes whatever it overlaps.
     style.dataLabel.observation.outside({ background: BRAUN_COLORS.panel }),
     // Pie labels are observation labels: on polar, `showCategoryLabels` merges the category into the
     // same label, so the entry above covers wedges. `dataLabel.category` exists only for cartesian bars.
     // Series end labels (direct legend) take the plain 12px cut. No `textColor`: an authored one
-    // replaces the series colour on every end label, and the line race keys them by colour.
+    // replaces the series color on every end label, and the line race keys them by color.
     style.directLabel({ fontSize: 12, fontWeight: 500, lineHeight: 1.4 }),
 
     // Legend key: the built-in item is already bare text (no background, no border), so only
@@ -84,7 +84,7 @@ const braunChromeStyles = styles({
     style.legendItem.swatch({ size: 10 }),
     style.legend({ gap: 16 }),
 
-    // Tooltip: a panel-coloured card with a structure hairline and no shadow.
+    // Tooltip: a panel-colored card with a structure hairline and no shadow.
     style.tooltip({ background: BRAUN_COLORS.panel, borderColor: BRAUN_COLORS.structure, borderWidth: 1, borderRadius: 6, shadow: 'none' }),
     style.tooltip.heading({ textColor: BRAUN_COLORS.ink }),
     style.tooltip.label({ textColor: BRAUN_COLORS.labelMuted }),
@@ -205,11 +205,11 @@ export function BraunCpmChart() {
 }
 ```
 
-`style.geom.bar({ borderRadius: 'full' })` sits in `defaults`, so it never fights the `color` mapping — the scale still decides each pill's fill. The colour range is the mapping's business; the ring is the plate's.
+`style.geom.bar({ borderRadius: 'full' })` sits in `defaults`, so it never fights the `color` mapping — the scale still decides each pill's fill. The color range is the mapping's business; the ring is the plate's.
 
 ## Example: donut with one orange reading
 
-Ring at 0.55 inner radius. The leader wedge takes the orange — the one reading on this plate — and the rest run down the warm-grey ramp, darker for larger. Panel-coloured borders open a 2px gap between wedges. Wedge corners are square — on a geom, `borderRadius` is a token, so square reads as `'none'`.
+Ring at 0.55 inner radius. The leader wedge takes the orange — the one reading on this plate — and the rest run down the warm-grey ramp, darker for larger. Panel-colored borders open a 2px gap between wedges. Wedge corners are square — on a geom, `borderRadius` is a token, so square reads as `'none'`.
 
 ```tsx
 import { config, coord, createSpec, geom, pipe, scale, style, styles } from '@graphysdk/viz-engine';
@@ -286,7 +286,7 @@ export function BraunRevenueDonut() {
 
 Each pipes `createBraunConfig()` + `braunChromeStyles`, then its own one-line geom stylesheet.
 
-- Stacked pills: `geom.bar({ position: 'stack', params: { width: BAR_WIDTH } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: BRAUN_COLORS.panel, borderWidth: 1.5 })] })` — panel-coloured borders cut a hairline gap between segments; series colours `[BRAUN_COLORS.ink, BRAUN_RAMP[1]]`.
+- Stacked pills: `geom.bar({ position: 'stack', params: { width: BAR_WIDTH } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: BRAUN_COLORS.panel, borderWidth: 1.5 })] })` — panel-colored borders cut a hairline gap between segments; series colors `[BRAUN_COLORS.ink, BRAUN_RAMP[1]]`.
 - Line race: `geom.line()` + `styles({ defaults: [style.geom.line({ strokeWidth: LINE_WIDTH })] })`, lead series in `ink`, follower in `trace2`; direct end labels via `config({ legend: { position: 'right', display: 'direct' } })`, typed by the plate's `style.directLabel` entry. There is no gradient wash unless you declare `fillAlpha`.
 - Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none', borderColor: BRAUN_COLORS.panel, borderWidth: 1 })] })` + `coord.polar({ theta: 'x' })` + `braunPolarStyles`; emphasised months in `ink`, the rest in `structure`.
 - Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `styles({ defaults: [style.geom.bar({ borderRadius: 'none' })] })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })` + `braunPolarStyles`; achieved in `ink`, remainder in `BRAUN_RAMP[3]`.

@@ -2,7 +2,7 @@
 
 Technique: minimal fully custom geom — the smallest complete compile + paint pair.
 
-Reach for this pattern as the template for any new mark kind: one `Geom` subclass (the compile half) plus one `defineGeomRenderer(definition, contract)` call (the paint half), registered together through `createGraphyKit` so `kit.geom.lollipop` exists as a fully typed builder method. The key discipline: the renderer invents no positions — every coordinate (including the stem's baseline) is written in data units at compile time and mapped by the shared scales, so the mark stays correct under any y domain.
+Reach for this pattern as the template for any new geom: one `Geom` subclass (the compile half) plus one `defineGeomRenderer(definition, contract)` call (the paint half), registered together through `createGraphyKit` so `kit.geom.lollipop` exists as a fully typed builder method. The key discipline: the renderer invents no positions — every coordinate (including the stem's baseline) is written in data units at compile time and mapped by the shared scales, so the geometry stays correct under any y domain.
 
 ```tsx
 import { useMemo } from 'react';
@@ -12,7 +12,7 @@ import type { CompiledGeom, CompiledLayer, GeomCompilerInput, GeomStyleReaders, 
 import { Geom, getX, getYMax, getYMin, POSITION_VARIABLES, toPercent, toViewBoxX, toViewBoxY } from '@graphysdk/viz-engine';
 
 /**
- * A dot atop a stem dropped to the baseline. It declares a y *interval* — an `x` point plus a
+ * A point atop a stem dropped to the baseline. It declares a y *interval* — an `x` point plus a
  * `min`/`max` y pair (like `area`/`bar`) — and a `color` aesthetic, plus one `stemWidth` param.
  * `compile` writes `yMin = 0` in *data* units, the `max` role fills `yMax` from the `y` aesthetic,
  * both are scaled by the shared y-scale, and the renderer reads them via `getYMin`/`getYMax`.
@@ -55,7 +55,7 @@ const LollipopRenderer = ({ layer, styleReaders }: { layer: CompiledLayer; style
   );
 };
 
-/** One lollipop; with `isHovered` it redraws with a bolder stem and a larger dot. */
+/** One lollipop; with `isHovered` it redraws with a bolder stem and a larger point. */
 const LollipopItem = ({
   layer,
   observation,
@@ -105,7 +105,7 @@ const LollipopItem = ({
 // derives the typed `kit.geom.lollipop` method AND registers the geom with the bound compiler.
 export const lollipop = defineGeomRenderer(new LollipopGeom(), {
   coord: 'cartesian',
-  // Without this, legend/tooltip swatches fall back to `'square'`; a dot reads better.
+  // Without this, legend/tooltip swatches fall back to `'square'`; a circle reads better.
   swatchShape: 'circle',
   // No `guideMode` → no hover guide; `guideMode: 'band'` would add a category band under the hovered x.
   render: ({ layer, styleReaders }) => <LollipopRenderer layer={layer} styleReaders={styleReaders} />,
@@ -116,7 +116,7 @@ export const lollipop = defineGeomRenderer(new LollipopGeom(), {
 });
 ```
 
-The marks are `%`-positioned children of the panel SVG; `UnitSpaceSvg` (react-renderer) is the exported primitive for painting in raw `[0,1]` instead, and `input.panelRect` (the panel's layout-pixel `Rect`, x/y already applied — paint in local 0…width / 0…height) is the escape hatch when pixel sizes matter. `spatialKind: 'buckets'` also means `input.intro` offers a wipe plan; this renderer ignores it (plans are offered, never imposed), so the lollipops pop in while built-in layers animate.
+The geometries are `%`-positioned children of the panel SVG; `UnitSpaceSvg` (react-renderer) is the exported primitive for painting in raw `[0,1]` instead, and `input.panelRect` (the panel's layout-pixel `Rect`, x/y already applied — paint in local 0…width / 0…height) is the escape hatch when pixel sizes matter. `spatialKind: 'buckets'` also means `input.intro` offers a wipe plan; this renderer ignores it (plans are offered, never imposed), so the lollipops pop in while built-in layers animate.
 
 ## Usage
 
@@ -156,9 +156,9 @@ export const LollipopChart = () => (
 
 ## Adapting
 
-- Add tunables as typed params: extend the `Geom<Params>` type parameter and `defaultParams` (e.g. dot radius), then read them from `layer.params` in the renderer.
+- Add tunables as typed params: extend the `Geom<Params>` type parameter and `defaultParams` (e.g. point radius), then read them from `layer.params` in the renderer.
 - Extra visual channels go in `aesthetics` (e.g. `size`, `alpha`) and are read through the cascade — `styleReaders.get('size', observation)` / `get('alpha', observation)` — never bake per-observation styling into render constants. (`size` has no built-in default on a custom geom, so it may resolve `undefined`.)
-- `positionRoles` is the geometry contract: keep `min`/`max` pairs for interval marks; a plain point mark declares only `point` roles and skips the baseline injection in `compile`.
-- Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens; `getColor`/`getAlpha` expose the encoding only. Reserve geom params for what the stylesheet has no vocabulary for (a stem width, a label's contrast colour). See `reference/styling.md`.
+- `positionRoles` is the geometry contract: keep `min`/`max` pairs for interval geoms; a plain point geom declares only `point` roles and skips the baseline injection in `compile`.
+- Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens; `getColor`/`getAlpha` expose the encoding only. Reserve geom params for what the stylesheet has no vocabulary for (a stem width, a label's contrast color). See `reference/styling.md`.
 - The class declares no `highlightStrategy`, so it inherits the base default `'overlay-anchor'` — and declared or inherited, it is not read on a custom geom: `layer.highlight` is looked up by built-in geom name, so a spec `highlight()` never dims or re-renders lollipops. To recede while another layer is highlighted, paint `styleReaders.get('alpha', observation, 'dimmed')` yourself. (Sibling fading on hover is unrelated: the layer group's CSS hover-dim is driven by the hover store holding any primary hit — `useHoverDim` sets `data-hover-active` on the geom group — and the `renderHover` output escapes it only because it paints outside that group.)
-- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to lollipops; implement it returning the dot's `[0,1]` position to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.
+- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to lollipops; implement it returning the point's `[0,1]` position to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.

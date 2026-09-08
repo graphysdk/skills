@@ -30,7 +30,7 @@ export interface TreemapLayoutParams {
 /**
  * A laid-out tile in unit space. A `group` tile is a header-bearing cell containing leaves; a `leaf`
  * tile is a single rectangle whose area is proportional to its value. `shade` varies a leaf's lightness
- * within its group's hue (`0` for a group tile); the hue itself comes from the engine's colour scale.
+ * within its group's hue (`0` for a group tile); the hue itself comes from the engine's color scale.
  */
 export interface LaidOutTile {
   kind: 'group' | 'leaf';
@@ -164,7 +164,7 @@ function buildHierarchy(groups: GroupAggregate[], isFlat: boolean): TreeNodeInpu
   return { group: '', label: '', value: 0, children };
 }
 
-/** Larger leaves stay close to the base colour, smaller leaves lighten; clamped so every tile reads. */
+/** Larger leaves stay close to the base color, smaller leaves lighten; clamped so every tile reads. */
 function shadeFor(value: number, maxValue: number): number {
   if (maxValue <= 0) return 1;
   return 0.4 + 0.6 * (value / maxValue);
@@ -341,7 +341,7 @@ interface RenderTile {
   kind: 'group' | 'leaf';
   label: string;
   value: number;
-  /** The tile's base hue (its group's), read through the style cascade (override → colour scale → default). */
+  /** The tile's base hue (its group's), read through the style cascade (override → color scale → default). */
   color: string;
   shade: number;
   x0: number;
@@ -583,10 +583,10 @@ export const TreemapGraph = () => (
 ## Adapting
 
 - The `*_COLUMNS` constant is the whole compile→render contract: change the layout output, add a column there, write it in `compile()`, read it in `readTiles`. Non-scalar geometry must ride as JSON strings (the dataset stores scalars only — see the voronoi recipe).
-- `identityKey: { variable: markId }` plus the `hitTest` factory returning `{ key }` is what wires hover; keep mark ids stable across recompiles or hover will flicker on data updates. The returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing.
+- `identityKey: { variable: markId }` plus the `hitTest` factory returning `{ key }` is what wires hover; keep `markId` values stable across recompiles or hover will flicker on data updates. The returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing.
 - Swap `computeTreemapLayout` for any other space-filling layout (icicle, circle packing); only the layout module and the tile paint change — hit-testing stays a rect/containment scan over the emitted geometry.
 - The `hitTest` factory is the declarative path: it receives the full `GeomRenderInput` (including `panelRect`, layout pixels) and is re-memoized on `layer.data` and the panel pixel rect. A geom whose geometry only exists in live component state can instead call `useGeomHitTest(layer.id, tester)` inside its render component. Three diagnostics police this shape: `MISSING_RENDER_HIT_TEST` (a `'render-hit-test'` layer with neither a `hitTest` factory nor an overlay render), `CONFLICTING_RENDER_HIT_TEST` (both declared; the overlay wins) and `OVERLAY_REQUIRES_RENDER_HIT_TEST` (an overlay render on any other `spatialKind`).
 - Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it; `primary` on the pull path carries no `x`/`y` and the tooltip follows the live cursor. `intro` is `null` for a `render-hit-test` layer — tiles never animate in.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the tiles are painted and hit-tested in: a tile's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge for a callout `y: 1 - y0`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }` — so a pin and a value anchor can land on different points of the tile.
-- Tile fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every tile. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the label colours (`#fff`, `#1f2937`, `rgba(31, 41, 55, 0.62)`) are contrast choices against the tile, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the tiles are painted and hit-tested in: a tile's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge for a callout `y: 1 - y0`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }` — so a pin and a value anchor can land on different points of the tile.
+- Tile fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every tile. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the label colors (`#fff`, `#1f2937`, `rgba(31, 41, 55, 0.62)`) are contrast choices against the tile, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
 - `d3-hierarchy` is a user-installed dependency: `npm i d3-hierarchy` plus `@types/d3-hierarchy` for TypeScript.

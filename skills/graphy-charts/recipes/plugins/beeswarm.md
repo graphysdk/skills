@@ -27,7 +27,7 @@ import { Geom, getX, readObservationIndex } from '@graphysdk/viz-engine';
 
 /** Circle radius in pixels — the collision diameter the dodge clears. */
 const POINT_RADIUS = 3.5;
-/** Hover hit radius — a touch larger than the drawn dot so dense points stay easy to target. */
+/** Hover hit radius — a touch larger than the drawn point so dense points stay easy to target. */
 const POINT_HIT_RADIUS = POINT_RADIUS + 2;
 const EPSILON = 1e-6;
 
@@ -126,7 +126,7 @@ class BeeswarmGeom extends Geom {
 
   override readonly spatialKind = 'render-hit-test';
 
-  // The engine scales x and trains the colour scale; the geom adds nothing and injects no y. Passing
+  // The engine scales x and trains the color scale; the geom adds nothing and injects no y. Passing
   // the data through keeps row order: `identityKey: 'index'` keys each hit as `String(datasetRow)`, so
   // the row the tester returns must be the row the engine's `byKey` map stored. `'index'` indexes every
   // row, including ones the layout skips for a null x — which is why `readPoints` advances its counter
@@ -137,9 +137,9 @@ class BeeswarmGeom extends Geom {
 }
 
 /**
- * Reads each row's scaled x, preserving the row index as the identity key. Layout reads no colour: the
+ * Reads each row's scaled x, preserving the row index as the identity key. Layout reads no color: the
  * `hitTest` factory is memoized on `[hitTest, layer.data, panelRect]` — not `styleReaders` — so a
- * tester that read paint would go stale on a restyle. Paint resolves colour per point at render time.
+ * tester that read paint would go stale on a restyle. Paint resolves color per point at render time.
  */
 function readPoints(data: Dataset): SwarmPoint[] {
   const points: SwarmPoint[] = [];
@@ -183,14 +183,14 @@ function buildSwarmTester(placed: PlacedPoint[], width: number, height: number, 
 interface SwarmPaintProps {
   layer: CompiledLayer;
   styleReaders: GeomStyleReaders;
-  /** Layout pixels; x/y are already applied, so marks paint in local `0…width` / `0…height`. */
+  /** Layout pixels; x/y are already applied, so points paint in local `0…width` / `0…height`. */
   panelRect: Rect;
 }
 
 /**
  * Paints the swarm in panel pixel space. `panelRect` is the paint size the renderer hands every render
  * input — no measurement needed (`useElementScreenRect` is for client-coordinate overlays). Fill comes
- * from `styleReaders` (override → colour scale → default, resolved for the active scheme), not
+ * from `styleReaders` (override → color scale → default, resolved for the active scheme), not
  * `getColor`, which sees the data tier only and is `undefined` whenever `color` is unmapped.
  */
 const BeeswarmLayer = ({ layer, styleReaders, panelRect: { width, height } }: SwarmPaintProps) => {
@@ -214,8 +214,8 @@ const BeeswarmLayer = ({ layer, styleReaders, panelRect: { width, height } }: Sw
 };
 
 /**
- * Repaints the hovered dot at full opacity above the auto-dimmed base layer. `primary` is an anchorless
- * hit (no `x`/`y`), so the dot is found by its dataset row from the same layout the base paint used.
+ * Repaints the hovered point at full opacity above the auto-dimmed base layer. `primary` is an anchorless
+ * hit (no `x`/`y`), so the point is found by its dataset row from the same layout the base paint used.
  * `readObservationIndex(primary)` returns that row because a render-hit-test hit carries `pointIndex` only.
  */
 const BeeswarmHover = ({ layer, styleReaders, panelRect: { width, height }, primary }: SwarmPaintProps & { primary: HoverHit }) => {
@@ -266,7 +266,7 @@ import type { Data } from '@graphysdk/viz-engine';
 
 import { kit } from './beeswarm-plugin';
 
-// x is the scale-derived value axis; the off-axis spread is the render-side dodge, so no y axis.
+// x is the scale-derived cross axis; the off-axis spread is the render-side dodge, so no y axis.
 const spec = kit.pipe(
   kit.createSpec({ x: 'value' }),
   kit.geom.beeswarm({ aes: { name: 'name', color: 'group' } }),
@@ -295,9 +295,9 @@ export const BeeswarmChart = () => (
 ## Adapting
 
 - Swap `computeSwarm` for any pixel-space placement (jitter, violin-density dodge, a d3-force collision pass); keep the row-index identity aligned with the compiled data order so hover keys resolve. `identityKey: 'index'` keys each hit as `String(datasetRow)`, which is why `compile()` must preserve row order; under the `{ variable }` identity form the returned `key` must instead equal `getStableKey(identityValue)` (identity for strings, normalised for other types: a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing. `defaultInteractive: false` on the geom opts a layer out of hover entirely and also silences `MISSING_RENDER_HIT_TEST`.
-- Tune `POINT_RADIUS` / `POINT_HIT_RADIUS` for density; the hit radius can exceed the drawn radius to keep small marks targetable.
+- Tune `POINT_RADIUS` / `POINT_HIT_RADIUS` for density; the hit radius can exceed the drawn radius to keep small points targetable.
 - To swarm vertically, declare the position role on `axis: 'y'` and dodge along x instead — the layout and tester swap coordinates, the geom contract is otherwise unchanged.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its marks. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the marks annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left pixel frame the dots are placed in: a dot at `(cx, cy)` becomes `{ x: cx / width, y: 1 - cy / height }`, though the dodge is knowable only render-side here. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
-- Dot fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → colour scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every dot. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the dot strokes (`#fff`, `#1f2937`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
-- Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it — which is why the hovered dot is repainted in `renderHover` rather than inline in the base layer, where it would dim too. `intro` is `null` for a `render-hit-test` layer — dots never animate in.
+- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left pixel frame the points are placed in: a point at `(cx, cy)` becomes `{ x: cx / width, y: 1 - cy / height }`, though the dodge is knowable only render-side here. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`.
+- Point fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every point. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the point strokes (`#fff`, `#1f2937`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
+- Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it — which is why the hovered point is repainted in `renderHover` rather than inline in the base layer, where it would dim too. `intro` is `null` for a `render-hit-test` layer — points never animate in.
 - The `hitTest` factory is the preferred route: `input.panelRect` is available in both `render` and the factory, and the factory is re-memoized on `layer.data` and the panel pixel rect, so a resize rebuilds it. `useGeomHitTest(layer.id, tester)` remains the escape hatch for geometry that only exists in live component state (a simulation that settles); it registers at runtime, invisible to the contract check, so that path still reports `MISSING_RENDER_HIT_TEST` even though hover works.
