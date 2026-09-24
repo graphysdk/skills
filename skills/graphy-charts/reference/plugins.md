@@ -18,6 +18,8 @@ Contents
 
 A plugin adds a geom, stat, or transform the built-in set does not have, or repaints a built-in geom. It is plain TypeScript: a class or object on the compile side, a render contract on the React side.
 
+Waterfall, funnel, mekko, and table are not a reason to write a plugin. They are unsupported. Say so and stop. Do not invent a geom for them. `variant: 'waterfall'` on a palette only swaps colours. It does not build a waterfall chart.
+
 Exact declarations: [types.md](types.md), Plugins sections. Complete implementations: [plugin recipes](../recipes/plugins/).
 
 ## What a plugin is

@@ -498,12 +498,12 @@ Notes:
 
 ## Unsupported chart types
 
-Waterfall, funnel, mekko, and table are not chart types in this SDK. The old chart converter throws if you ask it for one. `variant: 'waterfall'` on a palette only swaps in positive, negative, and total colours. It does not build a waterfall chart.
+Waterfall, funnel, mekko, and table are not chart types in this SDK. The old chart converter throws if you ask it for one. Say that they are unsupported and stop. Do not invent a plugin or a geom for them. `variant: 'waterfall'` on a palette only swaps in positive, negative, and total colours. It does not build a waterfall chart.
 
 ## Pitfalls
 
 - The x and y scales are never inferred into existence. Add `scale.x()` and `scale.y()` to every spec. `ySecondary` and `color` are added for you when missing.
-- Only six geoms exist. There is no text, pie, or candlestick geom. Pie is `geom.bar` under `coord.polar({ theta: 'y' })`. Others are plugins.
+- Only six geoms exist. There is no text, pie, or candlestick geom. Pie is `geom.bar` under `coord.polar({ theta: 'y' })`. A new mark is a plugin, except waterfall, funnel, mekko, and table, which are unsupported.
 - `createSpec` and `pipe` return new objects. Keep the result, they never mutate.
 - Wide data (one column per group) needs `transform.reshape` before the mapping can name `color`. Put `mapping()` after the transform.
 - A `rule` draws one line per layer. Several reference lines are several `geom.rule` calls.

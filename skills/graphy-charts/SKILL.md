@@ -110,7 +110,7 @@ Themes are one file each under [recipes/themes](recipes/themes). Each file is a 
 - Build the spec once, or memoize it. A new spec object recompiles the chart.
 - A responsive chart with no parent height is zero pixels tall.
 - `@graphysdk/react` shows the brand mark unless the spec turns it off.
-- Waterfall, funnel, mekko, and table are not chart types here.
+- Waterfall, funnel, mekko, and table are not chart types here. Say so and stop. Do not write a plugin for them.
 
 ## Checking a spec
 
