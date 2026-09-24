@@ -1,96 +1,123 @@
-# Heatmap (tile)
+# Heatmap
 
-`geom.tile()` fills its `(x, y)` cell on both axes, with the value on **`color`** through a ramp
-instead of on a length. `color` is required; there are no `params` — a cell's geometry is the two
-bands it sits in. Data is **long**: one row per cell, carrying both coordinates and the value.
+Use a heatmap to show one value across two bands. Each cell is a tile, and the value rides the colour.
 
-| Variant | Spec delta |
-|---|---|
-| Heatmap | base below |
-| Named colormap | `scale.color.continuous({ scheme: 'viridis' })` |
-| Explicit ramp | `scale.color.continuous({ range: ['#FFFFFF', '#0B5FFF'] })` |
-| Diverging (crosses zero) | `scale.color.continuous({ scheme: 'RdBu', domainMid: 0 })` |
-| No cell labels | `geom.tile({ dataLabels: { showDataLabels: false } })` |
-| Force the full grid | `scale.x.discrete({ domain: [...] })`, same on y |
-| First category at the bottom | `scale.y.discrete({ reverse: false })` |
-| Wide matrix input | `transform.reshape({ … })` in front of the mapping — below |
-| Waffle | `scale.color.discrete()` over an index grid — below |
+## Data
 
-## Base heatmap
+One row per cell, in long form: an x band, a y band, and the value.
+
+```ts
+import type { Data } from '@graphysdk/react';
+
+const shippedData: Data = {
+  columns: [{ key: 'team' }, { key: 'quarter' }, { key: 'shipped' }],
+  rows: [
+    { team: 'Alpha', quarter: 'Q1', shipped: 5 },
+    { team: 'Alpha', quarter: 'Q2', shipped: 8 },
+    { team: 'Alpha', quarter: 'Q3', shipped: 6 },
+    { team: 'Alpha', quarter: 'Q4', shipped: 11 },
+    { team: 'Beta', quarter: 'Q1', shipped: 2 },
+    { team: 'Beta', quarter: 'Q2', shipped: 3 },
+    { team: 'Beta', quarter: 'Q3', shipped: 6 },
+    { team: 'Beta', quarter: 'Q4', shipped: 7 },
+  ],
+};
+```
+
+## Basic
 
 ```tsx
-import { config, createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+import { config, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-const data = {
-  columns: [{ key: 'cohort' }, { key: 'week' }, { key: 'retention' }],
+const shippedData: Data = {
+  columns: [{ key: 'team' }, { key: 'quarter' }, { key: 'shipped' }],
   rows: [
-    { cohort: 'Cohort 1', week: 'Week 1', retention: 86 },
-    { cohort: 'Cohort 1', week: 'Week 2', retention: 70 },
-    { cohort: 'Cohort 2', week: 'Week 1', retention: 82 },
-    { cohort: 'Cohort 2', week: 'Week 2', retention: 71 },
+    { team: 'Alpha', quarter: 'Q1', shipped: 5 },
+    { team: 'Alpha', quarter: 'Q2', shipped: 8 },
+    { team: 'Alpha', quarter: 'Q3', shipped: 6 },
+    { team: 'Alpha', quarter: 'Q4', shipped: 11 },
+    { team: 'Beta', quarter: 'Q1', shipped: 2 },
+    { team: 'Beta', quarter: 'Q2', shipped: 3 },
+    { team: 'Beta', quarter: 'Q3', shipped: 6 },
+    { team: 'Beta', quarter: 'Q4', shipped: 7 },
   ],
 };
 
-const input = pipe(
-  createSpec({ x: 'cohort', y: 'week', color: 'retention' }),
+const spec = pipe(
+  createSpec({ x: 'quarter', y: 'team', color: 'shipped' }),
   geom.tile(),
   scale.x(),
   scale.y(),
-  scale.color.continuous({ scheme: 'viridis' }),
-  config({ axes: { x: { position: 'top' } } })
+  scale.color.continuous(),
+  config({
+    axes: { x: { label: 'Quarter', position: 'top' }, y: { label: 'Team', position: 'left' } },
+    legend: { position: 'none' },
+  })
 );
 
-export function CohortRetention() {
+export function ShippedHeatmap() {
   return (
-    <GraphProvider data={data} input={input}>
+    <GraphProvider data={shippedData} spec={spec}>
       <GraphRenderer />
     </GraphProvider>
   );
 }
 ```
 
-## Color is the encoding
+Tiles show their value as a data label by default. Turn it off with `geom.tile({ dataLabels: { showDataLabels: false } })`.
 
-**The color scale is inferred from the column.** With none in the spec a tile layer reads its
-`color` column: a numeric value already lands on the default sequential ramp; only a categorical
-column falls back to the palette. Declare `scale.color.continuous()` to choose the `scheme`, `range`
-or `domainMid`. Omitting `color` altogether fails with `MISSING_AESTHETIC`; tile declares only `color`, so any other mapping (`size`, `alpha`, …) warns `UNDECLARED_AESTHETIC` and is ignored.
+## Variants
+
+### Named colour scheme
 
 ```ts
-scale.color.continuous();                                  // brand sequential ramp
-scale.color.continuous({ scheme: 'viridis' });             // named colormap
-scale.color.continuous({ range: ['#FFFFFF', '#0B5FFF'] }); // explicit ramp
+import { scale } from '@graphysdk/react';
+
+const colorScale = scale.color.continuous({ scheme: 'viridis' });
 ```
 
-Data that crosses zero wants a diverging scheme with `domainMid: 0`; without the pin the neutral
-color lands on the data's midpoint rather than zero (`DIVERGING_SCHEME_WITHOUT_MIDPOINT`). It also
-turns `symmetric` on, so ±8 get equal intensity. `range` supersedes `scheme` — setting both raises
-`CONFLICTING_COLOR_RAMP`. Remaining ramp options: `reverse`, `transform: 'log' | 'sqrt'`, `domainMin`/`domainMax`,
-`symmetric`, `interpolate` (default `'lab'`), `clamp` (default `true` for non-position scales). Full list:
-`reference/spec-api.md` → `scale`.
+### Custom colour range
 
-## Wide matrix data
-
-One column per grid column is the usual shape — reshape in front of the mapping:
+Two or more stops. A range replaces the scheme.
 
 ```ts
-const data = {
+import { scale } from '@graphysdk/react';
+
+const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
+```
+
+### Diverging values around zero
+
+Pin the neutral colour to zero and balance the domain so equal magnitudes get equal intensity.
+
+```ts
+import { scale } from '@graphysdk/react';
+
+const colorScale = scale.color.continuous({ scheme: 'RdBu', domainMid: 0, symmetric: true });
+```
+
+### Wide matrix from a spreadsheet
+
+One column per x band needs a reshape before the mapping.
+
+```ts
+import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const revenueData: Data = {
   columns: [{ key: 'product' }, { key: 'North' }, { key: 'South' }, { key: 'East' }, { key: 'West' }],
   rows: [
     { product: 'Coffee', North: 18, South: 12, East: 15, West: 9 },
     { product: 'Tea', North: 7, South: 11, East: 6, West: 14 },
+    { product: 'Pastry', North: 22, South: 19, East: 12, West: 10 },
+    { product: 'Sandwich', North: 14, South: 8, East: 17, West: 13 },
   ],
 };
 
-const input = pipe(
+const spec = pipe(
   createSpec(),
-  transform.reshape({
-    keep: ['product'],
-    reshape: ['North', 'South', 'East', 'West'],
-    keyName: 'region',
-    valueName: 'revenue',
-  }),
+  transform.reshape({ keep: ['product'], reshape: ['North', 'South', 'East', 'West'], keyName: 'region', valueName: 'revenue' }),
   mapping({ x: 'region', y: 'product', color: 'revenue' }),
   geom.tile(),
   scale.x(),
@@ -99,104 +126,60 @@ const input = pipe(
 );
 ```
 
-## Gaps stay gaps
+### Percent strings
 
-Only the rows you supply paint a cell, so a missing combination stays a hole rather than the ramp's
-low end — "absent" and "zero" read differently, and a hole answers no hover. Band domains come from
-the data present, so force the full set with `domain`:
+Values like `'86%'` are read as percentages and the colour ramp and labels follow.
 
-```ts
-scale.x.discrete({ domain: ['Q1', 'Q2', 'Q3', 'Q4'] }),
-```
+### Sparse grid
 
-## Value labels
+Only rows that exist paint a tile. A missing cell stays empty, which keeps absent and zero apart.
 
-On by default here — a heatmap is read cell by cell. Each label centres in its cell, is dropped when
-its box plus 4 px exceeds the inset cell, and flips ink dark/light against the fill beneath it.
+### Waffle
+
+The same tile geom with the value on a discrete colour scale. Each cell is one percentage point, and the grid indices are hidden.
 
 ```ts
-geom.tile({ dataLabels: { showDataLabels: false } }),
-```
+import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-Label text is the `color` value (or `mapping.label`), not a y value. `format: 'percentage'` has no
-denominator and falls back to absolute; `showStackTotals` warns `DATA_LABEL_SETTING_IGNORED`, and
-`showCategoryLabels` is silently ignored.
+const channels = [
+  { channel: 'Organic', share: 38, color: '#4c78a8' },
+  { channel: 'Direct', share: 24, color: '#f58518' },
+  { channel: 'Social', share: 18, color: '#54a24b' },
+  { channel: 'Referral', share: 12, color: '#b279a2' },
+  { channel: 'Paid', share: 8, color: '#e45756' },
+];
+const size = 10;
+const indices = Array.from({ length: size }, (_unused, index) => index);
+const cells = channels.flatMap((entry) => Array.from({ length: entry.share }, () => entry.channel));
 
-## Waffle
+const waffleData: Data = {
+  columns: [{ key: 'col' }, { key: 'row' }, { key: 'channel' }],
+  rows: cells.map((channel, index) => ({ col: Math.floor(index / size), row: size - 1 - (index % size), channel })),
+};
 
-The same geom with a **discrete** color scale: a 10×10 field, one cell per percentage point. The grid
-indices are a layout device, so both axes are hidden. The explicit `range` matters: tiles touch, so
-the default palette (`{ type: 'default' }`, which the inferred scale for a categorical column also
-uses) always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable.
-Other escape hatches: `scale.color.palette({ palette: { type: 'graphy' } })` (the 10-color Graphy
-brand palette, a different hue set), `{ type: 'pastel' }` or `{ type: 'custom', id }`.
-
-```ts
-// rows: one per cell — { col: 0..9, row: 0..9, channel: 'Organic search' | … }
-const gridIndices = Array.from({ length: 10 }, (_unused, index) => index);
-
-const input = pipe(
+const spec = pipe(
   createSpec({ x: 'col', y: 'row', color: 'channel' }),
   geom.tile({ dataLabels: { showDataLabels: false } }),
-  scale.x.discrete({ domain: gridIndices }),
-  scale.y.discrete({ domain: gridIndices }),
-  scale.color.discrete({
-    domain: ['Organic search', 'Direct', 'Social', 'Referral', 'Paid'],
-    range: ['#4c78a8', '#f58518', '#54a24b', '#b279a2', '#e45756'],
-  }),
+  scale.x.discrete({ domain: indices }),
+  scale.y.discrete({ domain: indices }),
+  scale.color.discrete({ domain: channels.map((entry) => entry.channel), range: channels.map((entry) => entry.color) }),
   config({ axes: { x: { isVisible: false }, y: { isVisible: false } }, legend: { position: 'right' } })
 );
 ```
 
-## What the geom decides
-
-| Default | Why |
-|---|---|
-| Both axes are **band** scales | A cell is addressed by a category on each. A declared continuous scale raises `UNSUPPORTED_SCALE_TYPE` and the band wins |
-| Band `padding` is `0` | Cells tile the plane; the inset between painted tiles is render-side. An explicit `padding` still wins |
-| The `y` band reads **top-down** | The matrix convention; `scale.y.discrete({ reverse: false })` flips it |
-| Grid lines hidden on both axes | The cells already partition the panel |
-| The legend is never suppressed | Its gradient color bar is the only place the value scale is written down |
-| Data labels on | See above |
-| Position is `identity` | No cross axis to stack or dodge along |
-
-## Paint and hover
-
-No `style.geom.tile` target — the fill comes from the color scale, and the radius and inset are
-fixed (inset 3% of the band horizontally, 5% vertically). `style.geom({ color, alpha, saturation })`
-and the `hovered` / `dimmed` states still apply.
-
-Hover hit-tests the whole band, inset included, so the grid is live wherever a cell exists. The
-tooltip heads with the cell's `x` category and lists the one value `color` encodes.
-
-## Annotations
-
-An observation anchor on a grid takes **two** values: `anchorValue` names a column, `crossValue`
-picks the cell out of it. It resolves to the cell's centre, and a pinned number prints the `color`
-value.
+### Cell corner radius and borders
 
 ```ts
-annotation.pinnedNumber({ at: { anchorValue: 'Cohort 5', crossValue: 'Week 1' } }),
+import { style, styles } from '@graphysdk/react';
+
+const cellStyles = styles({ defaults: [style.geom.tile({ cornerRadius: 4, stroke: '#ffffff', strokeWidth: 2 })] });
 ```
 
-Panel-anchored kinds (text, arrows, shapes) float free of any cell — give text an opaque background,
-since the ramp runs light to dark underneath. `highlight()` predicates work as everywhere else.
+`cornerRadius` on a tile is a pixel number, not a token.
 
-## Intro animation
+## Pitfalls
 
-The value rides on the fill, so there is no extent to grow: the grid fades up as one, unstaggered.
-
-```tsx
-<GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
-```
-
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area; above it the entrance is skipped.
-
-## Gotchas
-
-- **Cartesian only.** `coord.flip()` and `coord.polar()` raise `UNSUPPORTED_COORD` — swap the two
-  mappings instead of flipping.
-- **`identity` position only.** `'stack'`, `'dodge'` and `'fill'` raise `UNSUPPORTED_POSITION`.
-- Both axes are bands even for a numeric or temporal column — a year becomes a category, not an axis.
-- A tile and a bar sharing one y raise `CONFLICTING_SCALE_DEMANDS` (band vs zero-anchored continuous);
-  put the bar on `yScaleType: 'secondary'`.
+- Both x and y are always bands under a tile, whatever the values. An explicit continuous scale is replaced by a band with a warning. Use `scale.x.discrete({ domain })` only to pin the order or the set of bands.
+- The colour scale is inferred from the value. Declare `scale.color.continuous(...)` to pick a scheme, a range or a diverging midpoint.
+- A diverging scheme only reads well when the data crosses zero. Use a sequential scheme otherwise.

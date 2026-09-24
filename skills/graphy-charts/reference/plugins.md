@@ -1,173 +1,108 @@
 # Plugins
 
-Plugins extend the engine with new paint (tier 1) or entirely new geoms, stats, and transforms (tier 2). One `plugins` array seeds both the compiler and the renderer, so what can be authored, what can compile, and what can paint derive from a single list and cannot diverge.
+Contents
 
-## What a Plugin is
+- What a plugin is
+- Kit or provider
+- Repaint a built-in geom
+- Define a custom geom
+- Render a custom geom
+- Read the stylesheet in a plugin
+- Hover, tooltip, and legend
+- Layout geoms in unit space
+- Live geoms in an overlay
+- Custom stats and transforms
+- Types and recipes
+- Registration warnings
+- Position and styling pitfalls
 
-`Plugin` (from `@graphysdk/viz-engine`) is a union of three shapes:
+A plugin adds a geom, stat, or transform the built-in set does not have, or repaints a built-in geom. It is plain TypeScript: a class or object on the compile side, a render contract on the React side.
 
-| Shape | Produced by | Contributes |
-|---|---|---|
-| Bare `CompileDefinition` — a `Geom` subclass instance, a `Stat` subclass instance, or a `TransformStrategy` object | `new MyGeom()`, `new MyStat()`, `{ transformType, apply }` | Compile half only (headless; no custom paint) |
-| Paired definition — a render contract carrying its compile definition at `.definition` | `defineGeomRenderer(definition, contract)` from `@graphysdk/react-renderer` | Both halves. The geom name is read off `definition.type`, so compile and paint are one declaration consumed twice — they cannot drift |
-| `RenderOnlyPlugin` — a render contract keyed by a built-in geom name, no `.definition` | `defineGeomRenderer('bar', contract)` | Render half only. The built-in compile half keeps running; only the paint is replaced |
+Exact declarations: [types.md](types.md), Plugins sections. Complete implementations: [plugin recipes](../recipes/plugins/).
 
-Wiring:
+## What a plugin is
 
-- `<GraphProvider plugins={[...]}>` — the provider seeds the compiler with the compile halves and the render registry with the render halves. **Frozen at mount**: the render resolver is captured once; remount with a React `key` to change the array.
-- `createGraphyKit({ plugins })` (react-renderer) — returns the typed builder plus a `GraphProvider` pre-bound to the same array. Preferred for tier 2.
-- `createGraphyBuilder({ plugins })` (viz-engine) — the headless primitive `createGraphyKit` wraps; use for server-side compiles.
+The `plugins` array on `GraphProvider` takes three shapes:
 
-Later entries win: renderers are applied in array order onto the built-in registry, keyed on `(geom, coord)`.
+- A compile definition on its own: a `Geom` instance, a `Stat` instance, or a transform strategy object. It compiles but paints nothing, so a geom given this way must be paired with a render half somewhere in the array.
+- A render half that carries its definition, from `defineGeomRenderer(new MyGeom(), contract)`. One entry registers both sides.
+- A render-only override, from `defineGeomRenderer('bar', contract)`. It repaints a built-in geom and leaves its compile half alone.
 
-## Tier 1 — render-only paint override
+The engine reads the array once, when the provider mounts. Later entries win when two register the same name. To change the set, remount the provider with a new React `key`.
 
-Replace how a built-in geom is painted without touching its compile half. Positions, stacking, scales, axes, tooltip, and hover indexing all keep working — you only redraw the geoms. The paint is yours in full, including the parts the style cascade resolves for the built-in renderer (see Paint and the style cascade).
+## Kit or provider
 
-```tsx
-import { defineGeomRenderer, GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-import { getBarRectBounds, getColor, getAlpha } from '@graphysdk/viz-engine';
+`createGraphyKit({ plugins })` returns the builder namespaces with one typed method per custom definition, plus a `GraphProvider` already bound to the same array.
 
-const sketchyBar = defineGeomRenderer('bar', {
-  coord: 'cartesian',
-  guideMode: 'band',
-  render: ({ layer, coordSystem }) => {
-    if (coordSystem.type !== 'cartesian') return null;
-    return <MyBars layer={layer} mainAxis={coordSystem.mainAxis} />;
-  },
-  renderHover: ({ primary, coordSystem }) => <MyBarHighlight observation={primary.observation} />,
-  renderHoverCompanions: () => null,
-});
-
-<GraphProvider data={data} input={spec} plugins={[sketchyBar]}>
-  <GraphRenderer />
-</GraphProvider>;
-```
-
-The first argument is constrained to the built-in `GeomName` union (`'point' | 'line' | 'area' | 'bar' | 'rule' | 'tile'`) — overriding an unknown name is a compile-time error. To restyle a *custom* geom, rebind its definition (which you hold) via `defineGeomRenderer(definition, contract)`.
-
-### The `GeomRenderContract` fields
-
-Registry key is the `(geom, coord)` pair — one contract per coordinate system a geom paints under. A polar restyle is a second `defineGeomRenderer('bar', { coord: 'polar', ... })` entry.
-
-| Field | Required | Purpose |
-|---|---|---|
-| `coord` | yes | `'cartesian'` or `'polar'`. The coord system this contract paints under; handlers receive the matching `CoordSystem` |
-| `render` | yes | The paint: `(input) => ReactNode`, or `{ fn, options: { overlay: true } }` for overlay hosting (see Hover wiring). Input (`GeomRenderInput`): `{ layer, coordSystem, panelRect, colorScheme, styleReaders, shouldAnimateTransitions, formattingLocale, intro? }` |
-| `renderHover` | yes | Paint for the hovered observation. Input (`HoverRenderInput`, a separate shape): `{ layer, coordSystem, primary, group, related: HoverHit[], panelRect, colorScheme, styleReaders }`. Return `null` for no hover paint |
-| `renderHoverCompanions` | yes | Companion geometries for hover-related observations (e.g. points on sibling lines). Input: `{ layer, primary, related, colorScheme, styleReaders }`. Usually `() => null` |
-| `renderHighlight` | no | Repaint of the highlight-matched subset; omit to fall back to `render`. Input (`HighlightRenderInput`) is `GeomRenderInput` plus `sourceLayer` (the full layer `layer` was filtered from — context the subset cannot see, like a stack's silhouette). Override when the plain render would misgroup an isolated subset (a bar repainting a lone mid-stack segment) |
-| `swatchShape` | no | Legend/tooltip/headline swatch: `'square' \| 'line' \| 'circle' \| 'area' \| 'slice'` |
-| `guideMode` | no | Hover guide this layer draws when hovered: `'band'` (category rectangle — bars), `'crosshair'` (rule at the value — line/area), omit/`null` for none (scatter) |
-| `hitTest` | no | Factory `(input) => RenderHitTester` for `'render-hit-test'` geoms with precomputed geometry (tier 2 only; see Hover wiring) |
-| `getOverlayAnchor` | no | `({ layer, coordSystem, observation }) => { x, y } \| null` in `[0,1]` panel space. A render-only override of `line`, `area` or `point` **must** supply it — without it every highlight overlay point and value label vanishes, silently. On a custom geom it is never called today (see dimming below) |
-
-### Drawing in unit space
-
-All compiled positions are normalized `[0,1]`. `input.panelRect` is the panel's layout-pixel `Rect` — its `x`/`y` are already applied by the enclosing SVG, so pixel paint lands in local `0…width` / `0…height`. The idiomatic path is still unit space.
-
-`UnitSpaceSvg` stretches the `[0, 1]` square onto the panel (`preserveAspectRatio="none"`) so paint and hit-test share one frame. Paths belong there. A `<circle>` in that frame becomes an ellipse on a non-square panel.
-
-Round geometries and pixel-sized symbols go in `UnitBoxSvg`: a nested SVG over a unit-space box with no viewBox. Children live in an unscaled local space — `50%` is the box centre, a pixel radius stays a pixel.
+Create the kit once at module scope and use its builders and provider together:
 
 ```tsx
-import { UnitBoxSvg, UnitSpaceSvg } from '@graphysdk/react-renderer';
+import { createGraphyKit, GraphRenderer } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+import { lollipop } from './lollipop-geom'; // Implementation in the lollipop recipe.
 
-<UnitSpaceSvg>
-  <path d={cellPath} />
-</UnitSpaceSvg>
-<UnitBoxSvg box={{ x0, y0, x1, y1 }}>
-  <circle cx="50%" cy="50%" r={4} />
-</UnitBoxSvg>
-```
-
-`UnitSpaceSvg` is `viewBox="0 0 1 1"` + `preserveAspectRatio="none"` + `width/height="100%"` + `pointerEvents="none"` (set before `{...rest}`, so a geom that wants its own pointer handling without going overlay-hosted overrides it; `viewBox` and `preserveAspectRatio` are omitted from its props and cannot be). Use `vectorEffect="non-scaling-stroke"` on paths so stroke widths survive the non-uniform stretch. A point circle can also sit as a sibling of `UnitSpaceSvg` with percent positions and a pixel radius, the same way the built-in point geom paints. Alternative for percentage positioning: `toPercent(value)` produces `"42.5%"` strings. Helpers `toViewBoxX` (identity) and `toViewBoxY` (`1 - y`; data y grows up, SVG y grows down) convert scaled positions to top-left-origin unit coords. All three are exported by `@graphysdk/viz-engine`.
-
-### Reading compiled observations — value readers only
-
-`layer.data` is an iterable `Dataset` of observations — **not an array**. `layer.data.map(...)` fails; iterate with `for (const observation of layer.data)` or spread first (`[...layer.data].map(...)`).
-
-Never index into an observation's columns by name — read every value through the readers exported by `@graphysdk/viz-engine`. Position readers return `number | null`; `getColor` / `getLineType` return `undefined` when absent:
-
-| Readers | Return |
-|---|---|
-| `getX`, `getY` | Point position, scaled `[0,1]` |
-| `getXMin`, `getXMax`, `getYMin`, `getYMax` | Interval ends, scaled `[0,1]` (a bar's band edges / stack segment) |
-| `getYRaw` | The unscaled data value (labels, tooltips) |
-| `getColor`, `getAlpha`, `getSize`, `getStrokeWidth`, `getLineType` | Resolved visual channel values |
-| `getGroup`, `getStackRole` | Grouping / stack-role keys |
-| `getAngleExtent`, `getRadiusExtent` | Polar arc extents |
-| `getBarRectBounds(mainAxis, observation)` | Convenience: a bar's full `Rect` in `[0,1]`, flip-aware |
-
-Layer params arrive at `layer.params` (typed loosely; cast to your geom's param shape).
-
-### Paint and the style cascade
-
-Every stylable property resolves through a three-tier cascade, first answer winning:
-
-1. **Override** — the last matching `styles.overrides` entry declaring the property. Beats the encoding.
-2. **Data** — the derived visual variable the encoding produced.
-3. **Default** — the last matching `styles.defaults` entry. The built-in stylesheet sits at the front, so user defaults win over it and an unstyled spec resolves to the house look.
-
-The visual readers (`getColor`, `getAlpha`, `getSize`, `getStrokeWidth`, `getLineType`) expose **tier 2 only** — a plugin painting from `getColor(observation) ?? MY_FALLBACK` misses every `overrides` entry, the built-in `style.geom({ color: token('geom') })` default, and dark-scheme colors. Read paint through the cascade instead: every render input (`GeomPaintInput`, the base of `render`, `renderHover`, `renderHoverCompanions`, `renderHighlight` and the overlay form) carries
-
-- `styleReaders: GeomStyleReaders` — this layer's cascade, resolved for the chart's active scheme. `styleReaders.get(property, observation?, state?)`; omit the observation to read the layer-wide value.
-- `colorScheme: ColorScheme` — the provider's scheme, for `createStyleResolver({ colorScheme }).geomReaders(otherLayer)` when a plugin reads a *different* layer.
-
-```tsx
-render: ({ layer, styleReaders }) => (
-  <UnitSpaceSvg>
-    {[...layer.data].map((observation, index) => (
-      <circle key={index} cx={getX(observation) ?? 0} cy={1 - (getY(observation) ?? 0)} r={0.02}
-        fill={styleReaders.get('color', observation)} fillOpacity={styleReaders.get('alpha', observation)} />
-    ))}
-  </UnitSpaceSvg>
+const kit = createGraphyKit({ plugins: [lollipop] });
+const spec = kit.pipe(kit.createSpec({ x: 'month', y: 'revenue' }), kit.geom.lollipop(), kit.scale.x(), kit.scale.y());
+export const Graph = ({ data }: { data: Data }) => (
+  <kit.GraphProvider data={data} spec={spec}>
+    <GraphRenderer />
+  </kit.GraphProvider>
 );
 ```
 
-`color` and `alpha` are built-in-backed on every layer, so they resolve non-null; a kind-specific reader (`useStyleReaders(layer)` on a `CompiledLayerFor<'bar'>` returns `BarStyleReaders`, and so on) also guarantees that kind's defaults. `useStyleReaders(layer)` is the exported hook form for components rendered inside the provider.
+The kit exposes `geom`, `stat`, `transform`, `scale`, `coord`, `createSpec`, `pipe`, and `plugins`. Custom methods are typed from each definition. `kit.GraphProvider` uses the renderer package's provider, whose brand mark defaults off.
 
-**Dimming.** `layer.highlight` is populated by a lookup keyed on the **built-in geom name**, so a custom geom's layer carries `null` there and the renderer never dims it (`Geom.highlightStrategy` is declarable but not yet read). A custom geom that should recede while another layer is highlighted paints its own de-emphasis: `styleReaders.get('alpha', observation, 'dimmed')` resolves the built-in `dimmed` entry (`alpha: 0.4`) or whatever the stylesheet declares for that state.
+For existing provider wiring, pass the same array to `<GraphProvider plugins={plugins}>`. For headless compilation, use `createSpecBuilder({ plugins })` and `createCompiler({ plugins })` from `@graphysdk/viz-engine`.
 
-### Entrance animations
+## Repaint a built-in geom
 
-`input.intro` is a `LayerIntroPlan | null` — the engine's plan for how this layer should enter on first mount (and on a coord change). The plan is **offered, never imposed**: nothing gates the paint, and a geom that ignores it simply appears at once.
+`defineGeomRenderer(name, contract)` with a built-in name replaces only the paint and returns a `ResolvedGeomRenderer`. With a `Geom` instance it returns a `GeomRendererDefinition`, which also carries `.definition`. Compile, scales, hover indexing, and data labels keep running as before. The name is checked against the built-in set.
 
-- Plans are keyed on the layer's **`spatialKind`**: `'rects'` → a `grow` plan (on `x`/`y`, or `angle`/`radius` under polar), `'buckets'` under cartesian → a `wipe` plan, `'cells'` → a `fade` plan, `'points'` → a point `grow` plan, everything else → `null`. So a custom geom declaring `spatialKind: 'buckets'` **does** receive a wipe plan and must consume it or it pops in while every built-in layer animates. A `'render-hit-test'` geom, an empty layer, a disabled intro or a tripped `maxAnimatedGeoms` budget all yield `null`.
-- `LayerIntroPlan` is discriminated on `type`, every member carrying `layerId` and `durationSeconds`: `{ type: 'grow', baseline, growAxis: 'x' | 'y' | 'angle' | 'radius' | 'size', delayByKey }`, `{ type: 'wipe', axis: 'x' | 'y' }`, or `{ type: 'fade' }`. Timings are already in seconds.
-- Chart chrome (data labels) is held until the longest layer plan comes to rest, measured from the chart's mount — a geom that ignores its plan still appears before the chrome.
-- The layer counts toward the intro's `maxAnimatedGeoms` budget (`countLayerGeoms`: the group count for `'buckets'`, the row count otherwise; default 1500), so a large custom layer can suppress the whole chart's intro.
-- The engine side is exported (`LayerIntroPlan`, `buildLayerIntroPlan`, `countLayerGeoms`); the react-renderer helpers the built-ins use (`useLayerAnimation`, `useGeomTransition`, `resolveGrowIntroTransition`) are **not**, so a plugin implements the entrance from the plan by hand.
+```tsx
+import { createGraphyKit, defineGeomRenderer, getBarRectBounds, toPaintColor, toPercent } from '@graphysdk/react';
 
-`shouldAnimateTransitions` is the separate, ongoing flag on the same input: whether *data changes* should tween.
+const roundedBars = defineGeomRenderer('bar', {
+  coord: 'cartesian',
+  swatchShape: 'square',
+  guideMode: 'band',
+  render: ({ layer, coordSystem, styleReaders }) => {
+    const mainAxis = coordSystem.type === 'cartesian' ? coordSystem.mainAxis : 'x';
+    return (
+      <>
+        {[...layer.data].map((observation, index) => {
+          const rect = getBarRectBounds(mainAxis, observation);
+          if (rect === null) return null;
+          return (
+            <rect
+              key={index}
+              x={toPercent(rect.x)}
+              y={toPercent(rect.y)}
+              width={toPercent(rect.width)}
+              height={toPercent(rect.height)}
+              rx={6}
+              fill={toPaintColor(styleReaders.get('fill', observation) ?? '#4e79a7')}
+            />
+          );
+        })}
+      </>
+    );
+  },
+  renderHover: () => null,
+  renderHoverCompanions: () => null,
+});
 
-### Authoring diagnostics
+export const kit = createGraphyKit({ plugins: [roundedBars] });
+```
 
-Plugin mistakes surface as `VizDiagnostic` entries rather than throws. Most are warnings, and several are the only signal that an otherwise-silent plugin is broken:
+One contract paints one coordinate system. Bind a second contract with `coord: 'polar'` for pies and polar bars, or leave it out and the built-in polar paint stays.
 
-| Code | Severity | Fires when |
-|---|---|---|
-| `MISSING_GEOM_RENDERER` | error | A compile definition is in `plugins` with no render half registered for its `type` |
-| `MISSING_GEOM_RENDERER` | warning | A compiled layer's `(geom, coord)` pair resolves to no renderer under the chart's coord system — the layer paints nothing |
-| `DUPLICATE_REGISTERED_TYPE` | warning | Two render-only overrides register the same `(geom, coord)`, or two distinct compile definitions claim one `type`/`transformType`; the last in the array wins |
-| `MISSING_RENDER_HIT_TEST` | warning | A `'render-hit-test'` layer whose renderer declares neither a `hitTest` factory nor an overlay render — the layer has no hover. Also fires for the `useGeomHitTest` hook form, which registers at runtime and so is invisible to the check |
-| `RENDER_HIT_TEST_IDENTITY` | warning | A `'render-hit-test'` geom left on a position-derived identity (`'x-group'` or `'x-y'`), or keyed on `{ variable }` naming a column its `compile()` never emits — either way the hover lookup is empty and every hit resolves to nothing |
-| `CONFLICTING_RENDER_HIT_TEST` | warning | A renderer declares both a `hitTest` factory and an overlay render; only the overlay is used |
-| `MISSING_ANCHOR_CAPABILITY` | warning | A `'render-hit-test'` geom implements no `resolveAnchorPosition`, so annotations cannot anchor to its observations and the editor overlay paints no creation trigger on them |
-| `OVERLAY_REQUIRES_RENDER_HIT_TEST` | warning | A renderer is overlay-hosted but its layer's `spatialKind` is not `'render-hit-test'`, so `pushHover` resolves against no index |
-| `SPATIAL_KIND_COORD_UNSUPPORTED` | warning | A geom declares `spatialKind: 'cells'` and lists `'polar'` in `supportedCoordTypes`; the layer paints under polar but has no hover |
+## Define a custom geom
 
-## Tier 2 — fully custom geom
-
-A new geom: subclass `Geom` (compile half), write a `GeomRenderContract` (paint half), pair them with `defineGeomRenderer(definition, contract)`, and hand the result to `createGraphyKit`.
-
-### The `Geom` subclass
-
-`Geom<TParams>` from `@graphysdk/viz-engine` is declaration-driven: the pipeline reads fields off the instance instead of branching on names, so a custom geom is a first-class participant. Override only what differs from the defaults.
+Subclass `Geom` and implement `type`, `defaultParams`, and `compile`. Everything else has a default and is overridden only when the geom differs.
 
 ```ts
-import { Geom, POSITION_VARIABLES } from '@graphysdk/viz-engine';
-import type { CompiledGeom, GeomCompilerInput } from '@graphysdk/viz-engine';
+import { Geom, POSITION_VARIABLES } from '@graphysdk/react';
+import type { GeomCompileResult, GeomCompilerInput } from '@graphysdk/react';
 
 class LollipopGeom extends Geom<{ stemWidth: number }> {
   readonly type = 'lollipop' as const;
@@ -181,8 +116,7 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly spatialKind = 'buckets';
 
-  compile({ data }: GeomCompilerInput): CompiledGeom {
-    // Baseline written in DATA units — the shared y-scale maps it, so it stays correct under any domain.
+  compile({ data }: GeomCompilerInput): GeomCompileResult {
     const withBaseline = data.hasVariable(POSITION_VARIABLES.yMin)
       ? data
       : data.addConstantVariable(POSITION_VARIABLES.yMin, 'numeric', 0);
@@ -191,156 +125,279 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
 }
 ```
 
-Declare tuple fields (`positionRoles`, `aesthetics`, `supportedCoordTypes`) **`as const`** — the typed builder derives each geom method's `aes` keys from these literals; a widened array falls back to a loose surface.
+Write `positionRoles` and `aesthetics` with `as const`. The kit reads their literal types to build the typed `kit.geom.lollipop({ aes, params })` method. Without `as const` on `positionRoles`, the method accepts the built-in aesthetic names and rejects custom ones. Without `as const` on `aesthetics`, that list adds nothing to the accepted names.
 
-Key declarations:
+### Position roles
 
-| Field / hook | Default | Meaning |
-|---|---|---|
-| `type` (abstract) | — | The geom's name; any string outside the built-in union. Becomes `kit.geom.<type>` |
-| `defaultParams` (abstract) | — | Param defaults; also carries the params type. `resolveParams({ params, diagnostics })` merges user params over them — override to enforce invariants (clamping, normalizing), reporting substitutions via `reportIssue` |
-| `compile(input)` (abstract) | — | `{ data, mapping, params } → { data, mapping }`. Add computed position/layout columns to the dataset; return mapping overrides |
-| `positionRoles` | `[]` | The position columns the compile half injects and the render half reads — the cross-half contract. Roles: `point` (sources its axis aesthetic), `min`/`max` (interval ends), `scalar` (scaled in place). A role's `aes` is a plain string, so a geom can bind **custom positional aesthetics** (`'open'`, `'low'`, `'close'`) the engine trains and scales like built-in channels; a `min`/`max` role without `aes` is compile-written |
-| `aesthetics` | `[]` | Non-positional channels: `{ kind: 'visual', name }` (scaled — `color`, `size`; built-in vocabulary) or `{ kind: 'data', name }` (read raw from the mapped column, no scale — a sankey's `source`/`target`/`value`; free-form name). `required: true` enforces presence |
-| `derivedVariables` | `[]` | Names the geom computes in its own output that authors may map to (exempt from unknown-variable checks) |
-| `scaleConstraints` | unset | `{ discreteMainAxis?, discreteCrossAxis?, zeroBaseline?, bandPadding?, inferredColor? }` — demands the geom imposes on its scales. `discreteMainAxis`/`zeroBaseline` only steer bare inferred scales; `discreteCrossAxis` is a hard band demand that coerces a declared continuous scale back (`UNSUPPORTED_SCALE_TYPE`); `inferredColor` infers the color scale from the mapped column instead of the palette |
-| `supportedCoordTypes` | `['cartesian', 'flip']` | Coords the geom renders under |
-| `spatialKind` | `'points'` | Hover hit-test shape: `'points'` (nearest point), `'rects'` (banded rects, needs `xMin`/`xMax`), `'cells'` (cartesian enclosure, a tile grid), `'buckets'` (nearest main-axis value, needs `x` and `y`), `'noop'`, `'render-hit-test'` (geometry from a layout algorithm; you supply the tester) |
-| `identityKey` | `'x-group'` | What makes "the same observation" across recompiles: `'x-group'`, `'index'`, `'x-y'` (both position columns), or `{ variable: 'nodeId' }` for a geom keyed by its own id column |
-| `isComposite` | `false` | `true` when the geom draws one geometry per group (a line's path) rather than one geometry per observation |
-| `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` (contract must supply `getOverlayAnchor`) \| `'observation-rerender'` \| `null` (opt out) |
-| `defaultPosition`, `defaultInteractive` | `'identity'`, `true` | Layer-resolution defaults |
-| `supportedPositions` | all four | Position adjusters the geom accepts; others are rejected |
-| `grid`, `legend`, `tooltip`, `summaries` | `{}` / `[]` | Guide policies: `grid: { hideGridX?, hideGridY?, hideBorder? }`, `legend: { suppressWhenSingleItem?, sidePlacement?, directLabelSupport? }`, `tooltip: [{ key?, aes }]` (rows read the raw mapped column; replaces the default y rows), `summaries: { grandTotal?, stackTotals?, perGroupHeadline? }` |
-| `dataLabels` | unset | `Partial<Record<CoordType, Partial<DataLabelsConfig>>>` — per-coord data-label defaults (a polar bar's `format: 'percentage'`) |
-| `dataLabelCoordTypes` | `[]` | Coords the built-in placement pipeline can place this geom's data labels under |
-| `resolveAnchorPosition` | optional | `(observation, context: AnchorContext) => AnchorPosition \| null` — where an annotation on that observation sits, in normalized `[0,1]` panel space. `AnchorContext` carries `{ coordSystem, position, purpose: 'pin' \| 'value', align? }`. A geom without it is skipped by the annotation stage; on a `'render-hit-test'` geom the omission also raises `MISSING_ANCHOR_CAPABILITY` |
-| `validateMapping`, `resolveBandFraction`, `resolveValueSource`, `resolveDataLabelDefaults` | optional | Further opt-in hooks. `resolveValueSource(mapping, purpose: 'label' \| 'measurement')` names the aesthetic a label or measurement reads when the value does not ride on `y` (a tile's `color`) |
+A position role is one column the engine writes for each observation, scaled to `[0, 1]`. The render half reads it back with a value reader.
 
-### Custom stats and transforms
+- `{ axis: 'x', role: 'point' }` is the observation's x. It comes from the `x` mapping. Same for `y`.
+- `{ axis: 'y', role: 'min', aes: 'start' }` and `{ axis: 'y', role: 'max', aes: 'end' }` describe an interval. The engine trains the y scale on both ends and writes `yMin` and `yMax`.
+- `{ axis: 'y', role: 'scalar', aes: 'open' }` scales one more value on the y axis into its own column, read with `getScaledAesthetic(observation, 'open')`. The raw value stays in the mapped column for the tooltip.
+- A `min` or `max` role without `aes` is written by `compile`, as the lollipop writes `yMin = 0`.
+- A `point` role makes its axis required, and a `min` or `max` role with `aes` makes that aesthetic required. A missing one fails compile with `MISSING_AESTHETIC`. A `scalar` role's aesthetic is optional unless `validateMapping` says otherwise.
 
-Both are bare `CompileDefinition` plugins — add the instance to the `plugins` array and a typed builder method appears (`kit.stat.<type>()`, `kit.transform.<transformType>({ options })`):
+The `aes` name can be anything. That is how a candlestick declares `open`, `high`, `low`, and `close` and the author maps them like any aesthetic: `kit.geom.candlestick({ aes: { open: 'open', high: 'high', low: 'low', close: 'close' } })`.
+
+### Aesthetics
+
+`aesthetics` lists the non-position channels the geom reads.
+
+- `{ kind: 'visual', name: 'color' }` is a scaled channel. `color`, `size`, `alpha`, `strokeWidth`, and `lineType` go through their scales and the legend.
+- `{ kind: 'data', name: 'weight' }` is read straight from the mapped column with no scale. Use it for layout inputs such as a sankey's `source` and `target`.
+- Add `required: true` to fail compile when the mapping lacks it.
+
+### Other declarations
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `identityKey` | `'x-group'` | What makes the same observation across recompiles. `'index'` for row order, `'x-y'` for grids, `{ variable: 'id' }` for a column the geom owns. |
+| `spatialKind` | `'points'` | The hit-test shape built from the position columns: `'points'`, `'buckets'`, `'filled-buckets'`, `'rects'`, `'cells'`, `'noop'`, or `'render-hit-test'`. |
+| `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` draws a marker through `getOverlayAnchor` when the contract has one. `'observation-rerender'` repaints matched observations through `render`. `null` opts out. |
+| `supportedCoordTypes` | `['cartesian', 'flip']` | Add `'polar'` only with a polar render contract. |
+| `defaultPosition` | `'identity'` | `'stack'`, `'dodge'`, `'fill'`, or `'identity'` when the layer sets none. |
+| `scaleConstraints` | none | `discreteMainAxis`, `discreteCrossAxis`, `zeroBaseline`, `bandPadding`, `inferredColor`. |
+| `tooltip` | `[]` | Rows to show: `[{ key: 'Open', aes: 'open' }]`. |
+| `legend` | `{}` | `suppressWhenSingleItem`, `sidePlacement`, `directLabelSupport`. |
+| `summaries` | `{}` | `grandTotal`, `stackTotals`, `perGroupHeadline`. |
+| `derivedVariables` | `[]` | Columns `compile` creates that an author may map. |
+| `supportedPositions` | all | Position adjustments the layer may set. |
+| `defaultInteractive` | `true` | Whether layers take part in hover by default. |
+| `grid` | `{}` | Per coord: `hideGridX`, `hideGridY`, `hideBorder`. |
+| `dataLabels`, `dataLabelCoordTypes` | none, `[]` | Data label defaults per coord, and the coords where labels can be placed. |
+| `isComposite` | `false` | One shape per group, as a line, instead of one per observation. |
+
+Optional hooks, each implemented only when the geom needs it: `resolveParams` to validate params beyond the default merge, `validateMapping` for a mapping rule a role cannot express, `resolveAnchorPosition(observation, context: AnchorContext): AnchorPosition | null` so annotations can pin to an observation (the context carries the coord system, position adjustment, purpose, and align; the result is `{ x, y }` in `[0, 1]`), `resolveBandFraction` for the band share a shape covers, `resolveValueSource` when the value is not `y`, and `resolveDataLabelDefaults` per position adjustment. A geom without `resolveAnchorPosition` cannot carry per-observation annotations.
+
+### The compile method
+
+`compile` receives the layer's dataset after stats and transforms, the effective mapping, the resolved params, and the coord type. It returns a dataset and mapping overrides. Most geoms pass the data through. Common reasons to do more:
+
+- Write a baseline or another position column in data units, so the scale maps it. Never hard-code a rendered position.
+- Point `mapping.y` at a representative column when the geom has no `y` aesthetic, so hover and the tooltip have a value. A dumbbell returns `{ data, mapping: { y: mapping.end } }`.
+- Precompute a layout that needs no pixel size, such as a treemap, and store it in columns the render half reads.
+
+The internal column names are exported as `POSITION_VARIABLES` (`x`, `y`, `xMin`, `xMax`, `yMin`, `yMax`, `yRaw`), `VISUAL_VARIABLES` (`color`, `size`, `alpha`, `strokeWidth`, `lineType`), and `GROUP_VARIABLES`.
+
+`Dataset` is immutable. Useful methods: `hasVariable`, `addConstantVariable`, `renameVariable`, `selectVariables`, `getValues`, `filter`, `orderBy`, `groupBy(...).rollup(...)`, `getFirst`, `size`, and iteration with `for...of` or `[...data]`.
+
+## Render a custom geom
+
+`defineGeomRenderer(new LollipopGeom(), contract)` pairs the compile definition with its paint. The render contract:
+
+| Field | Required | What it does |
+| --- | --- | --- |
+| `coord` | yes | `'cartesian'` or `'polar'`. One contract per coord. |
+| `render` | yes | Paints the layer into the panel SVG. Or `{ fn, options: { overlay: true } }` for a live geom. |
+| `renderHover` | yes | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip. |
+| `renderHoverCompanions` | yes | Paints companions in this layer at the hovered position. Receives `layer`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `coordSystem` or `panelRect`. Usually `null`. |
+| `renderHighlight` | no | Repaints only matched observations when a highlight is active. Falls back to `render`. |
+| `swatchShape` | no | `'square'`, `'line'`, `'circle'`, `'area'`, or `'slice'` for legend and tooltip swatches. |
+| `guideMode` | no | `'band'` or `'crosshair'` hover guide. Omit or pass `null` for none. |
+| `getOverlayAnchor` | no | Returns `{ x, y }` in `[0, 1]`, y up, for the highlight marker under `'overlay-anchor'`. Omit it and highlights draw no marker. |
+| `hitTest` | for `'render-hit-test'` geoms | Returns a cursor tester. See Layout geoms. |
+| `getEditOutlineShapes` | no | Shapes the editor outlines, of kind `'region'`, `'stroke'`, or `'dots'` (`EditOutlineRegion`, `EditOutlineStroke`, `EditOutlineDots`). Omit and it uses bounding boxes. |
+
+Each handler's input type is exported, for a handler written outside the contract: `GeomRendererInput` for `render`, `GeomHoverRendererInput` for `renderHover`, `GeomHoverCompanionsRendererInput`, `GeomOverlayAnchorRendererInput`, and `GeomEditOutlineShapesRendererInput`. `GeomRenderInputBase` is the `styleReaders` and `colorScheme` part they share. `GeomRenderFn` types a plain render function and `GeomRender` the whole `render` field.
+
+`render` receives `layer`, `coordSystem`, `panelRect`, `styleReaders`, `colorScheme`, `formattingLocale`, `shouldAnimateTransitions`, and `intro`. The panel SVG's user units are pixels; `panelRect.width` and `panelRect.height` give its size. Its offset is already applied, so paint in local panel coordinates.
+
+Scaled positions use `[0, 1]` with y pointing up. For SVG attributes, use `toPercent(x)` and `toPercent(toViewBoxY(y))`, or multiply by the panel dimensions. Keep radii, text sizes, and stroke widths in pixels. The [lollipop recipe](../recipes/plugins/lollipop.md) shows the full compile/render pair, stylesheet reads, and hover paint.
+
+### Value readers
+
+Every reader takes an observation from `layer.data`. Position readers, `getSize`, `getAlpha`, and `getStrokeWidth` return a number or `null`. `getColor` and `getLineType` return `undefined` when the channel is not mapped. `getGroup` returns the group value.
+
+| Reader | Returns |
+| --- | --- |
+| `getX`, `getY` | The point position in `[0, 1]`. |
+| `getXMin`, `getXMax`, `getYMin`, `getYMax` | Interval ends, written for `min` and `max` roles. |
+| `getScaledAesthetic(observation, 'open')` | A `scalar` role's scaled position. |
+| `getYRaw` | The segment value before stacking. |
+| `getBarRectBounds(mainAxis, observation)` | A rect in `[0, 1]²` with top-left origin. |
+| `getTileRectBounds(observation)` | The same for a tile, from its interval columns. |
+| `getAngleExtent`, `getRadiusExtent` | Polar extents. |
+| `getColor`, `getSize`, `getAlpha`, `getStrokeWidth`, `getLineType` | Scaled visual channels from the data. |
+| `getGroup` | The observation's group value. |
+
+`getColor` sees only the colour scale. Read paint through `styleReaders` so stylesheet overrides reach the geom.
+
+## Read the stylesheet in a plugin
+
+`styleReaders` on the render input is the cascade for this layer: overrides, then data-driven values, then defaults. Read one property per observation with `get`. A custom geom has the shared geom vocabulary: `fill`, `stroke`, `alpha`, `fillAlpha`, `strokeAlpha`, `saturation`, `blur`, `brightness`, `contrast`, `shadow`, and `blendMode`.
 
 ```ts
-import { Stat } from '@graphysdk/viz-engine';
-import type { CompiledStat, StatCompilerInput, TransformStrategy } from '@graphysdk/viz-engine';
+import { toPaintColor } from '@graphysdk/react';
+import type { GeomStyleReaders, Observation } from '@graphysdk/react';
 
-class MedianStat extends Stat {
-  readonly type = 'median' as const;
-  readonly computedVariables = new Set(['y' as const]);
-  protected computeStat({ data, mapping }: StatCompilerInput): CompiledStat {
-    return { data, mapping }; // reduce `data` and return the (possibly overridden) mapping
-  }
-}
+export const readFill = (styleReaders: GeomStyleReaders, observation: Observation): string =>
+  toPaintColor(styleReaders.get('fill', observation) ?? '#888888');
+```
 
-const jitterTransform: TransformStrategy = {
-  transformType: 'jitter',
-  apply: (data) => data, // Dataset → Dataset
-  getIntroducedVariables: () => ['jittered'],
+`fill` can be a gradient, pattern, or image. `toPaintColor` reduces any paint to one colour for places that need a plain string.
+
+Authors style a custom geom with the bare `style.geom` builder. There is no `style.geom.lollipop` builder for a custom kind. The kit's custom method takes no `id` option, so a custom layer is scoped with a `where` predicate, or left unscoped when it is the only layer. The example below assigns an ID to a built-in layer; custom builder options currently have no `id` field.
+
+```ts
+import { createGraphyKit, style, styles } from '@graphysdk/react';
+
+const kit = createGraphyKit({ plugins: [] });
+
+export const spec = kit.pipe(
+  kit.createSpec({ x: 'month', y: 'revenue' }),
+  kit.geom.point({ id: 'points' }),
+  styles({
+    overrides: [
+      style.geom({ fill: '#e5484d' }, { layer: 'points' }),
+      style.geom({ alpha: 0.4 }, { where: { variable: 'revenue', lt: 100 } }),
+      style.geom({ stroke: '#111111' }, { state: 'hovered' }),
+    ],
+  }),
+  kit.scale.x(),
+  kit.scale.y()
+);
+```
+
+Related hooks: `useStyleReaderTree()` returns the whole tree including chrome targets, `useGeomReaderTree()` the geom subtree, `useStyleResolver()` the provider's resolver, and `useResolvedStyle(read, ...args)` memoizes a module-level style read. Outside React, `createStyleResolver({ colorScheme }).readers(scene)` builds the same tree from a compiled scene.
+
+`get(property, observation?, state?)` takes an optional observation and an optional state, `'hovered'` or `'dimmed'`. Without an observation it answers for the layer as a whole. Geom entries take `where`, `state`, and `layer` options. Inside a component that is not the render function, `useStyleReaders(layer)` returns the same readers.
+
+## Hover, tooltip, and legend
+
+Hover comes free when the geom declares a `spatialKind` built from position columns. The engine indexes the layer, finds the observation under the cursor, shows the tooltip, and calls `renderHover` with `primary.observation`. The default tooltip lists the mapped values. A non-empty `tooltip` contract on the geom replaces those rows with one row per listed aesthetic.
+
+- `'buckets'` snaps to the nearest position along the main axis. Good for lollipops, dumbbells, and candlesticks.
+- `'rects'` tests the rect between the interval ends. Good for bar-like geoms.
+- `'points'` uses nearest-point distance in two dimensions.
+- `'noop'` disables hover for the layer.
+
+A `HoverHit` carries `layerId`, `pointIndex`, and `observation`. It is discriminated on `anchored`. A hit from a position-based shape has `x` and `y` in `[0, 1]`, y up. A hit from a `'render-hit-test'` geom has no `x` or `y`, so narrow on `anchored` before reading them.
+
+`guideMode: 'band'` draws a band behind the hovered position, `'crosshair'` a line through it. `swatchShape` chooses the legend and tooltip swatch. The legend itself is driven by the `color` scale, so a geom that declares `{ kind: 'visual', name: 'color' }` gets legend items for free.
+
+Highlights use `highlightStrategy`. With `'observation-rerender'` the matched observations are drawn again through `render` above dimmed siblings, and nothing else is needed. With `'overlay-anchor'` the renderer asks `getOverlayAnchor` for an `OverlayAnchor`, the marker position. It is optional for a custom contract. Without it, a highlight dims the rest and draws no marker. Return y as the data-up value; the overlay flips it.
+
+```ts
+import { getX, getYMax } from '@graphysdk/react';
+import type { GeomRenderContract } from '@graphysdk/react';
+
+export const getOverlayAnchor: GeomRenderContract['getOverlayAnchor'] = ({ observation }) => {
+  const x = getX(observation);
+  const y = getYMax(observation);
+  return x === null || y === null ? null : { x, y };
 };
 ```
 
-### Pairing and the kit
+## Layout geoms in unit space
+
+For geometry that does not fit the built-in spatial indices, such as treemaps or Sankey diagrams:
+
+- Declare `spatialKind = 'render-hit-test'` and `identityKey = 'index'` or `{ variable: 'markId' }`. Emit that identity column from `compile` when using a variable.
+- Store geometry in your own columns and keep it separate from scaled positions. If `compile` replaces the dataset, preserve mapped inputs or return mapping overrides pointing at the new columns; otherwise color, grouping, or tooltip values can disappear.
+- Provide a `hitTest` factory on the render contract. It returns a `RenderHitTester`: `(cursor) => ({ key: string } | null)`. The cursor is normalized to `[0, 1]` with a top-left origin. Match the observation's identity exactly; dates use ISO strings.
+- The renderer rebuilds the tester when its inputs change. Use the same geometry for paint and hit-testing.
+
+`UnitSpaceSvg` stretches a `viewBox="0 0 1 1"` over the panel. Paths and rectangles can use unit coordinates directly. Use `vectorEffect="non-scaling-stroke"` for pixel-width strokes. Circles and text stretch too: put those in the outer panel SVG or in `UnitBoxSvg`, which places a nested SVG over a unit-space box (`x0`, `y0`, `x1`, `y1`) with pixel units inside. `UnitBoxSvg` clips its children to the box. Both helpers use a top-left origin; convert scaled data-up y positions with `toViewBoxY`.
+
+For complete examples, see [treemap](../recipes/plugins/treemap.md), [Sankey](../recipes/plugins/sankey.md), [Voronoi](../recipes/plugins/voronoi.md), and [unit-box](../recipes/plugins/unit-box.md).
+
+For a pixel-dependent layout, compute geometry in a component using `panelRect`, or measure on-screen dimensions with `useElementScreenRect` when needed. Register a component-owned tester with `useGeomHitTest(layer.id, tester)` and read the active hit with `useHoverState`. The [beeswarm recipe](../recipes/plugins/beeswarm.md) demonstrates this path. Current diagnostics only recognize contract-level `hitTest` or overlay hosting, so a component-registered tester can still produce `MISSING_RENDER_HIT_TEST`.
+
+## Live geoms in an overlay
+
+A moving or draggable geom can own its pointer events by declaring:
 
 ```tsx
-import { createGraphyKit, defineGeomRenderer, GraphRenderer } from '@graphysdk/react-renderer';
+import type { GeomRenderContract } from '@graphysdk/react';
 
-const lollipop = defineGeomRenderer(new LollipopGeom(), {
-  coord: 'cartesian',
-  render: ({ layer }) => <LollipopMarks layer={layer} />,
-  renderHover: ({ layer, primary }) => <LollipopMark layer={layer} observation={primary.observation} isHovered />,
-  renderHoverCompanions: () => null,
-});
+const render: GeomRenderContract['render'] = {
+  fn: ({ overlay }) => <svg width={overlay.panelRect.width} height={overlay.panelRect.height} />,
+  options: { overlay: true },
+};
+```
 
-const kit = createGraphyKit({ plugins: [lollipop, jitterTransform] });
+Add the marks and pointer handlers inside this overlay SVG. The renderer hosts its output in a screen-aligned portal above the hover capture layer. `overlay` is an `InteractiveOverlayApi`:
 
-const spec = kit.pipe(
-  kit.createSpec({ x: 'category', y: 'revenue' }),
-  kit.geom.lollipop({ aes: { color: 'category' }, params: { stemWidth: 3 } }),
+- `panelRect` is the panel's on-screen rect in client pixels, distinct from the regular render input's layout pixels.
+- `pushHover(key, { clientX, clientY })` resolves an observation by `identityKey` and anchors its tooltip at the cursor.
+- `pushHover(null)` clears this layer's hover. Other layers' hover survives, and unmounting clears the overlay's own hover.
+
+Use `spatialKind = 'render-hit-test'` and an explicit identity here too. Choose either overlay push events or the contract's `hitTest` factory, since overlay hosting takes precedence when both are supplied. `useGeomHover(layer.id)` exposes the same push function to other components. The [force-directed recipe](../recipes/plugins/force-directed.md) includes a complete simulation with dragging and cleanup.
+
+## Custom stats and transforms
+
+A stat is a `Stat` subclass. `computeStat` receives the layer's dataset, its mapping, the resolved stat `spec`, and `xScaleIsDiscrete`, and returns a dataset plus mapping overrides. An empty dataset skips `computeStat`. `computedVariables` names the aesthetics it produces, so the author may leave them unmapped. The kit exposes it as `kit.stat.<type>()`.
+
+```ts
+import { createGraphyKit } from '@graphysdk/react';
+import { Stat } from '@graphysdk/viz-engine';
+import type { AestheticKey, StatCompileResult, StatCompilerInput } from '@graphysdk/viz-engine';
+
+class UseRawYStat extends Stat {
+  readonly type = 'useRawY' as const;
+  readonly computedVariables = new Set<AestheticKey>(['y']);
+
+  protected computeStat({ data }: StatCompilerInput): StatCompileResult {
+    return { data, mapping: { y: 'rawY' } };
+  }
+}
+
+const kit = createGraphyKit({ plugins: [new UseRawYStat()] });
+
+export const spec = kit.pipe(
+  kit.createSpec({ x: 'month' }),
+  kit.geom.point({ stat: kit.stat.useRawY() }),
   kit.scale.x(),
-  kit.scale.y(),
-  kit.scale.color.palette()
-);
-
-const Chart = () => (
-  <kit.GraphProvider input={spec} data={data}>
-    <GraphRenderer />
-  </kit.GraphProvider>
+  kit.scale.y()
 );
 ```
 
-`createGraphyKit` (and headless `createGraphyBuilder`) uses a `const` type parameter to capture the plugins tuple literally: `kit.geom.lollipop` exists and is typed — `aes` constrained to the declared aesthetics plus the position-role keys (including custom positional aesthetics), `params` to `Partial<TParams>` — with no casts. Render-only overrides contribute no builder method (they have no compile definition). `kit.GraphProvider` already carries the plugins, so authoring and rendering cannot use different arrays.
+A transform is a plain object with `transformType` and `apply(dataset, transformSpec)`. It runs before stats. Options arrive on the spec's `options` field. An optional `getIntroducedVariables(transformSpec)` names the columns it adds. The kit exposes it as `kit.transform.<type>({ options })`.
 
-A custom render half receives the base `CompiledLayer` (not a name-narrowed one) — it sits downstream of serialization and reads its columns dynamically through the value readers.
+```ts
+import { createGraphyKit } from '@graphysdk/react';
+import type { TransformStrategy } from '@graphysdk/viz-engine';
 
-## Hover wiring
-
-Three paths, keyed by whether the geometry is knowable and when:
-
-| Path | When | Mechanism |
-|---|---|---|
-| Compiled index (default) | Positions come from scales (`spatialKind: 'points' \| 'rects' \| 'buckets'`) | Nothing to write — the runtime builds the hover index from compiled data |
-| Pull — `hitTest` / `useGeomHitTest` | `spatialKind: 'render-hit-test'`, geometry fixed once drawn (treemap tiles, voronoi cells, sankey ribbons, a settled beeswarm) | A registered spatial query; the central capture layer calls it per cursor move |
-| Push — `useGeomHover` / overlay hosting | Geometry keeps changing after drawing, or the geom must own pointer events (live simulation, dragging) | The geom's own handlers push the hovered identity key |
-
-### Pull: register a hit tester
-
-`RenderHitTester` is `(cursor: { x, y }) => { key: string } | null` — cursor in panel-local `[0,1]`, top-left origin (the same frame the geom paints in); the returned `key` is the observation's declared `identityKey` value. The geom inherits central hover, `renderHover`, and the built-in tooltip.
-
-Declarative form — the `hitTest` factory on the contract. The renderer memoizes it on `layer.data` and the panel pixel rect (so a resize rebuilds it) and registers the tester on your behalf; you write no hook:
-
-```tsx
-const treemap = defineGeomRenderer(new TreemapGeom(), {
-  coord: 'cartesian',
-  render: ({ layer }) => <TreemapTiles layer={layer} />,
-  hitTest: ({ layer }) => buildTileTester(readTiles(layer.data)),
-  renderHover: ({ layer, primary }) => <TileHighlight layer={layer} observation={primary.observation} />,
-  renderHoverCompanions: () => null,
-});
-```
-
-Hook form — when the geometry lives in render-side component state (a simulation that settles), register from inside your render component:
-
-```tsx
-import { useGeomHitTest } from '@graphysdk/react-renderer';
-
-useGeomHitTest(layer.id, (cursor) => findNodeAt(settledNodes, cursor));
-```
-
-### Push: overlay-hosted rendering
-
-A geom that must own its pointer events (drag, live simulation) declares its `render` as overlay-hosted. The renderer mounts the output in a screen-aligned portal above the central capture layer and hands the wiring on `input.overlay` (`InteractiveOverlayApi`):
-
-```tsx
-const forceDirected = defineGeomRenderer(new ForceDirectedGeom(), {
-  coord: 'cartesian',
-  render: {
-    fn: ({ layer, overlay }) => (
-      <ForceOverlay layer={layer} rect={overlay.panelRect} pushHover={overlay.pushHover} />
-    ),
-    options: { overlay: true },
+const topN: TransformStrategy = {
+  transformType: 'topN',
+  apply: (dataset, transformSpec) => {
+    const options = (transformSpec as { options?: Record<string, unknown> }).options;
+    const limit = Number(options?.['limit'] ?? 5);
+    return dataset.take(Array.from({ length: Math.min(limit, dataset.size()) }, (_, index) => index));
   },
-  renderHover: () => null,
-  renderHoverCompanions: () => null,
-});
+};
+
+const kit = createGraphyKit({ plugins: [topN] });
+
+export const spec = kit.pipe(
+  kit.createSpec({ x: 'month', y: 'revenue' }),
+  kit.transform.topN({ options: { limit: 5 } }),
+  kit.geom.bar(),
+  kit.scale.x(),
+  kit.scale.y()
+);
 ```
 
-- `overlay.pushHover(key, { clientX, clientY })` feeds the hovered observation's identity key into the unified hover store and anchors the tooltip at the supplied cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` clears this layer's hover only.
-- `overlay.panelRect` is the panel's on-screen rect in client pixels (`ScreenRect`), for placing geometries — distinct from `input.panelRect`, which is in layout pixels. `useElementScreenRect` is the exported measurement primitive behind it.
-- `useGeomHover(layerId)` is the standalone escape hatch returning the same push function — reach for it only when the overlay-hosted `render` form is not enough.
+`Stat`, `StatCompilerInput`, `StatCompileResult`, `AestheticKey`, and `TransformStrategy` are not exported from `@graphysdk/react`. Import them from `@graphysdk/viz-engine`.
 
-## Recipe index
+## Types and recipes
 
-Full worked implementations, one technique each:
+Core geom authoring, render types, value readers, SVG helpers, and interaction hooks are exported by `@graphysdk/react`. Import engine-only APIs such as `Stat`, `TransformStrategy`, `IdentityKey`, `PositionRole`, `SpatialKind`, `createSpecBuilder`, and `createCompiler` from `@graphysdk/viz-engine`. See [types.md](types.md) for full declarations.
 
-| Technique | Recipe |
-|---|---|
-| Render-only paint override of a built-in geom | `recipes/plugins/sketchy-bar.md` |
-| Minimal full custom geom (compile + paint) | `recipes/plugins/lollipop.md` |
-| Two geometries per observation | `recipes/plugins/dumbbell.md` |
-| Custom positional aesthetics (open/high/low/close) | `recipes/plugins/candlestick.md` |
-| Custom compile logic + custom hit-testing | `recipes/plugins/treemap.md` |
-| Computed-geometry hit regions | `recipes/plugins/voronoi.md` |
-| Simulation-driven layout | `recipes/plugins/beeswarm.md` |
-| Complex multi-part geometry | `recipes/plugins/sankey.md` |
-| Overlay-hosted rendering + push hover | `recipes/plugins/force-directed.md` |
+Read the recipes from small to large. [panel-rect](../recipes/plugins/panel-rect.md) and [unit-box](../recipes/plugins/unit-box.md) are the smallest. Then [lollipop](../recipes/plugins/lollipop.md), [dumbbell](../recipes/plugins/dumbbell.md), [candlestick](../recipes/plugins/candlestick.md), and [sketchy-bar](../recipes/plugins/sketchy-bar.md). Then [beeswarm](../recipes/plugins/beeswarm.md), [voronoi](../recipes/plugins/voronoi.md), [treemap](../recipes/plugins/treemap.md), [sankey](../recipes/plugins/sankey.md), [force-directed](../recipes/plugins/force-directed.md), and [Mexico 68](../recipes/plugins/mexico-68.md). The stylesheet for Mexico 68 lives in [the theme file](../recipes/themes/mexico-68.md).
+
+## Registration warnings
+
+Plugin problems surface as diagnostics. Errors go to the provider's `onError` and the error panel, and block the graph. Warnings go to `onWarnings`.
+
+- `MISSING_GEOM_RENDERER` is an error at registration when a custom geom's compile half has no render half at all, and a warning at scene time when none is bound for the active coord, so that layer is not painted.
+- `DUPLICATE_REGISTERED_TYPE` is a warning when two definitions share a name, or two render-only overrides share a `(geom, coord)` pair. The last in the array wins.
+- `RENDER_HIT_TEST_IDENTITY` is a warning for a layout geom left on a position-derived identity, or whose `{ variable }` identity names a column `compile` did not emit.
+- `MISSING_RENDER_HIT_TEST` when a `'render-hit-test'` geom has neither `hitTest` nor an overlay render; `CONFLICTING_RENDER_HIT_TEST` when it has both, and the overlay is used; `OVERLAY_REQUIRES_RENDER_HIT_TEST` when an overlay render sits on another spatial kind.
+- `SPATIAL_KIND_COORD_UNSUPPORTED` for `'cells'` under polar, and `MISSING_ANCHOR_CAPABILITY` for a `'render-hit-test'` geom without `resolveAnchorPosition`. All warnings.
+
+## Position and styling pitfalls
+
+Write data-space baselines and interval ends in `compile` so scales can transform them. Unit-space layouts and pixel-dependent offsets belong to their respective layout paths; they do not need to masquerade as scaled data positions.
+
+`getColor` reads only the color scale. Use `styleReaders.get('fill', observation)` when paint should honor stylesheet overrides and theme tokens. Some visual recipes intentionally use a fixed palette or scale-only color; adapt their paint reads when adding stylesheet support.

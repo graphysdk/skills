@@ -1,21 +1,92 @@
 # Lollipop
 
-Technique: minimal fully custom geom — the smallest complete compile + paint pair.
+A dot on top of a stem dropped to the baseline, one per band. Use it as a lighter alternative to bars. The stem's baseline is a compiled position, so it stays on the axis under any y domain.
 
-Reach for this pattern as the template for any new geom: one `Geom` subclass (the compile half) plus one `defineGeomRenderer(definition, contract)` call (the paint half), registered together through `createGraphyKit` so `kit.geom.lollipop` exists as a fully typed builder method. The key discipline: the renderer invents no positions — every coordinate (including the stem's baseline) is written in data units at compile time and mapped by the shared scales, so the geometry stays correct under any y domain.
+## Usage
+
+```tsx
+import { GraphRenderer, style, styles } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+import { kit } from './lollipop-geom';
+
+const data: Data = {
+  columns: [{ key: 'product' }, { key: 'revenue' }],
+  rows: [
+    { product: 'Product A', revenue: 1200 },
+    { product: 'Product B', revenue: 1800 },
+    { product: 'Product C', revenue: 2400 },
+    { product: 'Product D', revenue: 1600 },
+    { product: 'Product E', revenue: 3200 },
+    { product: 'Product F', revenue: 2800 },
+  ],
+};
+
+// Colour by band through the colour scale.
+const colouredSpec = kit.pipe(
+  kit.createSpec({ x: 'product', y: 'revenue' }),
+  kit.geom.lollipop({ aes: { color: 'product' }, params: { stemWidth: 3 } }),
+  kit.scale.x(),
+  kit.scale.y(),
+  kit.scale.color.palette()
+);
+
+// One colour for every lollipop through the stylesheet.
+const stylesheetSpec = kit.pipe(
+  kit.createSpec({ x: 'product', y: 'revenue' }),
+  kit.geom.lollipop({ params: { stemWidth: 3 } }),
+  styles({ overrides: [style.geom({ fill: '#e5484d', stroke: '#e5484d' })] }),
+  kit.scale.x(),
+  kit.scale.y()
+);
+
+// No colour mapping and no override: the built-in geom colour.
+const builtinSpec = kit.pipe(
+  kit.createSpec({ x: 'product', y: 'revenue' }),
+  kit.geom.lollipop({ params: { stemWidth: 3 } }),
+  kit.scale.x(),
+  kit.scale.y()
+);
+
+const specs = { coloured: colouredSpec, stylesheet: stylesheetSpec, builtin: builtinSpec };
+
+export const LollipopGraph = ({ variant = 'coloured' }: { variant?: keyof typeof specs }) => (
+  <kit.GraphProvider spec={specs[variant]} data={data}>
+    <GraphRenderer />
+  </kit.GraphProvider>
+);
+```
+
+## Plugin
+
+Save as `lollipop-geom.tsx`.
 
 ```tsx
 import { useMemo } from 'react';
 
-import { createGraphyKit, defineGeomRenderer } from '@graphysdk/react-renderer';
-import type { CompiledGeom, CompiledLayer, GeomCompilerInput, GeomStyleReaders, Observation } from '@graphysdk/viz-engine';
-import { Geom, getX, getYMax, getYMin, POSITION_VARIABLES, toPercent, toViewBoxX, toViewBoxY } from '@graphysdk/viz-engine';
+import type { GeomCompileResult, GeomCompilerInput, GeomStyleReaders, Observation, SceneLayer } from '@graphysdk/react';
+import {
+  createGraphyKit,
+  defineGeomRenderer,
+  Geom,
+  getX,
+  getYMax,
+  getYMin,
+  POSITION_VARIABLES,
+  toPaintColor,
+  toPercent,
+  toViewBoxX,
+  toViewBoxY,
+} from '@graphysdk/react';
 
 /**
- * A point atop a stem dropped to the baseline. It declares a y *interval* — an `x` point plus a
- * `min`/`max` y pair (like `area`/`bar`) — and a `color` aesthetic, plus one `stemWidth` param.
- * `compile` writes `yMin = 0` in *data* units, the `max` role fills `yMax` from the `y` aesthetic,
- * both are scaled by the shared y-scale, and the renderer reads them via `getYMin`/`getYMax`.
+ * The geom declares an x point plus a min/max y pair (like `area` and `bar`), a `color` aesthetic, and one
+ * `stemWidth` param. `compile` writes `yMin = 0` in data units, the max role fills `yMax` from the `y`
+ * aesthetic, both are scaled by the shared y scale, and the renderer reads them back. The renderer invents
+ * no positions, so the stem stays anchored to the baseline under a zoomed or log y domain.
+ *
+ * Paint reads `styleReaders` from the render input, so stylesheet overrides, tokens, and the built-in geom
+ * colour all reach the geom. `getColor` only sees the data-mapped colour.
  */
 class LollipopGeom extends Geom<{ stemWidth: number }> {
   readonly type = 'lollipop' as const;
@@ -28,14 +99,10 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
   override readonly aesthetics = [{ kind: 'visual', name: 'color' }] as const;
   override readonly supportedCoordTypes = ['cartesian'] as const;
 
-  // `'buckets'`: nearest-x snapping anywhere over the panel. The bucket index needs both x and y
-  // position columns — `y` survives from the root mapping, so nothing extra is injected here. The y
-  // domain is collected from `yMin`/`yMax` only while `mapping.y` exists, so a geom that drops `y`
-  // from its mapping loses both the axis domain and the bucket index.
   override readonly spatialKind = 'buckets';
 
-  compile({ data }: GeomCompilerInput): CompiledGeom {
-    // The baseline is a position, not a render constant: write it in data units so the y-scale maps it.
+  compile({ data }: GeomCompilerInput): GeomCompileResult {
+    // The baseline is a position, not a render constant: write it in data units so the y scale maps it.
     const withBaseline = data.hasVariable(POSITION_VARIABLES.yMin)
       ? data
       : data.addConstantVariable(POSITION_VARIABLES.yMin, 'numeric', 0);
@@ -43,29 +110,35 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
   }
 }
 
-const LollipopRenderer = ({ layer, styleReaders }: { layer: CompiledLayer; styleReaders: GeomStyleReaders }) => {
+const LollipopRenderer = ({ layer, styleReaders }: { layer: SceneLayer; styleReaders: GeomStyleReaders }) => {
   const items = useMemo(() => [...layer.data], [layer.data]);
 
   return (
     <>
       {items.map((observation, index) => (
-        <LollipopItem key={index} layer={layer} observation={observation} styleReaders={styleReaders} isHovered={false} />
+        <LollipopItem
+          key={index}
+          layer={layer}
+          observation={observation}
+          isHovered={false}
+          styleReaders={styleReaders}
+        />
       ))}
     </>
   );
 };
 
-/** One lollipop; with `isHovered` it redraws with a bolder stem and a larger point. */
+/** One lollipop. When hovered it is redrawn with a bolder stem and a larger dot. */
 const LollipopItem = ({
   layer,
   observation,
-  styleReaders,
   isHovered,
+  styleReaders,
 }: {
-  layer: CompiledLayer;
+  layer: SceneLayer;
   observation: Observation;
-  styleReaders: GeomStyleReaders;
   isHovered: boolean;
+  styleReaders: GeomStyleReaders;
 }) => {
   const { stemWidth } = layer.params as { stemWidth: number };
   const point = useMemo(() => {
@@ -77,17 +150,14 @@ const LollipopItem = ({
       cx: toPercent(toViewBoxX(x)),
       baseY: toPercent(toViewBoxY(yBase)),
       topY: toPercent(toViewBoxY(yTop)),
-      // Through the cascade: the `color` mapping, a user `style.geom` entry, the `geom` token and the
-      // active scheme all land here. `color` and `alpha` always resolve.
-      color: styleReaders.get('color', observation),
-      alpha: styleReaders.get('alpha', observation),
+      color: toPaintColor(styleReaders.get('fill', observation) ?? '#888888'),
     };
   }, [observation, styleReaders]);
 
   if (point === null) return null;
 
   return (
-    <g opacity={point.alpha}>
+    <g>
       <line
         x1={point.cx}
         x2={point.cx}
@@ -101,64 +171,23 @@ const LollipopItem = ({
   );
 };
 
-// `defineGeomRenderer(definition, contract)` binds both halves; passing the result to `createGraphyKit`
-// derives the typed `kit.geom.lollipop` method AND registers the geom with the bound compiler.
-export const lollipop = defineGeomRenderer(new LollipopGeom(), {
+// `defineGeomRenderer(definition, contract)` binds both halves. Passing the result to `createGraphyKit`
+// derives the typed `kit.geom.lollipop` method and registers the geom with the bound compiler.
+const lollipop = defineGeomRenderer(new LollipopGeom(), {
   coord: 'cartesian',
-  // Without this, legend/tooltip swatches fall back to `'square'`; a circle reads better.
-  swatchShape: 'circle',
-  // No `guideMode` → no hover guide; `guideMode: 'band'` would add a category band under the hovered x.
   render: ({ layer, styleReaders }) => <LollipopRenderer layer={layer} styleReaders={styleReaders} />,
   renderHover: ({ layer, primary, styleReaders }) => (
-    <LollipopItem layer={layer} observation={primary.observation} styleReaders={styleReaders} isHovered />
+    <LollipopItem layer={layer} observation={primary.observation} isHovered styleReaders={styleReaders} />
   ),
   renderHoverCompanions: () => null,
 });
+
+export const kit = createGraphyKit({ plugins: [lollipop] });
 ```
 
-The geometries are `%`-positioned children of the panel SVG; `UnitSpaceSvg` (react-renderer) is the exported primitive for painting in raw `[0,1]` instead, and `input.panelRect` (the panel's layout-pixel `Rect`, x/y already applied — paint in local 0…width / 0…height) is the escape hatch when pixel sizes matter. `spatialKind: 'buckets'` also means `input.intro` offers a wipe plan; this renderer ignores it (plans are offered, never imposed), so the lollipops pop in while built-in layers animate.
+## Notes
 
-## Usage
-
-Custom geoms are authored through a kit — `createGraphyKit({ plugins })` returns the typed builders plus a `GraphProvider` pre-bound to the same plugins, so spec authoring and rendering cannot diverge:
-
-```tsx
-import { GraphRenderer } from '@graphysdk/react-renderer';
-import type { Data } from '@graphysdk/viz-engine';
-
-const kit = createGraphyKit({ plugins: [lollipop] });
-
-const data: Data = {
-  columns: [{ key: 'category' }, { key: 'revenue' }],
-  rows: [
-    { category: 'Product A', revenue: 1200 },
-    { category: 'Product B', revenue: 1800 },
-    { category: 'Product C', revenue: 2400 },
-  ],
-};
-
-// `kit.geom.lollipop` is typed from the registered definition: `aes` is constrained to x/y/color and
-// `params` to `{ stemWidth }`, with no cast anywhere.
-const spec = kit.pipe(
-  kit.createSpec({ x: 'category', y: 'revenue' }),
-  kit.geom.lollipop({ aes: { color: 'category' }, params: { stemWidth: 3 } }),
-  kit.scale.x(),
-  kit.scale.y(),
-  kit.scale.color.palette()
-);
-
-export const LollipopChart = () => (
-  <kit.GraphProvider input={spec} data={data}>
-    <GraphRenderer />
-  </kit.GraphProvider>
-);
-```
-
-## Adapting
-
-- Add tunables as typed params: extend the `Geom<Params>` type parameter and `defaultParams` (e.g. point radius), then read them from `layer.params` in the renderer.
-- Extra visual channels go in `aesthetics` (e.g. `size`, `alpha`) and are read through the cascade — `styleReaders.get('size', observation)` / `get('alpha', observation)` — never bake per-observation styling into render constants. (`size` has no built-in default on a custom geom, so it may resolve `undefined`.)
-- `positionRoles` is the geometry contract: keep `min`/`max` pairs for interval geoms; a plain point geom declares only `point` roles and skips the baseline injection in `compile`.
-- Paint is inside the style cascade: `styleReaders.get('color', observation)` / `get('alpha', observation)` honour a user's `style.geom` entries and dark-scheme tokens; `getColor`/`getAlpha` expose the encoding only. Reserve geom params for what the stylesheet has no vocabulary for (a stem width, a label's contrast color). See `reference/styling.md`.
-- The class declares no `highlightStrategy`, so it inherits the base default `'overlay-anchor'` — and declared or inherited, it is not read on a custom geom: `layer.highlight` is looked up by built-in geom name, so a spec `highlight()` never dims or re-renders lollipops. To recede while another layer is highlighted, paint `styleReaders.get('alpha', observation, 'dimmed')` yourself. (Sibling fading on hover is unrelated: the layer group's CSS hover-dim is driven by the hover store holding any primary hit — `useHoverDim` sets `data-hover-active` on the geom group — and the `renderHover` output escapes it only because it paints outside that group.)
-- No `resolveAnchorPosition` is implemented, so annotations cannot anchor to lollipops; implement it returning the point's `[0,1]` position to make them annotatable. The omission is silent for a `'buckets'` layer — `MISSING_ANCHOR_CAPABILITY` fires for render-hit-test layers only.
+- No third-party dependency. Everything imports from `@graphysdk/react`.
+- `kit.geom.lollipop` is typed from the definition: `aes` accepts `x`, `y`, and `color`; `params` accepts `{ stemWidth }`.
+- Paint goes through `styleReaders.get('fill', observation)`, so `style.geom({ fill })` overrides and tokens apply. Without a colour mapping or override, the built-in geom colour is used.
+- Cartesian only. Hover repaints the item in place.

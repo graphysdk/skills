@@ -1,36 +1,98 @@
-# Combo (layered geoms)
+# Combo graph
 
-A combo chart is just multiple geom layers in one spec. Each layer can carry its own `aes` mapping (merged over the spec-level mapping), its own `transforms` (applied to that layer's view of the data only), and its own y-axis binding (`yScaleType: 'primary' | 'secondary'`).
+Use a combo graph when two measures share an x but need different geoms, or different units on two y axes.
 
-| Variant | Spec delta |
-|---|---|
-| Stacked bars + total line | `geom.bar` with a `transform.reshape` + `geom.line({ aes: { y: 'total', … }, yScaleType: 'secondary' })` |
-| Bars + rate line (dual axis) | two single-column layers, line gets `yScaleType: 'secondary'` + `scale.ySecondary()` |
-| Dodged bars + reference line (shared axis) | line layer omits `yScaleType` — both layers share the primary y scale |
-| Area + threshold line | `geom.area` instead of `geom.bar`, line on the secondary axis |
-| Constant reference line | `geom.rule({ aes: { y: { value: 2500 } } })` |
-| Average line | `geom.rule({ aes: { y: 'total' }, stat: stat.mean() })` |
-| Paint one layer differently | `geom.line({ id: 'total' })` + `style.geom.line({ … }, { layer: 'total' })` |
+Each layer picks its own y with a layer-local `aes`, and a layer can run its own transforms before it reads the data.
 
-## Base: stacked bars + total line
+## Data
 
-The bar layer reshapes three wide region columns into long rows. The line layer reads the pre-computed `total` column; `transform.constant` synthesizes a categorical series-label column and maps it to `color`, giving the line its own legend entry and palette color. The variable name is arbitrary — any name that doesn't collide with a data column key works.
+Wide data with one column per measure. Currency and percent strings are read as numbers with a format.
+
+```ts
+import type { Data } from '@graphysdk/react';
+
+const revenueGrowthData: Data = {
+  columns: [{ key: 'quarter' }, { key: 'Revenue' }, { key: 'Growth' }],
+  rows: [
+    { quarter: 'Q1', Revenue: '$12000', Growth: '5%' },
+    { quarter: 'Q2', Revenue: '$15000', Growth: '25%' },
+    { quarter: 'Q3', Revenue: '$14000', Growth: '-7%' },
+    { quarter: 'Q4', Revenue: '$18500', Growth: '32%' },
+    { quarter: 'Q5', Revenue: '$21000', Growth: '14%' },
+    { quarter: 'Q6', Revenue: '$19500', Growth: '-7%' },
+  ],
+};
+```
+
+## Basic
+
+Revenue bars on the left axis, growth line on the right axis.
 
 ```tsx
-import { config, createSpec, geom, pipe, scale, transform } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-const data = {
-  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }, { key: 'West' }, { key: 'total' }],
+const revenueGrowthData: Data = {
+  columns: [{ key: 'quarter' }, { key: 'Revenue' }, { key: 'Growth' }],
   rows: [
-    { month: 'Jan', North: '$350', South: '$200', West: '$500', total: '$1050' },
-    { month: 'Feb', North: '$300', South: '$250', West: '$350', total: '$900' },
-    { month: 'Mar', North: '$400', South: '$300', West: '$300', total: '$1000' },
-    { month: 'Apr', North: '$200', South: '$150', West: '$400', total: '$750' },
+    { quarter: 'Q1', Revenue: '$12000', Growth: '5%' },
+    { quarter: 'Q2', Revenue: '$15000', Growth: '25%' },
+    { quarter: 'Q3', Revenue: '$14000', Growth: '-7%' },
+    { quarter: 'Q4', Revenue: '$18500', Growth: '32%' },
+    { quarter: 'Q5', Revenue: '$21000', Growth: '14%' },
+    { quarter: 'Q6', Revenue: '$19500', Growth: '-7%' },
   ],
 };
 
-const input = pipe(
+const spec = pipe(
+  createSpec({ x: 'quarter' }),
+  geom.bar({
+    transforms: [transform.constant({ variableName: 'barLabel', type: 'categorical', value: 'Revenue' })],
+    aes: { y: 'Revenue', color: 'barLabel' },
+  }),
+  geom.line({
+    transforms: [transform.constant({ variableName: 'lineLabel', type: 'categorical', value: 'Growth' })],
+    aes: { y: 'Growth', color: 'lineLabel' },
+    yScaleType: 'secondary',
+  }),
+  scale.x(),
+  scale.y(),
+  scale.ySecondary(),
+  scale.color.palette()
+);
+
+export function RevenueAndGrowth() {
+  return (
+    <GraphProvider data={revenueGrowthData} spec={spec}>
+      <GraphRenderer />
+    </GraphProvider>
+  );
+}
+```
+
+The constant transforms add a label column to each layer so each geom gets its own legend entry and colour. `yScaleType: 'secondary'` sends the line to the right axis, and `scale.ySecondary()` declares that axis.
+
+## Variants
+
+### Stacked bars with a total line
+
+The bar layer reshapes the region columns to long form. The line reads the total on its own axis on the right.
+
+```ts
+import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const regionalData: Data = {
+  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }, { key: 'West' }, { key: 'total' }],
+  rows: [
+    { month: 'Jan', North: 350, South: 200, West: 500, total: 1050 },
+    { month: 'Feb', North: 300, South: 250, West: 350, total: 900 },
+    { month: 'Mar', North: 400, South: 300, West: 300, total: 1000 },
+    { month: 'Apr', North: 200, South: 150, West: 400, total: 750 },
+  ],
+};
+
+const spec = pipe(
   createSpec({ x: 'month' }),
   geom.bar({
     transforms: [
@@ -40,121 +102,128 @@ const input = pipe(
     position: 'stack',
   }),
   geom.line({
-    transforms: [transform.constant({ variableName: 'lineSeriesLabel', type: 'categorical', value: 'total' })],
-    aes: { y: 'total', color: 'lineSeriesLabel' },
+    transforms: [transform.constant({ variableName: 'lineLabel', type: 'categorical', value: 'Total' })],
+    aes: { y: 'total', color: 'lineLabel' },
     yScaleType: 'secondary',
   }),
   scale.x(),
   scale.y(),
   scale.ySecondary(),
-  scale.color.palette(),
-  config({ axes: { y: { label: 'sales' } } })
+  scale.color.palette()
 );
-
-export function RegionalSalesCombo() {
-  return (
-    <GraphProvider data={data} input={input}>
-      <GraphRenderer />
-    </GraphProvider>
-  );
-}
 ```
 
-The stacked bar layer makes the geoms touch, so the bare `scale.color.palette()` resolves `{ type: 'default' }` to the single-hue `brick` mono ramp for the **whole** chart — the line's slot lands on the ramp too, and the 8-color default set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'` on the bars.
+### Grouped bars with an average line
 
-## Variants
-
-Bars + rate line, dual axis — both layers read plain columns, each synthesizing a series label; different units ($ vs %) force the line onto the secondary axis:
+Both layers share the left axis. The line reads a constant `average` column.
 
 ```ts
-geom.bar({
-  transforms: [transform.constant({ variableName: 'barSeriesLabel', type: 'categorical', value: 'Revenue' })],
-  aes: { y: 'Revenue', color: 'barSeriesLabel' },
-}),
-geom.line({
-  transforms: [transform.constant({ variableName: 'lineSeriesLabel', type: 'categorical', value: 'Growth' })],
-  aes: { y: 'Growth', color: 'lineSeriesLabel' },
-  yScaleType: 'secondary',
-}),
-scale.ySecondary(),
-```
+import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-Dodged bars + reference line, shared axis — same units, so the line simply omits `yScaleType` and rides the primary scale:
-
-```ts
-geom.bar({ /* reshape as above */ position: 'dodge' }),
-geom.line({
-  transforms: [transform.constant({ variableName: 'lineSeriesLabel', type: 'categorical', value: 'average' })],
-  aes: { y: 'average', color: 'lineSeriesLabel' },
-}),
-```
-
-Area + threshold line:
-
-```ts
-geom.area({ aes: { y: 'cumulative', color: 'areaSeriesLabel' }, transforms: [/* constant label */] }),
-geom.line({ aes: { y: 'targetPct', color: 'lineSeriesLabel' }, yScaleType: 'secondary', transforms: [/* constant label */] }),
-scale.ySecondary(),
-```
-
-## Painting one layer
-
-Give the layer an `id` and scope a stylesheet entry to it with `{ layer }` — the way to make the
-overlay read differently from the geoms beneath it without touching them (`reference/styling.md`):
-
-```ts
-geom.bar({ id: 'bars', position: 'stack', aes: { y: 'sales', color: 'region' } }),
-geom.line({ id: 'total', aes: { y: 'total' }, yScaleType: 'secondary' }),
-styles({
-  overrides: [
-    style.geom.line({ strokeWidth: 3, color: '#1e293b' }, { layer: 'total' }),
-    style.geom.bar({ borderRadius: 'md' }, { layer: 'bars' }),
+const regionQuarterData: Data = {
+  columns: [{ key: 'quarter' }, { key: 'North' }, { key: 'South' }, { key: 'West' }, { key: 'average' }],
+  rows: [
+    { quarter: 'Q1', North: 350, South: 200, West: 500, average: 350 },
+    { quarter: 'Q2', North: 300, South: 250, West: 350, average: 300 },
+    { quarter: 'Q3', North: 400, South: 300, West: 300, average: 333 },
+    { quarter: 'Q4', North: 200, South: 150, West: 400, average: 250 },
   ],
-}),
+};
+
+const spec = pipe(
+  createSpec({ x: 'quarter' }),
+  geom.bar({
+    transforms: [
+      transform.reshape({ keep: ['quarter'], reshape: ['North', 'South', 'West'], keyName: 'region', valueName: 'sales' }),
+    ],
+    aes: { y: 'sales', color: 'region' },
+    position: 'dodge',
+  }),
+  geom.line({
+    transforms: [transform.constant({ variableName: 'lineLabel', type: 'categorical', value: 'Average' })],
+    aes: { y: 'average', color: 'lineLabel' },
+  }),
+  scale.x(),
+  scale.y(),
+  scale.color.palette()
+);
 ```
 
-An `overrides` entry for `color` (or `alpha` / `saturation`) beats the color scale, so the overlay
-does not need a synthesized series label just to claim a palette slot; `borderRadius` competes with
-nothing — no aesthetic maps to it. Keep the label when you also want the layer in the legend. Entries
-also scope by `{ where }` (a data predicate) and `{ state: 'hovered' | 'dimmed' }`.
-
-Constant reference line — `geom.rule` is the purpose-built geom. It reads a scalar from exactly one
-of `x` or `y` (both or neither fails with `INVALID_RULE_MAPPING`), spans the panel, and is
-non-interactive. That `x`/`y` must be a constant `{ value }` or a stat-produced variable — a plain
-column name without a stat also fails `INVALID_RULE_MAPPING`. Params: `label` and `labelPosition`
-(default `'start'`); the label's type is styled via `style.geom.rule.label`. Built-in paint is
-`token('ruleLine')`, `strokeWidth: 1`, `lineType: 'dashed'`; cartesian/flip only
-(`UNSUPPORTED_COORD` under polar); a rule has no intro plan:
+### Area with a target line on the secondary axis
 
 ```ts
-geom.rule({ aes: { y: { value: 2500 } }, params: { label: 'Target', labelPosition: 'start' } }),
-styles({ defaults: [style.geom.rule({ color: '#e5484d', strokeWidth: 2, lineType: 'dashed' })] }),
-```
+import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-Average line — a rule can carry `stat: stat.mean()` to draw the mean of a mapped column without
-precomputing it. `stat.mean()` collapses a layer to one observation — fine for a rule, degenerate on a line or bar:
+const cumulativeData: Data = {
+  columns: [{ key: 'month' }, { key: 'cumulative' }, { key: 'targetPct' }],
+  rows: [
+    { month: 'Jan', cumulative: '$1200', targetPct: '80%' },
+    { month: 'Feb', cumulative: '$3000', targetPct: '80%' },
+    { month: 'Mar', cumulative: '$5400', targetPct: '80%' },
+    { month: 'Apr', cumulative: '$7000', targetPct: '80%' },
+  ],
+};
 
-```ts
-geom.rule({ aes: { y: 'total' }, stat: stat.mean(), params: { label: 'Average' } }),
-```
-
-## Dual axis vs shared axis
-
-- **Secondary axis** (`yScaleType: 'secondary'` on the layer) when the overlay carries a different unit or magnitude ($ vs %, totals vs per-segment values). Each axis gets an independent domain.
-- **Shared axis** (omit `yScaleType`) when both layers measure the same thing — e.g. an average or reference line over bars. A dual axis here would silently decouple the line from the bars it annotates.
-
-## Gotchas
-
-- The secondary y config key in `config()` is `axes.ySecondary` — there is no `hasDualYAxis` key in the viz-engine config. It is a sparse override, not a resolved axis: an unset field is inherited (`position` from the side opposite `y`; `isVisible`, `grid` and `ticks` from `y` itself), and pinning one field ends that inheritance for it.
-- `scale.ySecondary()` is auto-injected when any layer declares `yScaleType: 'secondary'`, but add it explicitly (or use `scale.ySecondary.continuous({ … })`) when you want to control its domain. Label the second axis through the same sparse override:
-
-  ```ts
+const spec = pipe(
+  createSpec({ x: 'month' }),
+  geom.area({
+    transforms: [transform.constant({ variableName: 'areaLabel', type: 'categorical', value: 'Cumulative' })],
+    aes: { y: 'cumulative', color: 'areaLabel' },
+  }),
+  geom.line({
+    transforms: [transform.constant({ variableName: 'lineLabel', type: 'categorical', value: 'Target %' })],
+    aes: { y: 'targetPct', color: 'lineLabel' },
+    yScaleType: 'secondary',
+  }),
+  scale.x(),
+  scale.y(),
   scale.ySecondary(),
-  config({ axes: { y: { label: 'sales' }, ySecondary: { label: 'total', position: 'right' } } }),
-  ```
+  scale.color.palette()
+);
+```
 
-- Two layers demanding different scale kinds on one y — a tile (band) next to a bar (zero-anchored continuous) — fail with `CONFLICTING_SCALE_DEMANDS`; move one onto `yScaleType: 'secondary'`.
-- A mapping the geom does not declare (e.g. `size` on a bar) warns `UNDECLARED_AESTHETIC` and is ignored.
-- Map the synthesized constant column to `color` even for a single-series layer — without a `color` mapping the layer gets no legend entry and no palette slot.
-- Layer `transforms` reshape only that layer's view of the data; the sibling layers still see the original wide columns (the total line reads `total` untouched while the bars see reshaped rows).
-- Each geom kind brings its own intro animation (bars grow, lines and areas wipe, points pop; a rule has none), tuned together by `animation` on `GraphRenderer`. `animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for bar/point/tile layers, one per series for line/area — so a combo reaches the skip threshold at a lower per-layer density than a single-layer chart.
+### Two currencies in one bar layer
+
+Reshaping columns with different formats keeps each observation's own format, so tooltips show `$12,000` for USD bars and `€10,500` for EUR bars. A share line on the right axis keeps this a combo.
+
+```ts
+import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const multiCurrencyData: Data = {
+  columns: [{ key: 'quarter' }, { key: 'USD' }, { key: 'EUR' }, { key: 'Share' }],
+  rows: [
+    { quarter: 'Q1', USD: '$12,000', EUR: '€10,500', Share: '12%' },
+    { quarter: 'Q2', USD: '$15,000', EUR: '€13,200', Share: '15%' },
+    { quarter: 'Q3', USD: '$14,000', EUR: '€12,800', Share: '12%' },
+    { quarter: 'Q4', USD: '$18,500', EUR: '€16,000', Share: '16%' },
+  ],
+};
+
+const spec = pipe(
+  createSpec({ x: 'quarter' }),
+  geom.bar({
+    transforms: [transform.reshape({ keep: ['quarter'], reshape: ['USD', 'EUR'], keyName: 'currency', valueName: 'revenue' })],
+    aes: { y: 'revenue', color: 'currency' },
+    position: 'dodge',
+  }),
+  geom.line({
+    transforms: [transform.constant({ variableName: 'lineLabel', type: 'categorical', value: 'Share' })],
+    aes: { y: 'Share', color: 'lineLabel' },
+    yScaleType: 'secondary',
+  }),
+  scale.x(),
+  scale.y(),
+  scale.ySecondary(),
+  scale.color.palette()
+);
+```
+
+## Pitfalls
+
+- Only x goes in `createSpec`. Each layer maps its own y in `aes`.
+- `yScaleType: 'secondary'` on a layer is enough to get a right axis; an inferred `ySecondary` scale is added for you. Declare `scale.ySecondary()` yourself when you want to set its options.
+- A layer with a single measure has no color mapping, so it gets no legend entry. The constant transform gives it one.
+- Layer transforms run for that layer only. A spec-level transform runs for every layer.

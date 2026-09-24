@@ -1,167 +1,248 @@
-# Bar charts
+# Bar graph
 
-| Variant | Delta from base |
-|---|---|
-| Simple | base recipe below |
-| Grouped (dodge) | map `color`, `geom.bar({ position: 'dodge' })`, add `scale.color.palette()` |
-| Stacked | map `color`, `geom.bar({ position: 'stack' })`, add `scale.color.palette()` |
-| 100% stacked | map `color`, `geom.bar({ position: 'fill' })`, add `scale.color.palette()` |
-| Negative values | `geom.bar({ position: 'identity' })` — bars grow down from the zero baseline |
-| Horizontal | append `coord.flip()` |
-| Single bar | one row, `geom.bar({ position: 'identity' })` |
-| Count stat | `mapping({ x: 'category' })` only (no `y`), `geom.bar({ stat: 'count' })` |
-| Pill bars | `styles({ defaults: [style.geom.bar({ borderRadius: 'full' })] })` |
-| Data labels | `geom.bar({ dataLabels: { showDataLabels: true } })` — see below |
-| Polar | append `coord.polar()` — `recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md` |
+Use a bar graph to compare values across bands: products, regions, months treated as labels.
 
-## Base: simple bar
+## Data
+
+One row per observation. A band column for x and a numeric column for y.
+
+```ts
+import type { Data } from '@graphysdk/react';
+
+const revenueData: Data = {
+  columns: [{ key: 'product' }, { key: 'revenue' }],
+  rows: [
+    { product: 'Product A', revenue: 1200 },
+    { product: 'Product B', revenue: 1800 },
+    { product: 'Product C', revenue: 2400 },
+    { product: 'Product D', revenue: 1600 },
+    { product: 'Product E', revenue: 3200 },
+    { product: 'Product F', revenue: 2800 },
+  ],
+};
+```
+
+## Basic
 
 ```tsx
-import { createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-const data = {
-  columns: [{ key: 'category' }, { key: 'revenue' }],
+const revenueData: Data = {
+  columns: [{ key: 'product' }, { key: 'revenue' }],
   rows: [
-    { category: 'Product A', revenue: 1200 },
-    { category: 'Product B', revenue: 1800 },
-    { category: 'Product C', revenue: 2400 },
-    { category: 'Product D', revenue: 1600 },
+    { product: 'Product A', revenue: 1200 },
+    { product: 'Product B', revenue: 1800 },
+    { product: 'Product C', revenue: 2400 },
+    { product: 'Product D', revenue: 1600 },
   ],
 };
 
-const input = pipe(createSpec(), mapping({ x: 'category', y: 'revenue' }), geom.bar(), scale.x(), scale.y());
+const spec = pipe(createSpec({ x: 'product', y: 'revenue' }), geom.bar(), scale.x(), scale.y());
 
-export function BarChart() {
+export function RevenueBars() {
   return (
-    <GraphProvider data={data} input={input}>
+    <GraphProvider data={revenueData} spec={spec}>
       <GraphRenderer />
     </GraphProvider>
   );
 }
 ```
 
-## Grouped / stacked / 100% (wide data)
+## Variants
 
-Wide data — one column per series — needs `transform.reshape` to long form before `color` can map to the series:
+### Horizontal bars
+
+Flip the coordinate system. The x band runs down the left side.
 
 ```ts
-const wideData = {
+import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const spec = pipe(createSpec({ x: 'product', y: 'revenue' }), geom.bar(), scale.x(), scale.y(), coord.flip());
+```
+
+### Grouped bars
+
+Wide data (one column per group) needs a reshape first. Then map the new key column to color and set the position to dodge.
+
+```ts
+import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const regionData: Data = {
   columns: [{ key: 'quarter' }, { key: 'North' }, { key: 'South' }, { key: 'West' }],
   rows: [
     { quarter: 'Q1', North: 350, South: 200, West: 500 },
     { quarter: 'Q2', North: 300, South: 250, West: 350 },
     { quarter: 'Q3', North: 400, South: 300, West: 300 },
+    { quarter: 'Q4', North: 200, South: 150, West: 400 },
   ],
 };
 
-const input = pipe(
+const toLong = transform.reshape({
+  keep: ['quarter'],
+  reshape: ['North', 'South', 'West'],
+  keyName: 'region',
+  valueName: 'sales',
+});
+
+const spec = pipe(
   createSpec(),
-  transform.reshape({ keep: ['quarter'], reshape: ['North', 'South', 'West'], keyName: 'region', valueName: 'sales' }),
+  toLong,
   mapping({ x: 'quarter', y: 'sales', color: 'region' }),
-  geom.bar({ position: 'stack' }), // or 'dodge' | 'fill'
+  geom.bar({ position: 'dodge' }),
   scale.x(),
   scale.y(),
   scale.color.palette()
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked or filled bars touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp there, while dodged bars (nothing touches) get the 8-color default set. On a touching chart that set is unreachable. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or `position: 'dodge'`.
+If the data is already long (one row per quarter and region), skip the reshape and map the group column to color directly.
 
-Data already in long form (a series column per row) skips the reshape — map `color` directly:
+### Stacked bars
 
-```ts
-mapping({ x: 'month', y: 'revenue', color: 'product' }),
-geom.bar({ position: 'stack' }),
-```
-
-## Negative values
+Same data and mapping as grouped. Change the position.
 
 ```ts
-mapping({ x: 'month', y: 'pnl' }), // pnl rows may be negative
-geom.bar({ position: 'identity' }),
+import { geom } from '@graphysdk/react';
+
+const layer = geom.bar({ position: 'stack' });
 ```
 
-## Horizontal
+### Percent stacked bars
+
+Every bar fills the full height and segments show shares.
 
 ```ts
-// append after the scales
-coord.flip()
+import { geom } from '@graphysdk/react';
+
+const layer = geom.bar({ position: 'fill' });
 ```
 
-## Single bar
+### Bar width and corner radius
+
+Width is a fraction of the band. Corner rounding and borders are style declarations, not geom params.
 
 ```ts
-// data: rows: [{ item: 'Revenue', amount: 42000 }]
-mapping({ x: 'item', y: 'amount' }),
-geom.bar({ position: 'identity' }),
+import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec({ x: 'product', y: 'revenue' }),
+  geom.bar({ params: { width: 0.5 } }),
+  styles({ defaults: [style.geom.bar({ cornerRadius: 'md', stroke: '#1f2937', strokeWidth: 1 })] }),
+  scale.x(),
+  scale.y()
+);
 ```
 
-## Count stat (no y mapping)
+Corner radius tokens run from `'none'` through `'xl'`, plus `'full'` for pills. A pixel number also works.
 
-Raw observations — one row per event; the `count` stat tallies observations per x value:
+### Data labels
 
 ```ts
-mapping({ x: 'category' }),
-geom.bar({ stat: 'count' }),
-scale.x(),
-scale.y(),
-config({ axes: { y: { label: 'Count' } } })
+import { geom } from '@graphysdk/react';
+
+const layer = geom.bar({ position: 'stack', dataLabels: { showDataLabels: true, showStackTotals: true } });
 ```
 
-## Geometry and paint
+Use `format: 'percentage'` on a filled stack to label shares instead of values.
 
-`params` carries the band geometry; the stylesheet carries the paint (`reference/styling.md`).
+### Sorted bars
 
-| Surface | Key | Type | Default | Notes |
-|---|---|---|---|---|
-| `geom.bar({ params })` | `width` | number in `(0, 1]` | `0.7` (`1` under `coord.polar`) | fraction of the category band; dodged groups use an inner padding of `0.1` between bars |
-| `style.geom.bar` | `borderRadius` | `'none' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl' \| 'full'` | `'sm'` | `'full'` = pill; a stack rounds the outer corners of the whole column |
-| `style.geom.bar` | `borderColor` | color | `token('geomBorder')` | translucent ink, light/dark aware — the border is drawn by default |
-| `style.geom.bar` | `borderWidth` | number | `1` | `0` removes the border |
+Sort the observations before the geom reads them.
 
 ```ts
-geom.bar({ params: { width: 0.5 } }),
-styles({ defaults: [style.geom.bar({ borderRadius: 'full', borderColor: '#1e293b', borderWidth: 2 })] }),
+import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec({ x: 'product', y: 'revenue' }),
+  transform.sort({ variableName: 'revenue', direction: 'desc' }),
+  geom.bar(),
+  scale.x(),
+  scale.y()
+);
 ```
 
-`style.geom.bar` also takes the shared `color`, `alpha` and `saturation`, and scopes to one layer or
-one data subset via `{ layer }` / `{ where }`.
+### Count of observations
 
-The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in hovered state is `style.geom.bar({ borderColor: token('hoverAffordance') }, { state: 'hovered' })`.
-
-Stats available on a bar layer: `'identity'` (default) `| 'count' | 'sum' | 'mean' | 'smooth'`. `count`/`sum` group per x and series; `mean` collapses the layer to **one** observation (a single bar). Mapping `y` alongside `stat: 'count'` is a hard error (`CONFLICTING_STAT_MAPPING`). Bar declares only the `color` and `alpha` aesthetics — a mapped `size`/`strokeWidth` warns `UNDECLARED_AESTHETIC` and is ignored. Bar hides the x grid by default. Bars also render under `coord.polar` (`recipes/charts/pie-donut.md`, `recipes/charts/polar-bar.md`), where the `width` default becomes `1`.
-
-## Data labels
+When each row is one event, the count stat tallies rows per band. No y mapping is needed.
 
 ```ts
-geom.bar({
-  position: 'stack',
-  dataLabels: { showDataLabels: true, showStackTotals: true, showCategoryLabels: true, position: 'inside', justify: 'center', align: 'center', offset: 4 },
-}),
+import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const ordersData: Data = {
+  columns: [{ key: 'orderType' }],
+  rows: [
+    { orderType: 'Online' },
+    { orderType: 'Online' },
+    { orderType: 'Online' },
+    { orderType: 'Store' },
+    { orderType: 'Store' },
+    { orderType: 'Phone' },
+  ],
+};
+
+const spec = pipe(
+  createSpec({ x: 'orderType' }),
+  geom.bar({ stat: 'count' }),
+  scale.x(),
+  scale.y(),
+  config({ axes: { y: { label: 'Orders' } } })
+);
 ```
 
-- Stacked/filled segments coerce `position: 'outside'` to `'inside'` (`DATA_LABEL_PLACEMENT_COERCED`) — every segment edge borders a neighbour; use `showStackTotals` for stack-end totals.
-- `showStackTotals` on anything but a stacked cartesian bar warns `DATA_LABEL_SETTING_IGNORED`.
-- `justify` defaults to `'end'`, `'center'` on stacked/filled bars; `offset` defaults to `4`.
-- Category labels (`showCategoryLabels`) place independently via `categoryPosition | categoryJustify | categoryAlign | categoryOffset` (defaults `'inside' / 'start' / 'center' / 4`); `mapping.label` overrides the value label's text source.
+### Negative values
 
-## Intro animation
+Nothing special. Bars grow down from zero.
 
-On mount bars grow out of the zero baseline, staggered in visual order along the main axis; the
-segments of one stack share a delay so the column rises as one. The renderer's `animation` prop tunes it:
+### Single bar
 
-```tsx
-<GraphRenderer animation={{ intro: { stagger: false, durationScale: 0.5 } }} />
+One observation draws one bar. `position: 'identity'` skips the dodge layout, which has nothing to lay out here anyway.
+
+```ts
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const singleBarData: Data = {
+  columns: [{ key: 'item' }, { key: 'amount' }],
+  rows: [{ item: 'Revenue', amount: 42000 }],
+};
+
+const spec = pipe(createSpec({ x: 'item', y: 'amount' }), geom.bar({ position: 'identity' }), scale.x(), scale.y());
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
+### Month names without a year
 
-## Gotchas
+Short month names are read as dates, but a bar keeps them as bands. Two groups whose `Jan` rows fall in different years still share one `Jan` band and stack there.
 
-- Horizontal bars are `coord.flip()`, never a swapped mapping. `y` must stay numeric in every orientation; swapping the axes fails with `INCOMPATIBLE_TYPE`.
-- Bar's default position is `dodge`, not `stack` — a multi-series bar with no `position` renders grouped bars.
-- Wide data must go through `transform.reshape` before mapping `color` to the series; a long-form series column maps directly.
-- With negative values use `position: 'identity'` so bars hang below the zero baseline instead of being position-adjusted.
-- `stat: 'count'` supplies y itself — mapping `y` too is a hard error (`CONFLICTING_STAT_MAPPING`); still add `scale.y()`.
-- A `width` outside `(0, 1]` renders with a substitute (`1` for anything above `1`, otherwise `0.7`) and an `INVALID_GEOM_PARAM` warning.
+```ts
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const productData: Data = {
+  columns: [{ key: 'month' }, { key: 'revenue' }, { key: 'product' }],
+  rows: [
+    { month: 'Dec', revenue: 100, product: 'Alpha' },
+    { month: 'Jan', revenue: 120, product: 'Alpha' },
+    { month: 'Feb', revenue: 280, product: 'Alpha' },
+    { month: 'Jan', revenue: 90, product: 'Beta' },
+    { month: 'Feb', revenue: 150, product: 'Beta' },
+  ],
+};
+
+const spec = pipe(
+  createSpec({ x: 'month', y: 'revenue', color: 'product' }),
+  geom.bar({ position: 'stack' }),
+  scale.x(),
+  scale.y(),
+  scale.color.palette()
+);
+```
+
+## Pitfalls
+
+- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
+- The x axis under a bar is always a band, even for numeric or date columns. Declaring `scale.x.continuous()` under a bar gets replaced by a band with a warning. Use a point or line geom for a continuous x.
+- Bars with several observations per band sit side by side by default. Use `position: 'stack'` to stack them.
+- Borders use `stroke` and `strokeWidth` in `style.geom.bar`. There is no `borderColor` property.

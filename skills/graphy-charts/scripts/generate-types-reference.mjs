@@ -13,8 +13,10 @@
 // - dts-bundler renames (`Plugin` -> `Plugin_2`) are resolved through the
 //   d.ts export aliases and mapped back everywhere they appear.
 //
-// Usage:  node scripts/generate-types-reference.mjs [--check]
-//         (reads dist/index.d.ts from the packages installed in this repo's node_modules)
+// Usage:  node scripts/generate-types-reference.mjs [--check] [--packages <dir>]
+//         Reads dist/index.d.ts of @graphysdk/viz-engine and @graphysdk/react-renderer, resolved from
+//         the current working directory's node_modules, or from <dir>/<package>/dist when --packages names a checkout
+//         of the monorepo's packages folder.
 //         --check: exit 1 if reference/types.md is out of date instead of writing.
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -22,7 +24,9 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import ts from "typescript";
+// Resolve dependencies from the consuming project, not a fixed skill installation path.
+const require = createRequire(resolve(process.cwd(), 'graphy-skill-anchor.cjs'));
+const ts = require('typescript');
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const outPath = resolve(scriptDir, "../reference/types.md");
@@ -30,12 +34,22 @@ const checkMode = process.argv.includes("--check");
 
 // The published packages don't export package.json, so resolve the entry point
 // and take the sibling index.d.ts in dist/ (and package.json one level up).
+const packagesFlag = process.argv.indexOf("--packages");
+const packagesDir = packagesFlag === -1 ? null : process.argv[packagesFlag + 1];
+if (packagesFlag !== -1 && (!packagesDir || packagesDir.startsWith('--'))) {
+  console.error('Usage: node generate-types-reference.mjs [--check] [--packages <dir>]');
+  process.exit(1);
+}
+
 function findPackage(pkg) {
-  const entry = createRequire(import.meta.url).resolve(`@graphysdk/${pkg}`);
+  if (packagesDir) {
+    const root = resolve(packagesDir, pkg);
+    const { version } = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+    return { dts: resolve(root, "dist/index.d.ts"), version };
+  }
+  const entry = require.resolve(`@graphysdk/${pkg}`);
   const dts = resolve(dirname(entry), "index.d.ts");
-  const { version } = JSON.parse(
-    readFileSync(resolve(dirname(entry), "../package.json"), "utf8"),
-  );
+  const { version } = JSON.parse(readFileSync(resolve(dirname(entry), "../package.json"), "utf8"));
   return { dts, version };
 }
 
@@ -56,7 +70,7 @@ const GROUPS = [
       "DataType",
       "VariableName",
       "Locale",
-      "SpecInput",
+      "Spec",
       "ColorScheme",
       "ColorSchemeName",
     ],
@@ -86,19 +100,19 @@ const GROUPS = [
     symbols: [
       "AesMapping",
       "AestheticKey",
-      "LayerInput",
-      "CustomGeomLayerInput",
+      "LayerSpec",
+      "CustomGeomLayerSpec",
     ],
   },
   {
     title: "Transforms & stats",
     pkg: "viz-engine",
     symbols: [
-      "TransformInput",
-      "CustomTransformInput",
+      "AnyTransformSpec",
+      "CustomTransformSpec",
       "StatName",
       "SmoothMethod",
-      "CustomStatInput",
+      "CustomStatSpec",
     ],
   },
   {
@@ -116,7 +130,7 @@ const GROUPS = [
       "style",
       "token",
       "Stylesheet",
-      "StylesheetInput",
+      "StylesheetSpec",
       "StyleRule",
       "StyleDeclarations",
       "StyleProperty",
@@ -133,19 +147,19 @@ const GROUPS = [
   {
     title: "Highlights",
     pkg: "viz-engine",
-    symbols: ["HighlightInput"],
+    symbols: ["HighlightSpec"],
   },
   {
     title: "Annotations",
     pkg: "viz-engine",
-    symbols: ["AnnotationsInput"],
+    symbols: ["AnnotationsSpec"],
   },
   {
     title: "Scales & palettes",
     pkg: "viz-engine",
     symbols: [
-      "PaletteOverridesInput",
-      "CustomPalettesInput",
+      "PaletteOverridesSpec",
+      "CustomPalettes",
       "MONO_BASES",
       "NEON_BASES",
       "DEFAULT_COLOR_PALETTE",
@@ -171,8 +185,6 @@ const GROUPS = [
     symbols: [
       "ThemeOverrides",
       "ThemeValues",
-      "MeasuredFontTokenKey",
-      "FontTokenOverride",
     ],
   },
   {
@@ -205,7 +217,6 @@ const GROUPS = [
       "RenderOnlyPlugin",
       "Geom",
       "StatDefinition",
-      "TransformDefinition",
     ],
   },
   {
@@ -255,7 +266,42 @@ function removeSkipped(text) {
 // References that are deliberately not expanded: compiled/output-side and
 // engine-internal graphs. They render as opaque names; the skill's prose docs
 // cover what an author needs of them.
+const PREFIX_STOP = [/^Scene/, /^Formatted/, /^Compiled/, /IntroPlan$/, /^Registry/, /^Node(Builder|Entry|Backed|RestKeys|Select|When|Vocabular)/];
 const EXPAND_STOP = new Set([
+  // The style registry literal is 90 KB of type-level tables; styling.md carries the same
+  // vocabulary as a readable table.
+  "STYLE_TARGETS",
+  // The vanilla-extract theme contract; a consumer styles through the stylesheet, not these vars.
+  "vars",
+  "SpecBuilder",
+  "CreateSpecBuilderOptions",
+  "StyleBuilderTree",
+  "ChildBuilders",
+  "ChildEntries",
+  "GraphCommands",
+  "GraphHandle",
+  "StyleReadersForLayer",
+  "StyleReadersOf",
+  "GeomStyleReader",
+  "GeomStyleReaders",
+  "GeomKindReaders",
+  "GeomKindNodes",
+  "GeomReaderFor",
+  "GeomReaderGet",
+  "ResolvedLayerSpec",
+  "ResolvedLayerSpecBase",
+  "ResolvedLayerSpecFor",
+  "ResolvedStyleDeclarations",
+  "ResolvedStyleDomainValues",
+  "ResolvedDeclarations",
+  "ResolvedPaint",
+  "ResolvedRecord",
+  "ResolvedPoint",
+  "ResolvedRegion",
+  "ResolvedObservationPoint",
+  "StyleExplanation",
+  "TooltipContract",
+  "InteractiveOverlayApi",
   // Output side of the compile pipeline — consumed by renderers, not authored.
   "CompiledSpec",
   "CompiledLayer",
@@ -273,7 +319,7 @@ const EXPAND_STOP = new Set([
   "LastCompileSnapshot",
   "RendererContext",
   // Resolved spec: an input the resolver produces, not authored directly.
-  "Spec",
+  "ResolvedSpec",
   // Engine internals reachable from plugin/authoring types.
   "Dataset",
   "Observation",
@@ -580,7 +626,7 @@ while (queue.length > 0) {
   if (!resolved) continue;
   for (const ref of resolved.entry.refs) {
     if (AMBIENT_NAMES.has(ref) || SKIPPED.has(ref)) continue;
-    if (EXPAND_STOP.has(ref)) {
+    if (EXPAND_STOP.has(ref) || PREFIX_STOP.some((pattern) => pattern.test(ref))) {
       stopped.add(ref);
       continue;
     }
@@ -633,12 +679,12 @@ const header = `<!-- GENERATED FILE — do not edit. -->
 
 Generated from ${versions}.
 
-> The exact public chart-authoring API, extracted verbatim (with JSDoc) from the
+> Selected chart-authoring declarations (with JSDoc), extracted from the
 > built \`.d.ts\` of \`@graphysdk/viz-engine\` and \`@graphysdk/react-renderer\`.
 > Check precise signatures, option keys, and accepted values here; see
-> \`spec-api.md\` for how the pieces compose. Every type these declarations
-> reference is defined in this file, most under "Supporting types" at the
-> end.${stoppedNote}
+> [spec.md](spec.md) for how the pieces compose. Supporting types follow the
+> main sections; React and standard-library types remain external. Legacy
+> GraphConfig alternatives are omitted.${stoppedNote}
 `;
 
 const output = `${header}\n${sections.join("\n\n")}\n`;

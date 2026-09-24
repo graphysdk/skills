@@ -68,7 +68,7 @@ need the canvas.
 ## What extra to install
 
 Nothing. The base install — React 19, the 15 `@tiptap/*@^3` peer packages — is covered in
-`graphy-charts/reference/install.md` and already includes everything editing needs. Two details
+`graphy-charts/reference/setup.md` and already includes everything editing needs. Two details
 worth knowing:
 
 - The `@tiptap/*` packages are only *loaded* when `./editable` is imported. npm 7+ and pnpm install
@@ -89,7 +89,7 @@ TipTap, the panel and its styles to the bundle. If the editor is only sometimes 
 `./editable` imports behind your own code-split boundary.
 
 The same split exists with no bundler: the SDK's CDN build ships a read-only bundle and an
-editable one, loaded from a jsDelivr URL — `graphy-charts/reference/cdn.md` has the URLs and the
+editable one, loaded from a jsDelivr URL — `graphy-charts/reference/setup.md` has the URLs and the
 import map.
 
 ## Saving and restoring

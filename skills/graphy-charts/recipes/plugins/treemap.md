@@ -1,14 +1,63 @@
 # Treemap
 
-Technique: custom compile logic + a render-side `hitTest` factory.
+A two-level treemap: groups squarified across the panel, each group's leaves squarified into its cell under a header band. Tile area is proportional to value. Use it for part-of-whole data with a group column, or without one for a flat treemap.
 
-Reach for this pattern when a chart's geometry comes from a layout algorithm over the whole dataset, not from positional scales: `compile()` runs the layout and emits the finished geometry as the geom's own dataset columns, and the render side paints them and answers cursor queries itself. The geom declares `spatialKind: 'render-hit-test'` and supplies a `hitTest` factory on the render contract — the renderer registers it through `useGeomHitTest` on the geom's behalf, so the layer inherits central hover and the built-in tooltip with no pointer overlay. Requires `d3-hierarchy`.
+## Usage
 
-## Layout (`treemap-layout.ts`)
+```tsx
+import { config, GraphRenderer } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-Pure layout in unit `[0, 1]` space, `y = 0` at the top, free of any Graphy import.
+import { kit } from './treemap-geom';
+
+const marketCap: Data = {
+  columns: [{ key: 'sector' }, { key: 'company' }, { key: 'value' }],
+  rows: [
+    { sector: 'Technology', company: 'Apple', value: 3300 },
+    { sector: 'Technology', company: 'Microsoft', value: 3100 },
+    { sector: 'Technology', company: 'Nvidia', value: 2900 },
+    { sector: 'Technology', company: 'Alphabet', value: 2100 },
+    { sector: 'Consumer', company: 'Amazon', value: 2000 },
+    { sector: 'Consumer', company: 'Tesla', value: 800 },
+    { sector: 'Consumer', company: 'Walmart', value: 620 },
+    { sector: 'Financials', company: 'Berkshire', value: 900 },
+    { sector: 'Financials', company: 'JPMorgan', value: 650 },
+    { sector: 'Financials', company: 'Visa', value: 560 },
+    { sector: 'Healthcare', company: 'Eli Lilly', value: 820 },
+    { sector: 'Healthcare', company: 'UnitedHealth', value: 520 },
+    { sector: 'Energy', company: 'Saudi Aramco', value: 1800 },
+    { sector: 'Energy', company: 'Exxon', value: 520 },
+  ],
+};
+
+// `color` maps the group column, so the colour scale gives each group and its leaves one hue; leaves
+// lighten by value render-side. Each group cell carries its name, so the legend is hidden.
+const spec = kit.pipe(
+  kit.createSpec({}),
+  kit.geom.treemap({ aes: { group: 'sector', label: 'company', value: 'value', color: 'sector' } }),
+  config({ legend: { position: 'none' } })
+);
+
+export const TreemapGraph = () => (
+  <kit.GraphProvider spec={spec} data={marketCap}>
+    <GraphRenderer />
+  </kit.GraphProvider>
+);
+```
+
+## Plugin
+
+Save as `treemap-layout.ts`.
 
 ```ts
+/**
+ * A two-level treemap computed in unit [0, 1] space with y = 0 at the top. Geometry comes from the
+ * algorithm over the whole dataset, not from positional scales. The tiling is d3-hierarchy's
+ * `treemapSquarify`: leaves are grouped, the groups squarified across the panel, and each group's leaves
+ * squarified into that group's cell below a reserved header band. A single group degrades to a flat
+ * treemap (no header). Tiles read squarest when the panel is square; the non-uniform [0, 1] to panel
+ * stretch skews them with the panel's aspect ratio.
+ */
 import { hierarchy, treemap, treemapSquarify } from 'd3-hierarchy';
 
 /** One leaf of the hierarchy. Input observations are leaves; the group is their parent. */
@@ -21,16 +70,16 @@ export interface TreemapLeaf {
 export interface TreemapLayoutParams {
   /** Gap between sibling leaf tiles, as a unit fraction. */
   padding: number;
-  /** Inset around each group cell, as a unit fraction. */
+  /** Inset around each group cell, as a unit fraction, so neighbouring groups stay visually separate. */
   groupGap: number;
   /** Height reserved at the top of a group cell for its name, as a unit fraction. */
   groupHeader: number;
 }
 
 /**
- * A laid-out tile in unit space. A `group` tile is a header-bearing cell containing leaves; a `leaf`
+ * A laid-out tile in unit space. A `group` tile is a cell with a header band containing leaves; a `leaf`
  * tile is a single rectangle whose area is proportional to its value. `shade` varies a leaf's lightness
- * within its group's hue (`0` for a group tile); the hue itself comes from the engine's color scale.
+ * within its group's hue (`0` for a group tile); the hue itself comes from the engine's colour scale.
  */
 export interface LaidOutTile {
   kind: 'group' | 'leaf';
@@ -53,35 +102,35 @@ interface GroupAggregate {
 }
 
 /** The hierarchy d3 lays out: internal nodes carry no value, leaves carry theirs. */
-interface TreeNodeInput {
+interface TreeNode {
   group: string;
   label: string;
   value: number;
-  children?: TreeNodeInput[];
+  children?: TreeNode[];
 }
 
 /**
- * Groups are squarified across the full unit square by total value; each group's leaves are then
- * squarified into that group's content rect (inset by `groupGap`, with `groupHeader` reserved for the
- * name). A single distinct group degrades to a flat treemap (no header level).
+ * Lays out a treemap from a flat list of leaves. Groups are squarified across the full unit square by
+ * total value; each group's leaves are then squarified into that group's content rect (the cell inset by
+ * `groupGap`, with `groupHeader` reserved for the name). Both levels are placed in descending value order.
  */
 export function computeTreemapLayout(leaves: TreemapLeaf[], params: TreemapLayoutParams): LaidOutTile[] {
   const groups = aggregateGroups(leaves);
   if (groups.length === 0) return [];
   const isFlat = groups.length <= 1;
 
-  const root = hierarchy<TreeNodeInput>(buildHierarchy(groups, isFlat))
+  const root = hierarchy<TreeNode>(buildHierarchy(groups, isFlat))
     .sum((node) => node.value)
     .sort((left, right) => (right.value ?? 0) - (left.value ?? 0));
 
-  const laidRoot = treemap<TreeNodeInput>()
+  const laidRoot = treemap<TreeNode>()
     .size([1, 1])
     .tile(treemapSquarify)
     .paddingOuter((node) => (node.depth === 0 ? params.groupGap : 0))
     .paddingInner((node) => (node.depth === 0 && !isFlat ? params.groupGap * 2 : params.padding))
     .paddingTop((node) => (node.depth === 1 && !isFlat ? params.groupHeader : 0))(root);
 
-  // Reduce, not `Math.max(...leaves)`: a spread over a very large group overflows the call-argument limit.
+  // A reduce, not a spread into `Math.max`: a very large group would overflow the call-argument limit.
   const maxValueByGroup = new Map(
     groups.map((group) => [group.name, group.leaves.reduce((max, leaf) => Math.max(max, leaf.value), 0)])
   );
@@ -121,7 +170,10 @@ export function computeTreemapLayout(leaves: TreemapLeaf[], params: TreemapLayou
   return tiles;
 }
 
-/** Folds leaves into groups, then sorts groups (and leaves within each) by descending value. */
+/**
+ * Folds leaves into groups in first-appearance order, then sorts groups (and the leaves within each) by
+ * descending value, the order the squarify pass wants and the order a group's palette hue is assigned in.
+ */
 function aggregateGroups(leaves: TreemapLeaf[]): GroupAggregate[] {
   const groups: GroupAggregate[] = [];
   const indexByName = new Map<string, number>();
@@ -147,8 +199,11 @@ function aggregateGroups(leaves: TreemapLeaf[]): GroupAggregate[] {
   return groups;
 }
 
-/** A flat treemap skips the group level entirely — leaves hang straight off the root, no header. */
-function buildHierarchy(groups: GroupAggregate[], isFlat: boolean): TreeNodeInput {
+/**
+ * Builds the d3 hierarchy. A flat treemap skips the group level entirely: leaves hang straight off the
+ * root with no header. The group on each node is what the engine's colour scale keys on.
+ */
+function buildHierarchy(groups: GroupAggregate[], isFlat: boolean): TreeNode {
   const groupNodes = groups.map((group) => ({
     group: group.name,
     label: group.name,
@@ -164,42 +219,42 @@ function buildHierarchy(groups: GroupAggregate[], isFlat: boolean): TreeNodeInpu
   return { group: '', label: '', value: 0, children };
 }
 
-/** Larger leaves stay close to the base color, smaller leaves lighten; clamped so every tile reads. */
+/**
+ * A leaf's lightness factor within its group's hue: larger leaves stay close to the base colour, smaller
+ * leaves lighten. Clamped above 0.4 so even the smallest tile keeps enough colour to read.
+ */
 function shadeFor(value: number, maxValue: number): number {
   if (maxValue <= 0) return 1;
   return 0.4 + 0.6 * (value / maxValue);
 }
 ```
 
-## Plugin
+Save as `treemap-geom.tsx`.
 
 ```tsx
 import { useMemo } from 'react';
+
 import {
   createGraphyKit,
   defineGeomRenderer,
+  Geom,
+  getColor,
   lightenCss,
   type RenderHitTester,
   UnitBoxSvg,
-} from '@graphysdk/react-renderer';
+} from '@graphysdk/react';
+import type { Dataset, GeomCompileResult, GeomCompilerInput, Observation, SceneLayer } from '@graphysdk/react';
 import {
-  type CompiledGeom,
-  type CompiledLayer,
-  type Dataset,
-  type GeomCompilerInput,
-  type GeomStyleReaders,
-  type IdentityKey,
-  type Observation,
   createDatasetFromKindPartitions,
-  extractVariableName,
-  Geom,
+  type IdentityKey,
   readAuthoredNumber,
   readAuthoredString,
+  readVariableName,
 } from '@graphysdk/viz-engine';
 
 import { computeTreemapLayout, type TreemapLeaf } from './treemap-layout';
 
-/** The compile/render column vocabulary — the shared handshake between the two halves. */
+/** The column vocabulary shared by the compile half and the render half. */
 const TREEMAP_COLUMNS = {
   kind: 'kind',
   markId: 'markId',
@@ -213,6 +268,9 @@ const TREEMAP_COLUMNS = {
   y1: 'y1',
   headerY1: 'headerY1',
 } as const;
+
+/** Fill used only if the colour scale is absent. */
+const FALLBACK_COLOR = '#888888';
 
 interface TreemapParams {
   /** Gap between sibling leaf tiles, as a unit fraction. */
@@ -233,16 +291,11 @@ class TreemapGeom extends Geom<TreemapParams> {
   override readonly identityKey: IdentityKey = { variable: TREEMAP_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly highlightStrategy = null;
-  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
-  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
-  override readonly positionRoles = [] as const;
-  // `label`/`value` are the hierarchy inputs the layout consumes (read from the mapped columns, not
-  // scaled). `group` is a universal aesthetic the engine recognises without declaring, but it is
-  // declared here so the exact-aes builder admits it; the layout reads it when mapped, and absent, the
-  // leaves form a single flat treemap. `color` is author-mapped (no forced encoding) to `group`, so
-  // the engine's categorical scale gives a group and its leaves one hue.
+  // `label` and `value` are the hierarchy inputs the layout consumes, read straight from the mapped
+  // columns, not scaled. `group` is a universal aesthetic, recognised without declaring, that the layout
+  // reads when mapped; absent, the leaves form a single flat treemap. `color` is author-mapped, usually
+  // to the same group column, so a group and its leaves get one hue.
   override readonly aesthetics = [
-    { kind: 'data', name: 'group' },
     { kind: 'data', name: 'label', required: true },
     { kind: 'data', name: 'value', required: true },
     { kind: 'visual', name: 'color' },
@@ -251,9 +304,10 @@ class TreemapGeom extends Geom<TreemapParams> {
     { key: 'Item', aes: 'label' },
     { key: 'Value', aes: 'value' },
   ] as const;
+
   override readonly spatialKind = 'render-hit-test';
 
-  compile({ data, params, mapping }: GeomCompilerInput): CompiledGeom {
+  compile({ data, params, mapping }: GeomCompilerInput): GeomCompileResult {
     const resolved = { ...this.defaultParams, ...(params as Partial<TreemapParams>) };
     const leaves = readLeaves(data, mapping);
     const tiles = computeTreemapLayout(leaves, {
@@ -302,11 +356,9 @@ class TreemapGeom extends Geom<TreemapParams> {
       TREEMAP_COLUMNS.kind
     );
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label`/`value`. Because
-    // this returns a fresh `Dataset`, every column a visual aesthetic maps to must be re-emitted under
-    // the same name (`group` here): `compile()` does not rewrite `layer.mapping.color`, the visual
-    // mapper resolves it against the compiled data, and a missing column silently falls every cell
-    // back to `token('geom')`.
+    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label` and `value`. Colour is
+    // not forced: the author maps `color` to the group column and the categorical scale resolves the base
+    // hue; the renderer lightens each leaf within it by `shade`.
     return {
       data: table,
       mapping: { label: { variable: TREEMAP_COLUMNS.label }, value: { variable: TREEMAP_COLUMNS.value } },
@@ -314,16 +366,16 @@ class TreemapGeom extends Geom<TreemapParams> {
   }
 }
 
-/** Zips the label/value (and optional group) columns into leaves, dropping rows missing a label or value. */
+/** Zips the label and value (and optional group) columns into leaves, dropping rows missing a label or value. */
 function readLeaves(data: Dataset, mapping: GeomCompilerInput['mapping']): TreemapLeaf[] {
-  const groupVariable = extractVariableName(mapping.group);
-  const labelVariable = extractVariableName(mapping.label);
-  const valueVariable = extractVariableName(mapping.value);
-  // Read untyped and filter by `typeof` below, rather than the type-asserting `getValues` overload: a
-  // present-but-wrong-typed mapping degrades to an empty chart instead of an error panel.
-  const groups = groupVariable && data.hasVariable(groupVariable) ? data.getValues(groupVariable) : null;
-  const labels = labelVariable && data.hasVariable(labelVariable) ? data.getValues(labelVariable) : [];
-  const values = valueVariable && data.hasVariable(valueVariable) ? data.getValues(valueVariable) : [];
+  const groupVar = readVariableName(mapping.group);
+  const labelVar = readVariableName(mapping.label);
+  const valueVar = readVariableName(mapping.value);
+  // Read untyped and filter by `typeof` below, so a mapping pointed at a wrong-typed column degrades to
+  // an empty graph instead of throwing.
+  const groups = groupVar && data.hasVariable(groupVar) ? data.getValues(groupVar) : null;
+  const labels = labelVar && data.hasVariable(labelVar) ? data.getValues(labelVar) : [];
+  const values = valueVar && data.hasVariable(valueVar) ? data.getValues(valueVar) : [];
 
   const leaves: TreemapLeaf[] = [];
   for (let row = 0; row < labels.length; row += 1) {
@@ -341,26 +393,19 @@ interface RenderTile {
   kind: 'group' | 'leaf';
   label: string;
   value: number;
-  /** The tile's base hue (its group's), read through the style cascade (override → color scale → default). */
+  /** The tile's base hue (its group's), from the engine's colour scale. */
   color: string;
   shade: number;
   x0: number;
   y0: number;
   x1: number;
   y1: number;
-  /**
-   * Group only: bottom of the saturated header band (which carries the name and the hit). A leaf's
-   * `null` reads as `0` through `readAuthoredNumber`, which the group hit-test below relies on.
-   */
+  /** Group only: bottom of the header band (the band that carries the name and takes the hit). */
   headerY1: number;
 }
 
-/**
- * Reads the compiled dataset back into group cells and leaf tiles — the render-half inverse of compile.
- * Paint comes from `styleReaders` (this layer's cascade, resolved for the active scheme), not `getColor`,
- * which sees the data tier only and is `undefined` whenever `color` is unmapped.
- */
-function readTiles(data: Dataset, styleReaders: GeomStyleReaders): { groups: RenderTile[]; leaves: RenderTile[] } {
+/** Reads the compiled dataset back into group cells and leaf tiles, dispatching on `kind`. */
+function readTiles(data: Dataset): { groups: RenderTile[]; leaves: RenderTile[] } {
   const groups: RenderTile[] = [];
   const leaves: RenderTile[] = [];
   const toTile = (observation: Observation, kind: 'group' | 'leaf'): RenderTile => ({
@@ -368,7 +413,7 @@ function readTiles(data: Dataset, styleReaders: GeomStyleReaders): { groups: Ren
     kind,
     label: readAuthoredString(observation, TREEMAP_COLUMNS.label),
     value: readAuthoredNumber(observation, TREEMAP_COLUMNS.value),
-    color: styleReaders.get('color', observation),
+    color: getColor(observation) ?? FALLBACK_COLOR,
     shade: readAuthoredNumber(observation, TREEMAP_COLUMNS.shade),
     x0: readAuthoredNumber(observation, TREEMAP_COLUMNS.x0),
     y0: readAuthoredNumber(observation, TREEMAP_COLUMNS.y0),
@@ -391,10 +436,8 @@ function readTiles(data: Dataset, styleReaders: GeomStyleReaders): { groups: Ren
 }
 
 /**
- * The cursor query over the tiles — a leaf rect first (leaves sit inside their group), then a group's
- * header band (the only part of a group cell that takes the hit; its body is the leaves). The renderer
- * memoizes this on `layer.data` and the panel pixel rect (`input.panelRect`), so the read above runs once
- * per data change or resize, not per cursor move.
+ * The cursor query: a leaf rect first (leaves sit inside their group), then a group's header band (the
+ * only part of a group cell that takes the hit). The renderer memoizes this on `layer.data`.
  */
 function buildTreemapTester({ groups, leaves }: { groups: RenderTile[]; leaves: RenderTile[] }): RenderHitTester {
   return (cursor) => {
@@ -417,14 +460,14 @@ function tileFill(tile: RenderTile): string {
   return tile.kind === 'group' ? tile.color : lightenCss(tile.color, (1 - tile.shade) * 0.55);
 }
 
-// Unit-fraction thresholds for label culling — proportional to the panel, so they adapt under resize.
+// Unit-fraction thresholds for hiding labels, proportional to the panel so they adapt under resize.
 const GROUP_LABEL_MIN_WIDTH = 0.05;
 const LEAF_LABEL_MIN_WIDTH = 0.045;
 const LEAF_LABEL_MIN_HEIGHT = 0.035;
 const LEAF_VALUE_MIN_WIDTH = 0.07;
 const LEAF_VALUE_MIN_HEIGHT = 0.08;
 
-/** Group name, padded in from the band's left edge and vertically centered in it; white for contrast. */
+/** Group name, padded in from the band's left edge and vertically centred in it. */
 const GroupLabel = ({ label }: { label: string }) => (
   <text x={5} y="50%" textAnchor="start" dominantBaseline="middle" fontSize={11} fontWeight={600} fill="#fff">
     {label}
@@ -435,7 +478,7 @@ function fitsLabel(width: number, height: number, minWidth: number, minHeight: n
   return width >= minWidth && height >= minHeight;
 }
 
-/** Leaf label (name, plus value when the tile is large enough), centered in the tile, culled when small. */
+/** Leaf label (name, plus value when the tile is large enough), centred in the tile, hidden when small. */
 const LeafLabel = ({ leaf }: { leaf: RenderTile }) => {
   const width = leaf.x1 - leaf.x0;
   const height = leaf.y1 - leaf.y0;
@@ -471,7 +514,10 @@ const LeafLabel = ({ leaf }: { leaf: RenderTile }) => {
   );
 };
 
-/** A group cell: its saturated header band fills the band box, the group name clipped to it. */
+/**
+ * A group cell: its header band fills the band box, with the group name clipped to it. The band box is the
+ * label's coordinate space, so the name positions relative to the band. Used for both base and hover paint.
+ */
 const TreemapGroupCell = ({ group }: { group: RenderTile }) => (
   <UnitBoxSvg box={{ x0: group.x0, y0: group.y0, x1: group.x1, y1: group.headerY1 }}>
     <rect width="100%" height="100%" fill={group.color} />
@@ -479,7 +525,7 @@ const TreemapGroupCell = ({ group }: { group: RenderTile }) => (
   </UnitBoxSvg>
 );
 
-/** A leaf tile: rect fills the tile box, name/value centred in it, clipped so a label never bleeds. */
+/** A leaf tile: its rect fills the tile box and its name and value centre in it, clipped to the box. */
 const TreemapLeafTile = ({ leaf }: { leaf: RenderTile }) => (
   <UnitBoxSvg box={leaf}>
     <rect width="100%" height="100%" fill={tileFill(leaf)} />
@@ -487,8 +533,8 @@ const TreemapLeafTile = ({ leaf }: { leaf: RenderTile }) => (
   </UnitBoxSvg>
 );
 
-const TreemapLayer = ({ layer, styleReaders }: { layer: CompiledLayer; styleReaders: GeomStyleReaders }) => {
-  const { groups, leaves } = useMemo(() => readTiles(layer.data, styleReaders), [layer.data, styleReaders]);
+const TreemapLayer = ({ layer }: { layer: SceneLayer }) => {
+  const { groups, leaves } = useMemo(() => readTiles(layer.data), [layer.data]);
 
   return (
     <>
@@ -502,17 +548,9 @@ const TreemapLayer = ({ layer, styleReaders }: { layer: CompiledLayer; styleRead
   );
 };
 
-/** Repaints the hovered leaf tile or group header band at full opacity, above the auto-dimmed base layer. */
-const TreemapHighlight = ({
-  layer,
-  styleReaders,
-  observation,
-}: {
-  layer: CompiledLayer;
-  styleReaders: GeomStyleReaders;
-  observation: Observation;
-}) => {
-  const { groups, leaves } = useMemo(() => readTiles(layer.data, styleReaders), [layer.data, styleReaders]);
+/** Repaints the hovered leaf tile or group header band above the base layer. */
+const TreemapHighlight = ({ layer, observation }: { layer: SceneLayer; observation: Observation }) => {
+  const { groups, leaves } = useMemo(() => readTiles(layer.data), [layer.data]);
   const markId = readAuthoredString(observation, TREEMAP_COLUMNS.markId);
 
   const group = groups.find((candidate) => candidate.markId === markId);
@@ -531,62 +569,18 @@ export const kit = createGraphyKit({
   plugins: [
     defineGeomRenderer(new TreemapGeom(), {
       coord: 'cartesian',
-      render: ({ layer, styleReaders }) => <TreemapLayer layer={layer} styleReaders={styleReaders} />,
-      hitTest: ({ layer, styleReaders }) => buildTreemapTester(readTiles(layer.data, styleReaders)),
-      // `primary` is an anchorless hit (no `x`/`y`); the tile is found from its observation.
-      renderHover: ({ layer, styleReaders, primary }) => (
-        <TreemapHighlight layer={layer} styleReaders={styleReaders} observation={primary.observation} />
-      ),
+      render: ({ layer }) => <TreemapLayer layer={layer} />,
+      hitTest: ({ layer }) => buildTreemapTester(readTiles(layer.data)),
+      renderHover: ({ layer, primary }) => <TreemapHighlight layer={layer} observation={primary.observation} />,
       renderHoverCompanions: () => null,
     }),
   ],
 });
 ```
 
-## Usage
+## Notes
 
-```tsx
-import { GraphRenderer } from '@graphysdk/react-renderer';
-import { config, type Data } from '@graphysdk/viz-engine';
-import { kit } from './treemap';
-
-const marketCap: Data = {
-  columns: [{ key: 'group' }, { key: 'label' }, { key: 'value' }],
-  rows: [
-    { group: 'Technology', label: 'Apple', value: 3300 },
-    { group: 'Technology', label: 'Microsoft', value: 3100 },
-    { group: 'Technology', label: 'Nvidia', value: 2900 },
-    { group: 'Consumer', label: 'Amazon', value: 2000 },
-    { group: 'Consumer', label: 'Tesla', value: 800 },
-    { group: 'Financials', label: 'Berkshire', value: 900 },
-    { group: 'Financials', label: 'JPMorgan', value: 650 },
-    { group: 'Energy', label: 'Saudi Aramco', value: 1800 },
-    { group: 'Energy', label: 'Exxon', value: 520 },
-  ],
-};
-
-// `color` maps to the real `group` column, so the engine's categorical scale gives each group one hue.
-// The legend is suppressed: each group cell already carries its name in a header band.
-const treemapSpec = kit.pipe(
-  kit.createSpec({}),
-  kit.geom.treemap({ aes: { group: 'group', label: 'label', value: 'value', color: 'group' } }),
-  config({ legend: { position: 'none' } })
-);
-
-export const TreemapGraph = () => (
-  <kit.GraphProvider input={treemapSpec} data={marketCap}>
-    <GraphRenderer />
-  </kit.GraphProvider>
-);
-```
-
-## Adapting
-
-- The `*_COLUMNS` constant is the whole compile→render contract: change the layout output, add a column there, write it in `compile()`, read it in `readTiles`. Non-scalar geometry must ride as JSON strings (the dataset stores scalars only — see the voronoi recipe).
-- `identityKey: { variable: markId }` plus the `hitTest` factory returning `{ key }` is what wires hover; keep `markId` values stable across recompiles or hover will flicker on data updates. The returned `key` must equal `getStableKey(identityValue)` — identity for strings, normalised for other types (a `Date` becomes its ISO string). A `'x-group'`/`'x-y'` identity on a render-hit-test geom, or a `{ variable }` column the compiled data lacks, raises `RENDER_HIT_TEST_IDENTITY` and every hit resolves to nothing.
-- Swap `computeTreemapLayout` for any other space-filling layout (icicle, circle packing); only the layout module and the tile paint change — hit-testing stays a rect/containment scan over the emitted geometry.
-- The `hitTest` factory is the declarative path: it receives the full `GeomRenderInput` (including `panelRect`, layout pixels) and is re-memoized on `layer.data` and the panel pixel rect. A geom whose geometry only exists in live component state can instead call `useGeomHitTest(layer.id, tester)` inside its render component. Three diagnostics police this shape: `MISSING_RENDER_HIT_TEST` (a `'render-hit-test'` layer with neither a `hitTest` factory nor an overlay render), `CONFLICTING_RENDER_HIT_TEST` (both declared; the overlay wins) and `OVERLAY_REQUIRES_RENDER_HIT_TEST` (an overlay render on any other `spatialKind`).
-- Under hover the base layer auto-dims through the cascade's `dimmed` state (built-in `alpha: 0.4`) while the `renderHover` output paints at full opacity above it; `primary` on the pull path carries no `x`/`y` and the tooltip follows the live cursor. `intro` is `null` for a `render-hit-test` layer — tiles never animate in.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom), the opposite of the top-left frame the tiles are painted and hit-tested in: a tile's centre is `{ x: (x0 + x1) / 2, y: 1 - (y0 + y1) / 2 }`, its top edge for a callout `y: 1 - y0`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }` — so a pin and a value anchor can land on different points of the tile.
-- Tile fill reads through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches every tile. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the label colors (`#fff`, `#1f2937`, `rgba(31, 41, 55, 0.62)`) are contrast choices against the tile, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
-- `d3-hierarchy` is a user-installed dependency: `npm i d3-hierarchy` plus `@types/d3-hierarchy` for TypeScript.
+- Install `d3-hierarchy` (`npm install d3-hierarchy`, plus `@types/d3-hierarchy` for TypeScript).
+- From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
+- The geom declares `label` and `value` as required data aesthetics. `group` is optional: without it the leaves form one flat treemap. Map `color` to the group column for one hue per group.
+- Params (`padding`, `groupGap`, `groupHeader`) are unit fractions of the panel. Tiles are squarest when the panel is square.
