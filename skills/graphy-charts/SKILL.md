@@ -73,7 +73,6 @@ Open one file, then use the contents list at the top of that file.
 | Replace the tooltip, legend, or axes | [slots](reference/slots.md) |
 | A new mark | [plugins](reference/plugins.md) |
 | Exact option names | [types](reference/types.md) |
-| Refresh types or check samples | [maintenance](reference/maintenance.md) |
 | Edit an existing chart | the `graphy-editor` skill |
 | Human docs | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
 
@@ -118,4 +117,4 @@ Themes are one file each under [recipes/themes](recipes/themes). Each file is a 
 node skills/graphy-charts/scripts/validate-spec.mjs ./my-spec.mjs
 ```
 
-`reference/types.md` is a generated snapshot. If it disagrees with the installed package, trust the package. Regenerating it is [maintenance](reference/maintenance.md).
+`reference/types.md` is a generated snapshot. If it disagrees with the installed package, trust the package.

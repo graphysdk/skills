@@ -49,7 +49,7 @@ package.json                    # deps for the skills' helper scripts
 
 ## Development
 
-This repo is a pnpm workspace. The Graphy SDK versions everything builds against are defined once, in the `catalog:` block of `pnpm-workspace.yaml` — to move to a new SDK release, bump them there, run `pnpm install`, and regenerate the type reference.
+This repo is a pnpm workspace. The Graphy SDK versions everything builds against are defined once, in the `catalog:` block of `pnpm-workspace.yaml`. To move to a new SDK release, bump them there, run `pnpm install`, and regenerate the type reference. The commands for that live in [MAINTAINING.md](MAINTAINING.md).
 
 ```bash
 pnpm install
