@@ -1,37 +1,63 @@
-# Force-directed graph
+# Force-directed
 
-Technique: overlay-hosted rendering (`{ fn, options: { overlay: true } }`) + push hover via `useGeomHover`.
+A node and edge network laid out by a live d3-force simulation. Nodes can be dragged, hovering a node or edge fades everything outside its neighbourhood, and the central tooltip follows the hovered mark. Use it for dependency graphs, collaboration networks, or any relational data with a source, a target, and a weight per row.
 
-Reach for this pattern when a geom's geometry keeps changing after it is drawn (a live simulation) and must own its own pointer events (dragging nodes). Declaring `render` as `{ fn, options: { overlay: true } }` makes the renderer mount the paint in a screen-aligned portal above the central capture layer and hand it `input.overlay` — `panelRect` (client pixels) plus a ready `pushHover` (built on the `useGeomHover` hook, which is also exported standalone as an escape hatch). The geom's own pointer handlers push the hovered observation's identity key; the engine resolves it through the same lookup the pull path uses, so the geom inherits the central tooltip.
+## Usage
 
-Third-party dependency: `d3-force` (plus `@types/d3-force`).
+```tsx
+import { config, GraphRenderer } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+import { kit } from './force-directed-geom';
+
+const services: Data = {
+  columns: [{ key: 'source' }, { key: 'target' }, { key: 'value' }],
+  rows: [
+    { source: 'Gateway', target: 'Auth', value: 120 },
+    { source: 'Gateway', target: 'Catalog', value: 200 },
+    { source: 'Gateway', target: 'Cart', value: 90 },
+    { source: 'Gateway', target: 'Orders', value: 85 },
+    { source: 'Auth', target: 'Sessions', value: 100 },
+    { source: 'Catalog', target: 'Search', value: 150 },
+    { source: 'Catalog', target: 'Inventory', value: 110 },
+    { source: 'Search', target: 'Inventory', value: 80 },
+    { source: 'Cart', target: 'Inventory', value: 70 },
+    { source: 'Cart', target: 'Payments', value: 60 },
+    { source: 'Orders', target: 'Payments', value: 65 },
+    { source: 'Orders', target: 'Inventory', value: 50 },
+    { source: 'Payments', target: 'Ledger', value: 55 },
+    { source: 'Payments', target: 'Notifications', value: 40 },
+    { source: 'Notifications', target: 'Sessions', value: 30 },
+  ],
+};
+
+// `color` maps the geom's derived `node` identity, so the colour scale colours each node and its outgoing
+// edges. Every node is labelled in place, so the legend is hidden.
+const spec = kit.pipe(
+  kit.createSpec({}),
+  kit.geom.forceDirected({ aes: { source: 'source', target: 'target', value: 'value', color: 'node' } }),
+  config({ legend: { position: 'none' } })
+);
+
+export const ForceDirectedGraph = () => (
+  <kit.GraphProvider spec={spec} data={services}>
+    <GraphRenderer />
+  </kit.GraphProvider>
+);
+```
 
 ## Plugin
 
-```tsx
-import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+Save as `force-layout.ts`.
 
-import {
-  createGraphyKit,
-  defineGeomRenderer,
-  type GeomHoverPush,
-  type ScreenRect,
-} from '@graphysdk/react-renderer';
-import type {
-  CompiledGeom,
-  CompiledLayer,
-  Dataset,
-  GeomCompilerInput,
-  GeomStyleReaders,
-  IdentityKey,
-} from '@graphysdk/viz-engine';
-import {
-  createDatasetFromKindPartitions,
-  extractVariableName,
-  Geom,
-  readAuthoredNumber,
-  readAuthoredString,
-} from '@graphysdk/viz-engine';
+```ts
+/**
+ * A force-directed layout run render-side as a live simulation. It settles frame by frame and accepts
+ * node drags, so it has no resolution-independent form to precompute in the compile half. The physics is
+ * d3-force (charge, link springs, centring). This wrapper owns the panel-pixel concerns d3 leaves to the
+ * caller: seeding around the panel centre, clamping nodes to the panel rect, pinning a dragged node, and
+ * rescaling on resize. `tick()` is driven from the plugin's `requestAnimationFrame` loop.
+ */
 import {
   forceCenter,
   forceLink,
@@ -41,20 +67,19 @@ import {
   type SimulationNodeDatum,
 } from 'd3-force';
 
-// ---------- Simulation (render-side, panel pixels) ----------
-
 /** Alpha below which the system is at rest and the animation clock can stop. */
-const ALPHA_MIN = 0.005;
+export const ALPHA_MIN = 0.005;
 
-interface SimEdge {
+/** One edge as a pair of node indices into the node list. */
+export interface SimEdge {
   sourceIndex: number;
   targetIndex: number;
 }
 
-interface ForceLayoutOptions {
+export interface ForceLayoutOptions {
   width: number;
   height: number;
-  /** Repulsion magnitude between every node pair; larger spreads the graph wider. */
+  /** Repulsion magnitude applied between every node pair; larger spreads the graph wider. */
   chargeStrength: number;
   /** Spring rest length between linked nodes, in pixels. */
   linkDistance: number;
@@ -62,17 +87,16 @@ interface ForceLayoutOptions {
   margin: number;
 }
 
-/** d3 mutates these in place: `x`/`y` are the live position, `fx`/`fy` pin a dragged node. */
-interface SimulationNode extends SimulationNodeDatum {
+/** d3 mutates these in place: `x` and `y` are the live position, `fx` and `fy` pin a dragged node. */
+interface SimNode extends SimulationNodeDatum {
   x: number;
   y: number;
-  fx?: number | null;
-  fy?: number | null;
 }
 
+/** d3's link record after binding: `source` and `target` start as indices and become node references. */
 interface ForceLink {
-  source: number | SimulationNode;
-  target: number | SimulationNode;
+  source: number | SimNode;
+  target: number | SimNode;
 }
 
 const LINK_STRENGTH = 0.5;
@@ -80,23 +104,21 @@ const REHEAT_ALPHA = 0.5;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 /**
- * A d3-force simulation steered manually from the plugin's requestAnimationFrame loop (not d3's own
- * timer). Owns its node array; callers read `positions` each frame and steer drags through
- * `startDrag`/`drag`/`endDrag`. A force layout settles frame by frame and accepts drags, so it has no
- * resolution-independent form to precompute — it lives entirely in the render half.
+ * A d3-force simulation steered manually. Owns its node array; callers read `positions` each frame and
+ * steer drags through `startDrag`, `drag`, and `endDrag`.
  */
-class ForceSimulation {
-  private readonly simulation: Simulation<SimulationNode, ForceLink>;
-  private readonly simNodes: SimulationNode[];
+export class ForceSimulation {
+  private readonly simulation: Simulation<SimNode, ForceLink>;
+  private readonly simNodes: SimNode[];
   private options: ForceLayoutOptions;
 
   constructor(nodeCount: number, edges: SimEdge[], options: ForceLayoutOptions) {
     this.options = options;
     this.simNodes = seedNodes(nodeCount, options.width, options.height);
     const links: ForceLink[] = edges.map((edge) => ({ source: edge.sourceIndex, target: edge.targetIndex }));
-    this.simulation = forceSimulation<SimulationNode, ForceLink>(this.simNodes)
+    this.simulation = forceSimulation<SimNode, ForceLink>(this.simNodes)
       .force('charge', forceManyBody().strength(-options.chargeStrength))
-      .force('link', forceLink<SimulationNode, ForceLink>(links).distance(options.linkDistance).strength(LINK_STRENGTH))
+      .force('link', forceLink<SimNode, ForceLink>(links).distance(options.linkDistance).strength(LINK_STRENGTH))
       .force('center', forceCenter(options.width / 2, options.height / 2))
       .alphaMin(ALPHA_MIN)
       .stop();
@@ -126,11 +148,13 @@ class ForceSimulation {
     if (this.simulation.alpha() < REHEAT_ALPHA) this.simulation.alpha(REHEAT_ALPHA);
   }
 
+  /** Pins the grabbed node to the cursor and reheats. */
   startDrag(index: number, x: number, y: number): void {
     this.pin(index, x, y);
     this.reheat();
   }
 
+  /** Moves the pinned node with the cursor. */
   drag(index: number, x: number, y: number): void {
     this.pin(index, x, y);
     this.reheat();
@@ -155,13 +179,13 @@ class ForceSimulation {
       if (node.fy !== null && node.fy !== undefined) node.fy *= scaleY;
     }
 
-    // The link rest length was set as a fraction of the smaller panel side at build, so it must track
-    // the panel on resize too.
+    // The link rest length was set as a fraction of the smaller panel side at build, so it must track the
+    // panel on resize too. Otherwise the springs keep pulling nodes toward the pre-resize spacing.
     const oldMinSide = Math.min(this.options.width, this.options.height);
     const nextMinSide = Math.min(width, height);
     const nextLinkDistance =
       oldMinSide > 0 ? (this.options.linkDistance * nextMinSide) / oldMinSide : this.options.linkDistance;
-    const link = this.simulation.force('link') as ReturnType<typeof forceLink<SimulationNode, ForceLink>> | undefined;
+    const link = this.simulation.force('link') as ReturnType<typeof forceLink<SimNode, ForceLink>> | undefined;
     link?.distance(nextLinkDistance);
 
     this.options = { ...this.options, width, height, linkDistance: nextLinkDistance };
@@ -180,11 +204,11 @@ class ForceSimulation {
 }
 
 /** Seeds nodes on a phyllotaxis spiral around the panel centre, so the first tick is never degenerate. */
-function seedNodes(count: number, width: number, height: number): SimulationNode[] {
+function seedNodes(count: number, width: number, height: number): SimNode[] {
   const centreX = width / 2;
   const centreY = height / 2;
   const initialRadius = Math.min(width, height) * 0.18;
-  const nodes: SimulationNode[] = [];
+  const nodes: SimNode[] = [];
   for (let index = 0; index < count; index += 1) {
     const radius = initialRadius * Math.sqrt(0.5 + index);
     const angle = index * GOLDEN_ANGLE;
@@ -197,17 +221,40 @@ function clamp(value: number, min: number, max: number): number {
   if (max < min) return min;
   return Math.min(max, Math.max(min, value));
 }
+```
 
-// ---------- Geom (compile half: topology only, no positions) ----------
+Save as `force-directed-geom.tsx`.
 
-/** The compile/render column vocabulary — the shared handshake between the two halves. */
+```tsx
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import {
+  createGraphyKit,
+  defineGeomRenderer,
+  Geom,
+  type GeomHoverPush,
+  getColor,
+  type ScreenRect,
+} from '@graphysdk/react';
+import type { Dataset, GeomCompileResult, GeomCompilerInput, SceneLayer } from '@graphysdk/react';
+import {
+  createDatasetFromKindPartitions,
+  type IdentityKey,
+  readAuthoredNumber,
+  readAuthoredString,
+  readVariableName,
+} from '@graphysdk/viz-engine';
+
+import { ALPHA_MIN, ForceSimulation, type SimEdge } from './force-layout';
+
+/** The column vocabulary shared by the compile half and the render half. */
 const FORCE_COLUMNS = {
   kind: 'kind',
   markId: 'markId',
   label: 'label',
   value: 'value',
-  // The geom's derived node identity — the field an author maps `color` to. A node carries its own
-  // identity; an edge carries its source node's, so it inherits its hue.
+  // The geom's derived node identity: the field an author maps `color` to, which the colour scale keys on.
+  // A node carries its own identity; an edge carries its source node's, so it inherits that hue.
   node: 'node',
   sourceIndex: 'sourceIndex',
   targetIndex: 'targetIndex',
@@ -246,11 +293,9 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
   };
   override readonly identityKey: IdentityKey = { variable: FORCE_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
-  // Documentation only: a custom geom's `layer.highlight` is `null` regardless of this declaration.
   override readonly highlightStrategy = null;
-  // No positional roles — but declare the empty tuple `as const`: a widened `positionRoles` makes the
-  // typed builder relax `aes` to the whole aesthetic set (exact-aes checking off).
-  override readonly positionRoles = [] as const;
+  // `source`, `target`, and `value` are relational inputs read straight from the mapped columns, not
+  // scaled. `color` is author-mapped and usually targets the derived `node`.
   override readonly aesthetics = [
     { kind: 'data', name: 'source', required: true },
     { kind: 'data', name: 'target', required: true },
@@ -265,9 +310,9 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
 
   override readonly spatialKind = 'render-hit-test';
 
-  // A live simulation: the compile half derives only the resolution-independent topology (nodes,
-  // weights) and emits NO positions; the render half runs the simulation.
-  compile({ data, mapping }: GeomCompilerInput): CompiledGeom {
+  // The compile half derives only the resolution-independent topology (nodes, weights) and emits no
+  // positions. The render half runs the simulation that turns it into moving geometry.
+  compile({ data, mapping }: GeomCompilerInput): GeomCompileResult {
     const topology = buildTopology(readEdges(data, mapping));
 
     const table = createDatasetFromKindPartitions(
@@ -296,10 +341,8 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
       FORCE_COLUMNS.kind
     );
 
-    // Because this returns a fresh `Dataset`, every column a visual aesthetic maps to must be emitted
-    // under the mapped name (`node` here): `compile()` does not rewrite `layer.mapping.color`, the
-    // visual mapper resolves it against the compiled data, and a missing column silently falls every
-    // cell back to `token('geom')`. `derivedVariables` is what exempts `node` from `UNKNOWN_VARIABLE`.
+    // Colour is not forced here. The author maps `color` to the derived `node` field and the engine's
+    // categorical scale resolves it per observation.
     return {
       data: table,
       mapping: { label: { variable: FORCE_COLUMNS.label }, value: { variable: FORCE_COLUMNS.value } },
@@ -307,11 +350,11 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
   }
 }
 
-/** Zips the source/target/value columns into edges, dropping rows with a missing field. */
+/** Zips the source, target, and value columns into edges, dropping rows with a missing field. */
 function readEdges(data: Dataset, mapping: GeomCompilerInput['mapping']): InputEdge[] {
-  const sourceVar = extractVariableName(mapping.source);
-  const targetVar = extractVariableName(mapping.target);
-  const valueVar = extractVariableName(mapping.value);
+  const sourceVar = readVariableName(mapping.source);
+  const targetVar = readVariableName(mapping.target);
+  const valueVar = readVariableName(mapping.value);
   const sources = sourceVar ? data.getValues(sourceVar) : [];
   const targets = targetVar ? data.getValues(targetVar) : [];
   const values = valueVar ? data.getValues(valueVar) : [];
@@ -330,7 +373,8 @@ function readEdges(data: Dataset, mapping: GeomCompilerInput['mapping']): InputE
 
 /**
  * Derives nodes from the edge list (first-appearance order, so seeding is stable), sums each node's
- * incident edge weight as its size, and rewrites edges as index pairs into the node list.
+ * incident edge weight as its size, and rewrites edges as index pairs into the node list. Each edge also
+ * carries its source node's identity so it inherits that node's resolved colour.
  */
 function buildTopology(edges: InputEdge[]): Topology {
   const indexByName = new Map<string, number>();
@@ -353,7 +397,7 @@ function buildTopology(edges: InputEdge[]): Topology {
     weight[targetIndex] = (weight[targetIndex] ?? 0) + edge.value;
     outEdges.push({
       markId: `edge:${edge.source}->${edge.target}#${index}`,
-      label: `${edge.source} → ${edge.target}`,
+      label: `${edge.source} to ${edge.target}`,
       value: edge.value,
       node: edge.source,
       sourceIndex,
@@ -365,18 +409,19 @@ function buildTopology(edges: InputEdge[]): Topology {
   return { nodes, edges: outEdges };
 }
 
-// ---------- Renderer (render half: overlay-hosted) ----------
-
 const MIN_NODE_RADIUS = 6;
 const MAX_NODE_RADIUS = 20;
 const MIN_EDGE_WIDTH = 1.5;
 const MAX_EDGE_WIDTH = 6;
 const EDGE_HIT_WIDTH = 14;
+/** Fill used only if the colour scale is absent. */
+const FALLBACK_COLOR = '#888888';
 
 interface GraphNode {
   markId: string;
   label: string;
   value: number;
+  /** The node's resolved fill, from the engine's colour scale. */
   color: string;
 }
 
@@ -384,30 +429,26 @@ interface GraphEdge {
   markId: string;
   label: string;
   value: number;
-  /** The edge's fill — its source node's color, read through the style cascade. */
+  /** The edge's fill: its source node's resolved colour. */
   color: string;
   sourceIndex: number;
   targetIndex: number;
 }
 
-/** What the cursor is over, for the neighbourhood fade — the geom's own visual, distinct from the engine hover. */
+/** What the cursor is over, for the neighbourhood fade. This is the geom's own visual, separate from the engine hover. */
 interface FocusHover {
   kind: 'node' | 'edge';
   index: number;
 }
 
-/** The node and edge indices kept fully opaque under a hover; `null` means "no hover, everything active". */
+/** The node and edge indices kept fully opaque under a hover; `null` means no hover, everything active. */
 interface Focus {
   nodes: Set<number> | null;
   edges: Set<number> | null;
 }
 
-/**
- * Splits the mixed node/edge dataset into the two geometry sets, dispatching on `kind`. Paint comes from
- * `styleReaders` (this layer's cascade, resolved for the active scheme), not `getColor`, which sees the
- * data tier only and is `undefined` whenever `color` is unmapped.
- */
-function partition(data: Dataset, styleReaders: GeomStyleReaders): { nodes: GraphNode[]; edges: GraphEdge[] } {
+/** Splits the mixed node/edge dataset into the two sets the canvas paints, dispatching on `kind`. */
+function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
 
@@ -418,7 +459,7 @@ function partition(data: Dataset, styleReaders: GeomStyleReaders): { nodes: Grap
           markId: readAuthoredString(observation, FORCE_COLUMNS.markId),
           label: readAuthoredString(observation, FORCE_COLUMNS.label),
           value: readAuthoredNumber(observation, FORCE_COLUMNS.value),
-          color: styleReaders.get('color', observation),
+          color: getColor(observation) ?? FALLBACK_COLOR,
         });
         break;
       case 'edge':
@@ -426,7 +467,7 @@ function partition(data: Dataset, styleReaders: GeomStyleReaders): { nodes: Grap
           markId: readAuthoredString(observation, FORCE_COLUMNS.markId),
           label: readAuthoredString(observation, FORCE_COLUMNS.label),
           value: readAuthoredNumber(observation, FORCE_COLUMNS.value),
-          color: styleReaders.get('color', observation),
+          color: getColor(observation) ?? FALLBACK_COLOR,
           sourceIndex: readAuthoredNumber(observation, FORCE_COLUMNS.sourceIndex),
           targetIndex: readAuthoredNumber(observation, FORCE_COLUMNS.targetIndex),
         });
@@ -438,31 +479,28 @@ function partition(data: Dataset, styleReaders: GeomStyleReaders): { nodes: Grap
 
 /**
  * Partitions the live topology and hands it to the canvas. Mounted by the renderer inside the overlay
- * portal, so the screen-rect measurement, the portal, and the push wiring are the renderer's job —
- * this geom declares an overlay-hosted `render` and writes only the simulation.
+ * portal, so measuring the screen rect, the portal, and the hover push wiring are the renderer's job.
  */
 const ForceOverlay = ({
   layer,
-  styleReaders,
   rect,
   pushHover,
 }: {
-  layer: CompiledLayer;
-  styleReaders: GeomStyleReaders;
+  layer: SceneLayer;
   rect: ScreenRect;
   pushHover: GeomHoverPush;
 }) => {
-  const { nodes, edges } = useMemo(() => partition(layer.data, styleReaders), [layer.data, styleReaders]);
+  const { nodes, edges } = useMemo(() => partition(layer.data), [layer.data]);
   const params = layer.params as unknown as ForceDirectedParams;
   return <ForceCanvas rect={rect} pushHover={pushHover} nodes={nodes} edges={edges} params={params} />;
 };
 
 /**
- * The live canvas: an SVG fixed over the panel that runs the simulation and paints it each frame. The
- * SVG ignores pointer events; only the node circles and the invisible wide edge-hit lines capture
- * them, so gaps fall through to the chart below. Nodes paint after edges, so a node wins a pointer
- * over the edges it overlaps. Hover pushes through `pushHover` for the central tooltip; a local
- * `focusHover` state drives the neighbourhood fade (the geom's own visual).
+ * The live canvas: an SVG fixed over the panel that runs the simulation and paints it each frame. The SVG
+ * ignores pointer events; only the node circles and the invisible wide edge-hit lines capture them, so
+ * gaps fall through to the graph below. Nodes paint after edges, so a node takes the pointer over the edges
+ * it overlaps. Hover pushes through `pushHover` for the central tooltip; a local `focusHover` state drives
+ * the neighbourhood fade.
  */
 const ForceCanvas = ({
   rect,
@@ -501,22 +539,11 @@ const ForceCanvas = ({
     if (rafRef.current === null) rafRef.current = requestAnimationFrame(runLoop);
   }, [runLoop]);
 
-  // `nodes`/`edges` get a fresh identity on every recompile (`styleReaders` changes each compile), so
-  // keying the rebuild on them would reseed the layout on any restyle. Key it on a topology signature
-  // instead and read the current arrays through a ref.
-  const topologySignature = useMemo(
-    () => `${nodes.length}|${edges.map((edge) => edge.markId).join('|')}`,
-    [nodes, edges]
-  );
-  const topologyRef = useRef({ nodes, edges });
-  topologyRef.current = { nodes, edges };
-
-  // Build (or rebuild) the simulation when the topology or its tuning changes — never every frame.
+  // Build (or rebuild) the simulation when the topology or its tuning changes, never every frame.
   useEffect(() => {
-    const { nodes: currentNodes, edges: currentEdges } = topologyRef.current;
-    const simEdges: SimEdge[] = currentEdges.map((edge) => ({ sourceIndex: edge.sourceIndex, targetIndex: edge.targetIndex }));
+    const simEdges: SimEdge[] = edges.map((edge) => ({ sourceIndex: edge.sourceIndex, targetIndex: edge.targetIndex }));
     const { width, height } = rectRef.current;
-    simRef.current = new ForceSimulation(currentNodes.length, simEdges, {
+    simRef.current = new ForceSimulation(nodes.length, simEdges, {
       width,
       height,
       chargeStrength: params.chargeStrength,
@@ -527,11 +554,11 @@ const ForceCanvas = ({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      // The rebuilt simulation has no active drag; clear the pin so the loop's keep-alive can't spin
-      // forever if a topology change interrupts a drag before `onLostPointerCapture` fires.
+      // The rebuilt simulation has no active drag. Clear the pin so the loop cannot spin forever if a
+      // topology change interrupts a drag before `onLostPointerCapture` fires on the replaced element.
       dragIndexRef.current = null;
     };
-  }, [topologySignature, params.chargeStrength, params.linkDistance, ensureRunning]);
+  }, [nodes, edges, params.chargeStrength, params.linkDistance, ensureRunning]);
 
   // Reflow into a resized panel without reseeding the layout.
   useEffect(() => {
@@ -541,8 +568,8 @@ const ForceCanvas = ({
     ensureRunning();
   }, [rect.width, rect.height, ensureRunning]);
 
-  // Stable handlers (one per kind) that read the observation index off the event target's `data-index`, so
-  // the ~60fps frame ticks don't reallocate a closure for every node and edge.
+  // Stable handlers (one per kind) that read the index off the event target's `data-index`, so the
+  // per-frame ticks do not reallocate a closure for every node and edge.
   const handleNodePointerDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>) => {
       const index = Number(event.currentTarget.dataset.index);
@@ -563,15 +590,13 @@ const ForceCanvas = ({
       }
       setFocusHover({ kind: 'node', index });
       const node = nodes[index];
-      // The push path: hand the engine the observation's identity key plus the cursor; the engine
-      // resolves the hover and anchors the central tooltip at the cursor.
       if (node) pushHover(node.markId, { clientX: event.clientX, clientY: event.clientY });
     },
     [ensureRunning, nodes, pushHover]
   );
 
-  // Pointer capture releases implicitly on pointerup/pointercancel, so ending the drag here also
-  // covers an interrupted gesture; without it the rAF loop would never stop.
+  // Pointer capture releases on pointerup and pointercancel, so ending the drag here also covers an
+  // interrupted gesture. Otherwise the drag index would stay set and the frame loop would never stop.
   const handleNodeDragEnd = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>) => {
       const index = Number(event.currentTarget.dataset.index);
@@ -602,7 +627,9 @@ const ForceCanvas = ({
   }, [pushHover]);
 
   const positions = simRef.current?.positions ?? [];
-  // Memoized so the per-frame re-render doesn't rebuild the maxima or the focus Sets.
+  // Memoized so the per-frame re-render does not rebuild the maxima or the focus sets; only `positions`
+  // changes each frame. A reduce, not a spread into `Math.max`, so a large graph cannot overflow the
+  // call-argument limit.
   const maxNodeValue = useMemo(() => nodes.reduce((max, node) => Math.max(max, node.value), 1), [nodes]);
   const maxEdgeValue = useMemo(() => edges.reduce((max, edge) => Math.max(max, edge.value), 1), [edges]);
   const focus = useMemo(() => computeFocus(focusHover, edges), [focusHover, edges]);
@@ -614,6 +641,7 @@ const ForceCanvas = ({
         const target = positions[edge.targetIndex];
         if (!source || !target) return null;
         const isActive = focus.edges ? focus.edges.has(index) : true;
+        const color = edge.color;
         return (
           <g key={edge.markId}>
             <line
@@ -621,7 +649,7 @@ const ForceCanvas = ({
               y1={source.y}
               x2={target.x}
               y2={target.y}
-              stroke={edge.color}
+              stroke={color}
               strokeWidth={edgeWidth(edge.value, maxEdgeValue)}
               strokeOpacity={isActive ? 0.55 : 0.08}
               strokeLinecap="round"
@@ -716,7 +744,7 @@ function computeFocus(hover: FocusHover | null, edges: GraphEdge[]): Focus {
 }
 
 // Clamp the value/max ratio to [0, 1] before scaling: a negative weight would otherwise drive
-// `Math.sqrt` to NaN and vanish the node with no error.
+// `Math.sqrt` to NaN and hide the node with no error.
 function nodeRadius(value: number, maxValue: number): number {
   const ratio = Math.min(1, Math.max(0, value / maxValue));
   return MIN_NODE_RADIUS + Math.sqrt(ratio) * (MAX_NODE_RADIUS - MIN_NODE_RADIUS);
@@ -731,17 +759,12 @@ export const kit = createGraphyKit({
   plugins: [
     defineGeomRenderer(new ForceDirectedGeom(), {
       coord: 'cartesian',
-      // The live, draggable simulation must own its pointer events, so `render` is overlay-hosted:
-      // the renderer mounts it in a screen portal above the capture layer and supplies `overlay`
-      // ({ panelRect, pushHover }). The central hover layer contributes nothing; the tooltip is
-      // driven through the push path. An overlay-hosted geom is skipped by the panel-SVG paint and
-      // the highlight repaint (`highlightStrategy = null` merely documents that — a custom geom's
-      // `layer.highlight` is `null` regardless), and is handed no intro plan. The overlay is mounted
-      // only for a `'render-hit-test'` layer, from a component that mounts as a unit, so hooks inside
-      // `fn` are safe.
+      // The live, draggable simulation must own its pointer events, so `render` is overlay-hosted: the
+      // renderer mounts it in a screen portal above the capture layer and supplies `overlay`. The tooltip
+      // is driven through the push path the overlay supplies.
       render: {
-        fn: ({ layer, styleReaders, overlay }) => (
-          <ForceOverlay layer={layer} styleReaders={styleReaders} rect={overlay.panelRect} pushHover={overlay.pushHover} />
+        fn: ({ layer, overlay }) => (
+          <ForceOverlay layer={layer} rect={overlay.panelRect} pushHover={overlay.pushHover} />
         ),
         options: { overlay: true },
       },
@@ -752,47 +775,10 @@ export const kit = createGraphyKit({
 });
 ```
 
-## Usage
+## Notes
 
-```tsx
-import { GraphRenderer } from '@graphysdk/react-renderer';
-import { config, type Data } from '@graphysdk/viz-engine';
-
-import { kit } from './force-directed-plugin';
-
-// `color` maps to the derived `node` identity, so the categorical scale colors each node and its
-// outgoing edges. The legend is suppressed: every node is labelled in place.
-const spec = kit.pipe(
-  kit.createSpec({}),
-  kit.geom.forceDirected({ aes: { source: 'source', target: 'target', value: 'value', color: 'node' } }),
-  config({ legend: { position: 'none' } })
-);
-
-const data: Data = {
-  columns: [{ key: 'source' }, { key: 'target' }, { key: 'value' }],
-  rows: [
-    { source: 'Gateway', target: 'Auth', value: 120 },
-    { source: 'Gateway', target: 'Catalog', value: 200 },
-    { source: 'Auth', target: 'Sessions', value: 100 },
-    { source: 'Catalog', target: 'Search', value: 150 },
-    { source: 'Catalog', target: 'Inventory', value: 110 },
-    { source: 'Search', target: 'Inventory', value: 80 },
-  ],
-};
-
-export const ForceDirectedChart = () => (
-  <kit.GraphProvider input={spec} data={data}>
-    <GraphRenderer />
-  </kit.GraphProvider>
-);
-```
-
-## Adapting
-
-- Tune the physics through geom params: `kit.geom.forceDirected({ params: { chargeStrength, linkDistance }, aes: { ... } })` — both are consumed render-side when the simulation is built.
-- The overlay + push-hover mechanics generalise to any geom whose geometries move after paint or need native pointer events (drag, pan, animation): declare `render: { fn, options: { overlay: true } }` and push identity keys through `overlay.pushHover(markId, { clientX, clientY })`. `GeomHoverPush` is overloaded: a non-null key requires the cursor (the overlay intercepts the pointer events the cursor-follow tooltip would otherwise read); `pushHover(null)` — like a key that misses — clears only when this layer holds the primary hit, leaving a sibling layer's pull-path hover intact. The renderer also clears hover when the overlay unmounts, so no cleanup effect is needed. An overlay render is mounted only for a `spatialKind: 'render-hit-test'` layer (never otherwise), is exempt from `MISSING_RENDER_HIT_TEST`, and its `fn` is invoked from a component that mounts as a unit, so hooks inside it are safe. Geoms whose geometry is fixed once drawn should use the pull path (`hitTest` factory or `useGeomHitTest`) instead.
-- Two diagnostics define this shape. `OVERLAY_REQUIRES_RENDER_HIT_TEST`: an overlay render on a layer whose `spatialKind` is not `'render-hit-test'` — `pushHover` then resolves against no index — which is why the geom declares `'render-hit-test'`. `CONFLICTING_RENDER_HIT_TEST`: declaring both a `hitTest` factory and an overlay render; the overlay wins. An overlay-hosted geom is skipped by the panel-SVG paint and the highlight repaint; `highlightStrategy = null` is documentation only, since a custom geom's `layer.highlight` is `null` regardless. The hover dim the renderer applies to panel-SVG layers does not reach the overlay, so the neighbourhood fade here is the geom's own de-emphasis.
-- Requires `d3-force` (`@types/d3-force` for TypeScript), both user-installed. Keep the simulation class free of Graphy imports so the physics stays swappable; only the plugin halves marshal topology in and positions out.
-- The geom declares no `resolveAnchorPosition`, so the chart reports `MISSING_ANCHOR_CAPABILITY` (a warning; paint and hover are unaffected) and annotations cannot attach to its geometries. Implement `resolveAnchorPosition(observation, context)` returning the normalized `[0, 1]` panel point an annotation belongs at, to make the geometries annotatable and give the editor overlay a creation trigger on them. That frame is data-up (`y = 0` at the panel bottom): a pixel position `(px, py)` in the overlay becomes `{ x: px / width, y: 1 - py / height }`. `context` is an `AnchorContext` — `{ coordSystem, position, purpose: 'pin' | 'value', align? }`. A node's live position is known only to the running simulation, so an anchor here is a snapshot at best.
-- Node and edge fills read through `input.styleReaders.get('color', observation)` — this layer's cascade (override → color scale → default), resolved for the active scheme — so a `styles` override or a dark-scheme token reaches them. `getColor` exposes the data tier only and is `undefined` whenever `color` is unmapped. Only non-cascade decoration belongs in a geom param: the node stroke and label colors (`#fff`, `#333`) are contrast choices, so pick them from `input.colorScheme` or expose them as params. See `reference/styling.md`.
-- An overlay-hosted render is not handed an intro plan at all (`input.intro` is `undefined`), and a `render-hit-test` layer has no plan anyway (`null`) — right for a live simulation, which settles into place under its own physics.
+- Install `d3-force` (`npm install d3-force`, plus `@types/d3-force` for TypeScript).
+- From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
+- The geom declares `source`, `target`, and `value` as required data aesthetics and derives a `node` variable. Map `color` to `node` for one hue per node, or to a column of your own.
+- The overlay-hosted `render` (`options: { overlay: true }`) owns pointer events, so drag and hover work without a `hitTest`. Positions are not in the spec: the layout re-settles on each mount and resize.
+- Params: `chargeStrength` (default 450) and `linkDistance` (default 0.22 of the smaller panel side).

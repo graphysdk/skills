@@ -1,25 +1,15 @@
-# Line charts
+# Line graph
 
-| Variant | Delta from base |
-|---|---|
-| Simple | base recipe below |
-| Multi-series | `transform.reshape` wide→long, map `color`, add `scale.color.palette()` |
-| Per-series dash patterns | also map `lineType`, add `scale.lineType.discrete({ domain, range })` |
-| Smooth | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
-| Missing values | `geom.line({ params: { missingValues: 'gap' \| 'connect' \| 'zero' } })` |
-| Vertex points | add a companion layer `geom.point({ interactive: false })` |
-| Fill beneath the line | `styles({ defaults: [style.geom.line({ fillAlpha: 0.15 })] })` |
-| One series painted differently | `geom.line({ id: 'trend' })` + `style.geom.line({ … }, { layer: 'trend' })` |
-| Trend overlay | second `geom.line({ stat: stat.smooth({ method: 'linear' }), interactive: false })` |
-| Radar | append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
+Use a line graph to show how a value changes over an ordered x, usually time.
 
-## Base: simple line
+## Data
 
-```tsx
-import { createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+One row per point on the line. Short month names, dates and ISO strings are all read as dates, so x becomes a time axis. Plain labels such as `'Q1'` become bands.
 
-const data = {
+```ts
+import type { Data } from '@graphysdk/react';
+
+const revenueData: Data = {
   columns: [{ key: 'month' }, { key: 'revenue' }],
   rows: [
     { month: 'Jan', revenue: 1200 },
@@ -27,40 +17,69 @@ const data = {
     { month: 'Mar', revenue: 2400 },
     { month: 'Apr', revenue: 1600 },
     { month: 'May', revenue: 3200 },
+    { month: 'Jun', revenue: 2800 },
+  ],
+};
+```
+
+## Basic
+
+```tsx
+import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const revenueData: Data = {
+  columns: [{ key: 'month' }, { key: 'revenue' }],
+  rows: [
+    { month: 'Jan', revenue: 1200 },
+    { month: 'Feb', revenue: 1800 },
+    { month: 'Mar', revenue: 2400 },
+    { month: 'Apr', revenue: 1600 },
+    { month: 'May', revenue: 3200 },
+    { month: 'Jun', revenue: 2800 },
   ],
 };
 
-const input = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.line(), scale.x(), scale.y());
+const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.line(), scale.x(), scale.y());
 
-export function LineChart() {
+export function RevenueLine() {
   return (
-    <GraphProvider data={data} input={input}>
+    <GraphProvider data={revenueData} spec={spec}>
       <GraphRenderer />
     </GraphProvider>
   );
 }
 ```
 
-`createSpec({ x, y })` is shorthand for `createSpec()` + `mapping({ x, y })`.
+## Variants
 
-## Multi-series (wide data)
+### Several groups
+
+Wide data has one column per group. Reshape it to long form inside the spec, map the key column to color, and add a point layer for markers.
 
 ```ts
-const wideData = {
+import { config, createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const regionData: Data = {
   columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }, { key: 'East' }],
   rows: [
     { month: 'Jan', North: 600, South: 900, East: 1400 },
     { month: 'Feb', North: 700, South: 1050, East: 1600 },
     { month: 'Mar', North: 800, South: 1200, East: 1800 },
+    { month: 'Apr', North: 900, South: 1350, East: 2000 },
+    { month: 'May', North: 1000, South: 1500, East: 2200 },
+    { month: 'Jun', North: 1100, South: 1650, East: 2400 },
   ],
 };
 
-const input = pipe(
+const spec = pipe(
   createSpec(
     transform.reshape({ keep: ['month'], reshape: ['North', 'South', 'East'], keyName: 'region', valueName: 'sales' }),
     mapping({ x: 'month', y: 'sales', color: 'region' })
   ),
   geom.line(),
+  geom.point({ interactive: false }),
   scale.x(),
   scale.y(),
   scale.color.palette(),
@@ -68,99 +87,104 @@ const input = pipe(
 );
 ```
 
-## Per-series dash patterns
+`interactive: false` on the point layer keeps hover on the line, so the tooltip is not doubled.
 
-Map `lineType` to the series variable and pin the pattern per series with a discrete scale:
+### Dashed and dotted lines per group
 
-```ts
-mapping({ x: 'month', y: 'sales', color: 'region', lineType: 'region' }),
-geom.line(),
-scale.color.palette(),
-scale.lineType.discrete({ domain: ['North', 'South', 'East'], range: ['solid', 'dashed', 'dotted'] }),
-```
-
-## Smooth interpolation
+Map the group to `lineType` and give the scale an explicit domain and range.
 
 ```ts
-geom.line({ params: { interpolate: 'catmull-rom' } }) // default 'linear'
+import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec(
+    transform.reshape({ keep: ['month'], reshape: ['North', 'South', 'East'], keyName: 'region', valueName: 'sales' }),
+    mapping({ x: 'month', y: 'sales', color: 'region', lineType: 'region' })
+  ),
+  geom.line(),
+  scale.x(),
+  scale.y(),
+  scale.color.palette(),
+  scale.lineType.discrete({ domain: ['North', 'South', 'East'], range: ['solid', 'dashed', 'dotted'] })
+);
 ```
 
-## Missing values
-
-For rows where y is `null`:
+### Smooth curve
 
 ```ts
-geom.line({ params: { missingValues: 'gap' } })     // break the path at nulls (default)
-geom.line({ params: { missingValues: 'connect' } }) // drop nulls, span the gap
-geom.line({ params: { missingValues: 'zero' } })    // substitute zero
+import { geom } from '@graphysdk/react';
+
+const layer = geom.line({ params: { curve: 'smooth' } });
 ```
 
-## Vertex points
+### Fill under the line
 
-Add a point layer that reuses the spec-level mapping; `interactive: false` keeps hover hit-detection on the line:
+The wash is a style declaration on the line geom.
 
 ```ts
-geom.line(),
-geom.point({ interactive: false }),
+import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec({ x: 'month', y: 'revenue' }),
+  geom.line(),
+  styles({ defaults: [style.geom.line({ fillAlpha: 0.15 })] }),
+  scale.x(),
+  scale.y()
+);
 ```
 
-## Trend overlay
+### Missing values
 
-A second line layer with a `smooth` stat draws a regression over the data (`stat` is exported from `@graphysdk/viz-engine`). A non-numeric **y** raises `INCOMPATIBLE_TYPE`; a categorical x is ranked in data order and a temporal x rebased to days. Methods: `'linear' | 'loess' | 'exponential' | 'logarithmic' | 'quadratic' | 'power' | 'polynomial'`, with `order` (default `3`, polynomial only) and `bandwidth` (default `0.3`, loess only). Output: a discrete x emits one fitted point per category; a continuous/datetime x emits the sampled curve (a linear fit is two endpoints):
+Rows with `null` on y can leave a gap (the default), connect across, or drop to zero.
 
 ```ts
-geom.line(),
-geom.line({ id: 'trend', stat: stat.smooth({ method: 'linear' }), interactive: false }),
-styles({ overrides: [style.geom.line({ lineType: 'dashed' }, { layer: 'trend' })] }),
+import { geom } from '@graphysdk/react';
+
+const gap = geom.line({ params: { missingValues: 'gap' } });
+const connect = geom.line({ params: { missingValues: 'connect' } });
+const zero = geom.line({ params: { missingValues: 'zero' } });
 ```
 
-## Geometry and paint
+### Datetime x
 
-`params` carries the path geometry; the stylesheet carries the paint (`reference/styling.md`).
-
-| Surface | Key | Type | Default | Notes |
-|---|---|---|---|---|
-| `geom.line({ params })` | `interpolate` | `'linear' \| 'catmull-rom'` | `'linear'` | d3 curve family |
-| `geom.line({ params })` | `missingValues` | `'gap' \| 'connect' \| 'zero'` | `'gap'` | see above |
-| `style.geom.line` | `strokeWidth` | number (px) | `2` | |
-| `style.geom.line` | `lineType` | `'solid' \| 'dashed' \| 'dotted'` | `'solid'` | |
-| `style.geom.line` | `fillAlpha` | `0..1` | unset | peak opacity of the gradient wash beneath the path; undeclared draws no wash. Cartesian/flipped lines only — inert on a radar |
-| `style.geom.line` | `color` / `alpha` / `saturation` | | | `alpha` is the stroke's opacity, independent of `fillAlpha` |
+Date values or ISO strings give a real time axis. Then `scale.x()` becomes datetime and ticks follow the calendar.
 
 ```ts
-geom.line({ params: { interpolate: 'catmull-rom' } }),
-styles({ defaults: [style.geom.line({ strokeWidth: 3, fillAlpha: 0.15 })] }),
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const dailyData: Data = {
+  columns: [{ key: 'day' }, { key: 'visits' }],
+  rows: [
+    { day: '2024-01-01', visits: 120 },
+    { day: '2024-01-02', visits: 180 },
+    { day: '2024-01-03', visits: 150 },
+    { day: '2024-01-04', visits: 210 },
+  ],
+};
+
+const spec = pipe(createSpec({ x: 'day', y: 'visits' }), geom.line(), scale.x.datetime(), scale.y());
 ```
 
-Scope an entry to one series by giving the layer an id:
+### Horizontal
 
 ```ts
-geom.line({ id: 'trend' }),
-styles({ overrides: [style.geom.line({ strokeWidth: 4, lineType: 'dashed' }, { layer: 'trend' })] }),
+import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.line(), scale.x(), scale.y(), coord.flip());
 ```
 
-The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries.
+### Fixed y domain
 
-`strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous({ range: [1, 6] })`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous({ … })`. Default ranges: `strokeWidth` `[1, 4]`, `alpha` `[0.1, 1]`, `size` `[4, 20]` (for a companion point layer).
+```ts
+import { scale } from '@graphysdk/react';
 
-Line's default position is `identity`. Data labels: `geom.line({ dataLabels: { showDataLabels: true } })`, offset `8` px from the vertex; under `coord.polar` they warn `DATA_LABELS_UNSUPPORTED` and render nothing.
-
-## Intro animation
-
-On mount, under cartesian or flipped coords, the layer is revealed by a wipe travelling along the
-main axis; every series in the layer enters together. A polar line (radar) has no entrance. The
-renderer's `animation` prop tunes it:
-
-```tsx
-<GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
+const yScale = scale.y({ domainMin: 0 });
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
+## Pitfalls
 
-## Gotchas
-
-- Month-name columns like the base data's `'Jan'` parse as temporal, so `scale.x()` infers a datetime scale; `scale.x.discrete()` keeps them as categories.
-- Wide data needs `transform.reshape` before `color` (or `lineType`) can map to the series variable.
-- `lineType` scales are discrete-only — mapping `lineType` to a numeric variable errors at compile time. Valid range values: `'solid' | 'dashed' | 'dotted'`.
-- A mapped `alpha` dims the stroke; the wash beneath it follows `fillAlpha`, so the two are set separately.
-- Companion point layers should set `interactive: false` so they do not compete with the line in hover hit-detection.
+- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
+- Several groups need a `color` mapping. Without it every row joins one line, which zigzags.
+- Wide data must be reshaped before the mapping reads it. Put the reshape inside `createSpec(...)` or before `mapping(...)`.
+- Line paint is `stroke` and `strokeWidth` in `style.geom.line`. `strokeAlpha` is the stroke opacity, `fillAlpha` the wash beneath, and `alpha` fades the whole geom.

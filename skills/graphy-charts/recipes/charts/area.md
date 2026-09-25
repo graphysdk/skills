@@ -1,24 +1,36 @@
-# Area charts
+# Area graph
 
-| Variant | Delta from base |
-|---|---|
-| Simple | base recipe below |
-| Stacked | `transform.reshape` wide→long, map `color`, add `scale.color.palette()` (stack is area's default position) |
-| Flipped | append `coord.flip()` |
-| Smooth | `geom.area({ params: { interpolate: 'catmull-rom' } })` |
-| Missing values | `geom.area({ params: { missingValues: 'zero' \| 'connect' } })` |
-| Vertex points | add `geom.point({ position: 'stack', interactive: false })` |
-| Opaque fill | `styles({ defaults: [style.geom.area({ alpha: 1 })] })` |
-| Data labels | `geom.area({ dataLabels: { showDataLabels: true } })` |
-| Radar | `geom.area({ position: 'identity' })` (area stacks by default) + append `coord.polar({ theta: 'x' })` — `recipes/charts/radar.md` |
+Use an area graph to show a total over time and how groups make it up.
 
-## Base: simple area
+## Data
+
+One row per point. Wide data with one column per group works with a reshape.
+
+```ts
+import type { Data } from '@graphysdk/react';
+
+const regionData: Data = {
+  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }],
+  rows: [
+    { month: 'Jan', North: 300, South: 200 },
+    { month: 'Feb', North: 400, South: 350 },
+    { month: 'Mar', North: 350, South: 300 },
+    { month: 'Apr', North: 500, South: 400 },
+    { month: 'May', North: 450, South: 500 },
+    { month: 'Jun', North: 600, South: 450 },
+  ],
+};
+```
+
+## Basic
+
+A single area.
 
 ```tsx
-import { createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
 
-const data = {
+const revenueData: Data = {
   columns: [{ key: 'month' }, { key: 'revenue' }],
   rows: [
     { month: 'Jan', revenue: 1200 },
@@ -26,97 +38,124 @@ const data = {
     { month: 'Mar', revenue: 2400 },
     { month: 'Apr', revenue: 1600 },
     { month: 'May', revenue: 3200 },
+    { month: 'Jun', revenue: 2800 },
   ],
 };
 
-const input = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x(), scale.y());
+const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x(), scale.y());
 
-export function AreaChart() {
+export function RevenueArea() {
   return (
-    <GraphProvider data={data} input={input}>
+    <GraphProvider data={revenueData} spec={spec}>
       <GraphRenderer />
     </GraphProvider>
   );
 }
 ```
 
-## Stacked (wide data)
+## Variants
 
-`transform.reshape()` with no options collapses all numeric columns into `key`/`value` and keeps the categorical/temporal columns:
+### Stacked areas
+
+Areas stack by default when there is a color mapping. `transform.reshape()` with no options keeps the text and date columns and folds every numeric column into `key` and `value`.
 
 ```ts
-const wideData = {
-  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }],
-  rows: [
-    { month: 'Jan', North: 300, South: 200 },
-    { month: 'Feb', North: 400, South: 350 },
-    { month: 'Mar', North: 350, South: 300 },
-  ],
-};
+import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
 
-const input = pipe(
+const spec = pipe(
   createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
-  geom.area(), // default position is 'stack' — no need to pass it
-  geom.point({ position: 'stack', interactive: false }), // optional vertex points
+  geom.area(),
+  geom.point({ position: 'stack', interactive: false }),
   scale.x(),
   scale.y(),
   scale.color.palette()
 );
 ```
 
-With no `palette` option, `scale.color.palette()` resolves `{ type: 'default' }` per chart: stacked areas touch, so `{ type: 'default' }` always resolves to the single-hue `brick` mono ramp — the 8-color default set is unreachable here. Escape hatches: `{ type: 'graphy' }` (the 10-color Graphy brand palette, a different hue set), `{ type: 'pastel' }`, `{ type: 'custom', id }`, or a non-touching position.
+The point layer needs `position: 'stack'` too, so the markers sit on the stacked edges.
 
-## Flipped
+### Overlapping areas
 
-```ts
-// append after the scales
-coord.flip()
-```
-
-## Geometry and paint
-
-`params` carries the path geometry; the stylesheet carries the paint (`reference/styling.md`).
-
-| Surface | Key | Type | Default | Notes |
-|---|---|---|---|---|
-| `geom.area({ params })` | `interpolate` | `'linear' \| 'catmull-rom'` | `'linear'` | d3 curve family |
-| `geom.area({ params })` | `missingValues` | `'zero' \| 'connect'` | `'zero'` | `'gap'` is accepted and normalised to `'zero'` — areas cannot render gaps mid-stack |
-| `style.geom.area` | `alpha` | `0..1` | `0.3` | the **fill's** opacity |
-| `style.geom.area` | `strokeAlpha` | `0..1` | `1` | the outline's opacity, independent of `alpha` |
-| `style.geom.area` | `strokeWidth` | number (px) | `2` | outline width |
-| `style.geom.area` | `lineType` | `'solid' \| 'dashed' \| 'dotted'` | `'solid'` | |
-| `style.geom.area` | `color` / `saturation` | | | |
+Set the position to identity and lower the fill opacity so both groups stay visible.
 
 ```ts
-geom.area({ params: { interpolate: 'catmull-rom', missingValues: 'connect' } }),
-styles({ defaults: [style.geom.area({ alpha: 1, strokeAlpha: 1, strokeWidth: 3 })] }),
+import { createSpec, geom, mapping, pipe, scale, style, styles, transform } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
+  geom.area({ position: 'identity' }),
+  styles({ defaults: [style.geom.area({ fillAlpha: 0.15 })] }),
+  scale.x(),
+  scale.y(),
+  scale.color.palette()
+);
 ```
 
-The built-in look is token-backed — `styles({ tokens: { geom: '#0B5FFF', geomBorder: '#1A1A1A33', gridLine: '#E9E9E9', textPrimary: '#1A1A1A' } })` restyles the defaults with no entries. The built-in dimmed state is `alpha: 0.4`.
+### Percent stacked areas
 
-`color`, `strokeWidth`, `lineType` and `alpha` are also mappable aesthetics — `scale.strokeWidth.continuous()`, `scale.lineType.discrete({ … })`, `scale.alpha.continuous()`.
+```ts
+import { geom } from '@graphysdk/react';
 
-Like line, `geom.area` accepts a `stat` (e.g. `stat.smooth({ method: 'linear' })`) and an `id`, so `style.geom.area({ … }, { layer: 'trend' })` scopes paint to that layer.
-
-Data labels: `geom.area({ dataLabels: { showDataLabels: true } })` — offset `8` px under cartesian/flip; area labels always use the outside styling (`style.dataLabel.observation.outside`), since the translucent fill cannot back white text. Under `coord.polar` (radar) they warn `DATA_LABELS_UNSUPPORTED` and render nothing.
-
-## Intro animation
-
-On mount, under cartesian or flipped coords, the layer is revealed by a wipe travelling along the
-main axis; every band in the layer enters together. A polar area (radar) has no entrance. The
-renderer's `animation` prop tunes it:
-
-```tsx
-<GraphRenderer animation={{ intro: { durationScale: 0.5 } }} />
+const layer = geom.area({ position: 'fill' });
 ```
 
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — bar/point/tile layers one per observation, line/area layers one per series; above it the intro is skipped entirely.
+### Smooth curve
 
-## Gotchas
+```ts
+import { geom } from '@graphysdk/react';
 
-- **Area fills draw at `alpha: 0.3`** (the built-in `style.geom.area` entry's `alpha`) — colors read lighter than their palette hex. Good for overlapping areas; wrong for stacked bands or a saturated house style. Set `styles({ defaults: [style.geom.area({ alpha: 1 })] })` for solid bands; `strokeAlpha` stays independently controllable.
-- A `defaults` entry loses to a mapped aesthetic, so recoloring a series that is mapped to `color` needs an `overrides` entry (`reference/styling.md`).
-- Area's default position is **`stack`** — multi-series areas stack without an explicit `position`.
-- Wide data needs `transform.reshape` before mapping `color`; with the no-option reshape the output columns are named `key` and `value`.
-- A companion point layer on a stacked area must repeat `position: 'stack'` — point's own default is identity, so the points would otherwise sit at raw y values off the stacked surface.
-- Area's `missingValues` default is `'zero'`; `'gap'` normalises to `'zero'` because areas cannot render gaps mid-stack.
+const layer = geom.area({ params: { curve: 'smooth' } });
+```
+
+### Missing values
+
+Rows with `null` on y drop to zero by default. Use `'connect'` to bridge them instead. An area cannot show a gap, so `'gap'` is treated as `'zero'`.
+
+```ts
+import { geom } from '@graphysdk/react';
+
+const connect = geom.area({ params: { missingValues: 'connect' } });
+```
+
+### Month names without a year
+
+Short month names are read as dates. On the continuous time axis of an area, a group that starts in `Dec` and runs into `Jan` moves on to the next year, so groups covering different months do not stack on top of each other.
+
+```ts
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const productData: Data = {
+  columns: [{ key: 'month' }, { key: 'revenue' }, { key: 'product' }],
+  rows: [
+    { month: 'Dec', revenue: 100, product: 'Alpha' },
+    { month: 'Jan', revenue: 120, product: 'Alpha' },
+    { month: 'Feb', revenue: 280, product: 'Alpha' },
+    { month: 'Jan', revenue: 90, product: 'Beta' },
+    { month: 'Feb', revenue: 150, product: 'Beta' },
+  ],
+};
+
+const spec = pipe(
+  createSpec({ x: 'month', y: 'revenue', color: 'product' }),
+  geom.area(),
+  geom.point({ position: 'stack', interactive: false }),
+  scale.x(),
+  scale.y(),
+  scale.color.palette()
+);
+```
+
+### Horizontal areas
+
+```ts
+import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x(), scale.y(), coord.flip());
+```
+
+## Pitfalls
+
+- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
+- Area paint is `fill` and `fillAlpha` in `style.geom.area`. The outline uses `stroke`, `strokeWidth` and `strokeAlpha`.
+- Stacking needs a `color` mapping. A single group with `position: 'stack'` is the same as a plain area.

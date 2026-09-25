@@ -1,13 +1,12 @@
 #!/usr/bin/env node
-// Compile a { data, input } spec module headlessly and print diagnostics.
+// Compile a { data, spec } module headlessly and print diagnostics.
 //
 // Usage: node validate-spec.mjs <spec-file.mjs>
 //
 // The spec module must export:
 //   data  — the viz-engine Data shape ({ columns, rows })
-//   input — a SpecInput built with the spec builders (pipe, createSpec, mapping, geom, scale, …)
-// A spec that uses `scale.color.palette({ palette: { type: 'custom', id } })` needs the palette
-// registered: pass `customPalettes` (and `colorScheme`) to `compile` below if you validate one.
+//   spec  — a Spec built with the spec builders (pipe, createSpec, mapping, geom, scale, …)
+// Optional exports: plugins (engine plugins), customPalettes, colorScheme.
 // Exit code 0 = compiled OK, 1 = errors.
 //
 // Needs @graphysdk/viz-engine resolvable from the current working directory (the project whose
@@ -15,7 +14,7 @@
 // where the package is installed at the root). A resolve hook tries those anchors in order, so a
 // spec module anywhere on disk compiles without its own node_modules.
 
-import { register, registerHooks } from 'node:module';
+import * as module from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -24,8 +23,8 @@ const ANCHORS = [pathToFileURL(path.join(process.cwd(), 'validate-spec-anchor.mj
 
 function installResolveHook() {
   const matches = (specifier) => specifier === PACKAGE_NAME || specifier.startsWith(`${PACKAGE_NAME}/`);
-  if (typeof registerHooks === 'function') {
-    registerHooks({
+  if (typeof module.registerHooks === 'function') {
+    module.registerHooks({
       resolve: (specifier, context, next) => {
         if (matches(specifier)) {
           let lastError;
@@ -74,7 +73,7 @@ export async function resolve(specifier, context, next) {
     throw error;
   }
 }`;
-  register(new URL(`data:text/javascript,${encodeURIComponent(source)}`));
+  module.register(new URL(`data:text/javascript,${encodeURIComponent(source)}`));
 }
 
 function printDiagnostic(diagnostic) {
@@ -83,16 +82,16 @@ function printDiagnostic(diagnostic) {
   if (diagnostic.context) console.log(`  context: ${JSON.stringify(diagnostic.context)}`);
 }
 
-function printSummary(compiled, warnings) {
+function printSummary(scene, warnings) {
   console.log('compiled OK');
-  const geoms = compiled.layers.map((layer) => layer.geom).join(', ');
-  console.log(`  layers: ${compiled.layers.length} (${geoms})`);
-  const scales = Object.entries(compiled.scales)
-    .map(([aesthetic, compiledScale]) => `${aesthetic}: ${compiledScale.spec?.scaleType ?? compiledScale.kind}`)
+  const geoms = scene.layers.map((layer) => layer.geom).join(', ');
+  console.log(`  layers: ${scene.layers.length} (${geoms})`);
+  const scales = Object.entries(scene.scales)
+    .map(([aesthetic, sceneScale]) => `${aesthetic}: ${sceneScale.spec?.scaleType ?? '?'}`)
     .join(', ');
   console.log(`  scales: ${scales}`);
-  const coord = compiled.coordSystem;
-  console.log(`  coord: ${coord.type}${coord.type === 'cartesian' ? ` (main axis: ${coord.mainAxis})` : ''}`);
+  const coord = scene.coordSystem;
+  console.log(`  coord: ${coord.type}`);
   if (warnings.length > 0) {
     console.log(`  warnings: ${warnings.length}`);
     for (const warning of warnings) printDiagnostic(warning);
@@ -118,16 +117,16 @@ try {
   process.exit(1);
 }
 
-const { data, input } = specModule;
-if (data === undefined || input === undefined) {
-  console.error(`Spec module must export both "data" and "input"; got ${Object.keys(specModule).join(', ') || 'no exports'}.`);
+const { data, spec, plugins = [], customPalettes, colorScheme } = specModule;
+if (data === undefined || spec === undefined) {
+  console.error(`Spec module must export both "data" and "spec"; got ${Object.keys(specModule).join(', ') || 'no exports'}.`);
   process.exit(1);
 }
 
-const result = createCompiler().compile({ input, data });
+const result = createCompiler({ plugins }).compile({ spec, data, customPalettes, colorScheme });
 
 if (result.ok) {
-  printSummary(result.compiled, result.warnings);
+  printSummary(result.scene, result.warnings);
   process.exit(0);
 }
 

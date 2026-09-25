@@ -1,26 +1,43 @@
 #!/usr/bin/env node
 // Verify the skill's code samples against the INSTALLED @graphysdk packages.
 //
-//   Phase 1  every import specifier resolves and every named import exists
+//   node scripts/check-samples.mjs [skillDir] [anchorDir] [tsDir]
+//   skillDir   the skill folder to scan (default: this script's parent)
+//   anchorDir  a folder whose node_modules resolve @graphysdk/react, @graphysdk/viz-engine,
+//              @graphysdk/react-renderer and react (default: the current working directory;
+//              in the monorepo use apps/storybook, which also resolves the d3 and roughjs types the
+//              plugin recipes import)
+//   tsDir      a folder whose node_modules resolve typescript (default: anchorDir)
+//
+//   Phase 1  Graphy entry-point names and named exports are recognised
 //   Phase 2  each fenced ts/tsx block is typechecked
 // Each fenced ts/tsx block is compiled on its own, prefixed with a preamble that
 // binds every export of both packages and of the editable entry, so fragments
 // still resolve their builders.
 // Only API-shape diagnostics are reported; fragment noise is filtered out.
-import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { join, resolve, relative, dirname } from 'node:path';
 
 const require = createRequire(import.meta.url);
-// scripts/ lives at <repo>/skills/<skill>/scripts, so the repo root is three levels up.
-const REPO = resolve(process.argv[3] ?? join(dirname(fileURLToPath(import.meta.url)), '../../..'));
-const ts = require(join(REPO, 'node_modules/typescript'));
-const SKILL = resolve(process.argv[2] ?? join(REPO, 'skills/graphy-charts'));
+const SKILL = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
+const REPO = resolve(process.argv[3] ?? process.cwd());
+const TS_DIR = resolve(process.argv[4] ?? REPO);
+const ts = require(require.resolve('typescript', { paths: [TS_DIR] }));
 // Must live INSIDE the repo: node module resolution for @graphysdk/* depends on it.
-const TMP = join(REPO, '.sample-typecheck');
+let TMP;
 
-function dts(pkg, file) { return resolve(dirname(require.resolve(pkg, { paths: [REPO] })), file); }
+function dts(pkg, file) {
+  try {
+    return resolve(dirname(require.resolve(pkg, { paths: [REPO] })), file);
+  } catch (error) {
+    // Inside the monorepo the anchor IS the package (packages/react), which cannot resolve itself by name.
+    const own = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'));
+    if (own.name === pkg.split('/').slice(0, 2).join('/')) return join(REPO, 'dist', file);
+    throw error;
+  }
+}
 function exportsOf(path, seen = new Set()) {
   if (seen.has(path)) return { values: new Set(), types: new Set() };
   seen.add(path);
@@ -34,7 +51,7 @@ function exportsOf(path, seen = new Set()) {
       for (const name of star.types) t.add(name);
     }
     else if (ts.isExportDeclaration(n) && n.exportClause && ts.isNamedExports(n.exportClause))
-      for (const e of n.exportClause.elements) (e.isTypeOnly ? t : v).add(e.name.text);
+      for (const e of n.exportClause.elements) (n.isTypeOnly || e.isTypeOnly ? t : v).add(e.name.text);
     else if ((ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) &&
       n.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) t.add(n.name.text);
     else if ((ts.isClassDeclaration(n) || ts.isFunctionDeclaration(n) || ts.isEnumDeclaration(n)) &&
@@ -85,8 +102,9 @@ const PREAMBLE_LINES = PREAMBLE.split('\n').length;
 
 function walk(dir, out = []) {
   for (const e of readdirSync(dir)) {
+    if (e === 'node_modules' || e.startsWith('.')) continue;
     const p = join(dir, e);
-    if (statSync(p).isDirectory()) walk(p, out); else if (p.endsWith('.md')) out.push(p);
+    if (statSync(p).isDirectory()) walk(p, out); else if (p.endsWith('.md') && !readFileSync(p, 'utf8').startsWith('<!-- GENERATED FILE')) out.push(p);
   }
   return out;
 }
@@ -107,6 +125,7 @@ function codeBlocks(text) {
 
 // Diagnostics that indicate a real API mismatch (not a fragment artefact).
 const REPORT = new Set([
+  2307, // cannot find module
   2305, // module has no exported member
   2724, // no exported member named X, did you mean Y
   2339, // property does not exist on type
@@ -124,10 +143,10 @@ const IGNORE = new Set([2304, 2552, 2451, 2440, 2300, 6133, 6196, 2686, 1155, 26
 const files = walk(SKILL).sort();
 
 // ---------------------------------------------------------------------------
-// Phase 1 — every specifier resolves, every named import exists.
-// Parser-only, so there are no false positives.
+// Phase 1 — supported Graphy entry-point names and their named exports.
 // ---------------------------------------------------------------------------
-const VALID = new Set(['@graphysdk/viz-engine', '@graphysdk/viz-engine/graph-config', '@graphysdk/react-renderer', '@graphysdk/react-renderer/graph-config', '@graphysdk/react-renderer/editable', '@graphysdk/react', '@graphysdk/react/editable']);
+const DATA_IMPORT = ['', '/csv', '/tsv', '/json', '/xlsx', '/xls', '/ods', '/file', '/url', '/text', '/buffer'].map((sub) => `@graphysdk/data-import-utils${sub}`);
+const VALID = new Set([...DATA_IMPORT, '@graphysdk/viz-engine', '@graphysdk/viz-engine/graph-config', '@graphysdk/react-renderer', '@graphysdk/react-renderer/graph-config', '@graphysdk/react-renderer/editable', '@graphysdk/react', '@graphysdk/react/editable']);
 const NAMES = {
   '@graphysdk/viz-engine': new Set([...VE.values, ...VE.types]),
   '@graphysdk/react-renderer': new Set([...RR.values, ...RR.types]),
@@ -149,7 +168,7 @@ for (const file of files) {
       const line = offset + sf.getLineAndCharacterOfPosition(st.getStart(sf)).line + 1;
       if (!VALID.has(spec)) { found.push([line, `unresolvable specifier '${spec}'`]); continue; }
       const b = st.importClause?.namedBindings;
-      if (!b || !ts.isNamedImports(b)) continue;
+      if (!b || !ts.isNamedImports(b) || !NAMES[spec]) continue; // data-import-utils: specifier check only
       for (const el of b.elements) {
         const n = (el.propertyName ?? el.name).text;
         if (!NAMES[spec].has(n)) found.push([line, `'${n}' is not exported by ${spec}`]);
@@ -165,7 +184,8 @@ for (const file of files) {
 console.log(`\nPhase 1 — imports: ${importProblems} problem(s).`);
 console.log(`\nPhase 2 — types:`);
 
-rmSync(TMP, { recursive: true, force: true }); mkdirSync(TMP, { recursive: true });
+TMP = mkdtempSync(join(REPO, '.graphy-sample-typecheck-'));
+try {
 const units = [];
 for (const file of files) {
   codeBlocks(readFileSync(file, 'utf8')).forEach((b, i) => {
@@ -178,7 +198,7 @@ const options = {
   jsx: ts.JsxEmit.ReactJSX, noEmit: true, skipLibCheck: true, strict: false,
   moduleResolution: ts.ModuleResolutionKind.Bundler, module: ts.ModuleKind.ESNext,
   target: ts.ScriptTarget.ES2022, esModuleInterop: true, allowJs: true,
-  baseUrl: REPO, typeRoots: [join(REPO, 'node_modules/@types')],
+  baseUrl: REPO, typeRoots: [join(REPO, 'node_modules/@types'), join(TS_DIR, 'node_modules/@types')],
 };
 const program = ts.createProgram(units.map((u) => u.name), options);
 const byFile = new Map();
@@ -188,6 +208,12 @@ for (const d of ts.getPreEmitDiagnostics(program)) {
   const unit = units.find((u) => u.name === d.file.fileName);
   if (!unit) continue;
   if (IGNORE.has(d.code) || !REPORT.has(d.code)) continue;
+  // Relative imports join separately saved recipe files; blocks are checked in isolation.
+  // External package-resolution failures remain errors.
+  if (d.code === 2307) {
+    const message = ts.flattenDiagnosticMessageText(d.messageText, ' ');
+    if (/Cannot find module ['"]\.{1,2}\//.test(message)) continue;
+  }
   const { line } = d.file.getLineAndCharacterOfPosition(d.start);
   if (line < PREAMBLE_LINES) { preambleErrors.add(`TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText,' ').slice(0,160)}`); continue; }
   const mdLine = unit.offset + (line - PREAMBLE_LINES) + 1;
@@ -208,5 +234,7 @@ if (preambleErrors.size) {
   for (const e of preambleErrors) console.log(`  ${e}`);
 }
 console.log(`\n${units.length} sample blocks typechecked — ${total} API-shape error(s).`);
-rmSync(TMP, { recursive: true, force: true });
-process.exit(importProblems + total + preambleErrors.size ? 1 : 0);
+process.exitCode = importProblems + total + preambleErrors.size ? 1 : 0;
+} finally {
+  rmSync(TMP, { recursive: true, force: true });
+}

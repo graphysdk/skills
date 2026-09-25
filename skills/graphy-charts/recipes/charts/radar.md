@@ -1,38 +1,58 @@
-# Radar (spider)
+# Radar graph
 
-A radar chart is a line/point/area chart bent around a circle: `coord.polar({ theta: 'x' })` puts categories on the angle (one spoke per category) and the value on the radius. Data is long format — one row per (category, series) — with `color` splitting the series into one polygon each.
+Use a radar graph to compare a few groups across several measures on the same scale.
 
-| Variant | Spec delta |
-|---|---|
-| Spider (outline + vertex points) | base below: `geom.line()` + `geom.point({ interactive: false })` |
-| Points only | single `geom.point()` layer, no line |
-| Filled | `geom.area({ position: 'identity' })` + `geom.point({ interactive: false })` instead of the line |
-| Curved spider | `geom.line({ params: { interpolate: 'catmull-rom' } })` |
-| Rotated / hollow centre | `coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 })` |
-| Per-series dash | `geom.line({ aes: { lineType: 'player' } })` + `scale.lineType.discrete({ domain: ['Alice', 'Bob'], range: ['solid', 'dashed'] })` |
-| Bar-based rose | `geom.bar` instead — `recipes/charts/polar-bar.md` |
+A radar is a line or area geom in polar coordinates with the band on the angle.
 
-## Base spider
+## Data
 
-```tsx
-import { config, coord, createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
+Long form: one row per group and measure.
 
-const data = {
+```ts
+import type { Data } from '@graphysdk/react';
+
+const skillsData: Data = {
   columns: [{ key: 'skill' }, { key: 'score' }, { key: 'player' }],
   rows: [
     { skill: 'Speed', score: 8, player: 'Alice' },
     { skill: 'Power', score: 6, player: 'Alice' },
     { skill: 'Defense', score: 7, player: 'Alice' },
     { skill: 'Stamina', score: 9, player: 'Alice' },
+    { skill: 'Technique', score: 5, player: 'Alice' },
     { skill: 'Speed', score: 6, player: 'Bob' },
     { skill: 'Power', score: 9, player: 'Bob' },
     { skill: 'Defense', score: 5, player: 'Bob' },
     { skill: 'Stamina', score: 6, player: 'Bob' },
+    { skill: 'Technique', score: 8, player: 'Bob' },
+  ],
+};
+```
+
+## Basic
+
+Outline per group with a dot at each vertex.
+
+```tsx
+import { config, coord, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import type { Data } from '@graphysdk/react';
+
+const skillsData: Data = {
+  columns: [{ key: 'skill' }, { key: 'score' }, { key: 'player' }],
+  rows: [
+    { skill: 'Speed', score: 8, player: 'Alice' },
+    { skill: 'Power', score: 6, player: 'Alice' },
+    { skill: 'Defense', score: 7, player: 'Alice' },
+    { skill: 'Stamina', score: 9, player: 'Alice' },
+    { skill: 'Technique', score: 5, player: 'Alice' },
+    { skill: 'Speed', score: 6, player: 'Bob' },
+    { skill: 'Power', score: 9, player: 'Bob' },
+    { skill: 'Defense', score: 5, player: 'Bob' },
+    { skill: 'Stamina', score: 6, player: 'Bob' },
+    { skill: 'Technique', score: 8, player: 'Bob' },
   ],
 };
 
-const input = pipe(
+const spec = pipe(
   createSpec({ x: 'skill', y: 'score', color: 'player' }),
   geom.line(),
   geom.point({ interactive: false }),
@@ -45,80 +65,63 @@ const input = pipe(
 
 export function SkillsRadar() {
   return (
-    <GraphProvider data={data} input={input}>
+    <GraphProvider data={skillsData} spec={spec}>
       <GraphRenderer />
     </GraphProvider>
   );
 }
 ```
 
+`theta: 'x'` puts one spoke per band. `domainMin: 0` keeps the centre at zero so shapes compare fairly.
+
 ## Variants
 
-Points only:
+### Filled
+
+Swap the line for an area with identity position, so the groups overlap instead of stacking.
 
 ```ts
-geom.point(),
+import { config, coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec({ x: 'skill', y: 'score', color: 'player' }),
+  geom.area({ position: 'identity' }),
+  geom.point({ interactive: false }),
+  coord.polar({ theta: 'x' }),
+  scale.x.discrete(),
+  scale.y({ domainMin: 0 }),
+  scale.color.palette(),
+  config({ legend: { position: 'top' } })
+);
 ```
 
-Filled — a translucent polygon per series with vertex points on top. The polygon's fill opacity is
-`style.geom.area({ alpha })` (default `0.3`), its outline `strokeAlpha` / `strokeWidth`, and the points
-`style.geom.point({ size })` (default `8`) — see `reference/styling.md`:
+Lower the fill opacity when shapes overlap a lot: `styles({ defaults: [style.geom.area({ fillAlpha: 0.15 })] })`. The built-in area opacity is 0.3.
+
+### Dots only
 
 ```ts
-geom.area({ position: 'identity' }),
-geom.point({ id: 'vertices', interactive: false }),
-styles({
-  defaults: [
-    style.geom.area({ alpha: 0.2, strokeAlpha: 1, strokeWidth: 2 }),
-    style.geom.point({ size: 5 }, { layer: 'vertices' }),
-  ],
-}),
+import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const spec = pipe(
+  createSpec({ x: 'skill', y: 'score', color: 'player' }),
+  geom.point(),
+  coord.polar({ theta: 'x' }),
+  scale.x.discrete(),
+  scale.y({ domainMin: 0 }),
+  scale.color.palette()
+);
 ```
 
-Curved spider — a Catmull-Rom spline through the vertices instead of straight segments:
+### Fixed outer value
 
 ```ts
-geom.line({ params: { interpolate: 'catmull-rom' } }),
+import { scale } from '@graphysdk/react';
+
+const yScale = scale.y({ domainMin: 0, domainMax: 10 });
 ```
 
-Missing spokes — `missingValues` defaults to `'gap'` on a line (the outline breaks) and `'zero'` on an area (the vertex drops to the centre); `'connect'` spans the hole:
+## Pitfalls
 
-```ts
-geom.line({ params: { missingValues: 'connect' } }),
-```
-
-Rotated / hollow centre — `startAngle` (degrees, default `0`) picks where the first spoke lands; `innerRadius` in `(0, 1)` keeps the polygons off the centre:
-
-```ts
-coord.polar({ theta: 'x', startAngle: -90, innerRadius: 0.1 }),
-```
-
-Stroke — `style.geom.line({ strokeWidth, lineType })` (defaults `2` / `'solid'`) paints every outline; map `lineType` **on the line layer** for a dash per series — in the spec-level mapping the point layer, which does not declare `lineType`, would warn `UNDECLARED_AESTHETIC`. Without `domain`, `scale.lineType.discrete({ range })` pairs values in first-occurrence order; pass `domain` to pin the pairing:
-
-```ts
-createSpec({ x: 'skill', y: 'score', color: 'player' }),
-geom.line({ aes: { lineType: 'player' } }),
-geom.point({ interactive: false }),
-scale.lineType.discrete({ domain: ['Alice', 'Bob'], range: ['solid', 'dashed'] }),
-styles({ defaults: [style.geom.line({ strokeWidth: 3 })] }),
-```
-
-## Intro animation
-
-Only the vertex points have an entrance — they pop in staggered; a polar line or area polygon has none. `staggerOrder: 'value-descending'` sorts by the mapped `size`, falling back to x — a radar maps no size, so it reverses spoke order rather than sorting by score:
-
-```tsx
-<GraphRenderer animation={{ intro: { staggerOrder: 'value-descending' } }} />
-```
-
-`animation={{ intro: { maxAnimatedGeoms } }}` (default `1500`) counts geoms across **all** layers — one per observation for point layers, one per series for line/area; a skip also kills the vertex-point entrance.
-
-## Gotchas
-
-- Always pass `scale.y({ domainMin: 0 })`. Without it the domain starts at the data minimum, which maps to the center of the circle and wildly exaggerates differences. `domainMax` caps the outer ring (e.g. `{ domainMin: 0, domainMax: 10 }`); `nice` defaults to `true`.
-- The filled variant needs `position: 'identity'` — `geom.area` defaults to `'stack'`, which would pile the series' radii on top of each other instead of overlapping them.
-- Use `scale.x.discrete()` explicitly for the spokes; under `coord.polar` the compiler zeroes discrete-scale padding so the spokes distribute evenly around the full circle.
-- Set the decorative point layer `interactive: false` so hover hit-detection stays on the primary line/area layer instead of competing with the points.
-- Data labels are unsupported under polar for line, area and point layers — `showDataLabels: true` warns `DATA_LABELS_UNSUPPORTED` and nothing renders.
-- `style.geom.line({ fillAlpha })` is inert here: the gradient wash under a line is cartesian-only. Use the filled variant for a tinted polygon.
-- No reference ring: `geom.rule` is cartesian/flip only and raises `UNSUPPORTED_COORD` under `coord.polar`.
+- Use `scale.x.discrete()` so the measures are evenly spaced spokes.
+- An area in polar coordinates stacks by default. Use `position: 'identity'` for overlapping shapes.
+- Give every group a row for every measure. A row with `null` on y leaves a gap in that group's outline, since the line default for missing values is `'gap'`.

@@ -1,240 +1,306 @@
 # Data
 
-The `Data` object is the only data input. The engine parses it once into a typed dataset (type
-inference + value parsing) and re-parses only when you pass a **new object reference** — mutating
-in place is invisible.
+Contents
 
-## Shape
+- Data shape
+- Column types and value formats
+- Declaring a column's value format
+- Numbers
+- Dates
+- Parsing locale and formatting locale
+- Missing values
+- Wide and long data
+- From data type to scale
+- Loading files with data-import-utils
+- Pitfalls
+
+## Data shape
+
+Data is a table: a list of columns and a list of rows. Every row is an object keyed by column key.
 
 ```ts
-import type { Data } from '@graphysdk/viz-engine';
+import type { Data } from '@graphysdk/react';
 
 const data: Data = {
   columns: [
-    { key: 'month' }, // key must match the row keys exactly
-    { key: 'revenue', label: 'Revenue ($)' }, // label is the display name in guides/tooltips
+    { key: 'month', label: 'Month' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'region' },
   ],
   rows: [
-    { month: 'Jan', revenue: 1200 },
-    { month: 'Feb', revenue: null }, // null = missing value
+    { month: '2024-01', revenue: 1200, region: 'North' },
+    { month: '2024-02', revenue: 1350, region: 'North' },
+    { month: '2024-01', revenue: 980, region: 'South' },
   ],
 };
 ```
 
-| Field | Type | Notes |
-|---|---|---|
-| `columns[].key` | `string` | Unique, stable identifier; the name `mapping()` and transforms use. |
-| `columns[].label` | `string?` | Display name. Falls back to `key`. |
-| `columns[].valueFormat` | `ExplicitValueFormat?` | How to read the column, instead of inferring it (see *Declaring a format*). |
-| `rows` | `Array<Record<string, DataValue>>` | One object per row; keys match `columns[].key`. |
+A cell is a `number`, a `string`, a `Date`, or `null`. `label` is the column's display name in legends, tooltips, and axis titles. Without it, legends and tooltips show the key, and the axis has no title unless `config({ axes: { x: { label: 'Month' } } })` sets one. A column's `key` is what the spec maps: `createSpec({ x: 'month', y: 'revenue', color: 'region' })`.
 
-Those four fields are the whole authorable surface. Without `valueFormat`, the data itself decides a
-column's format (see *Type and format inference*). The object and each column also carry an internal
-`_metadata` block the editor writes; the engine reads only `_metadata.parsingLocale` and
-`columns[]._metadata.isHidden` and ignores the rest.
+Only columns listed in `columns` are read. Extra keys on a row are ignored.
 
-**Reference columns by `key`, never by `label`.** A label used as a variable name fails with
-`UNKNOWN_VARIABLE`. When you didn't author the dataset, read its `columns` array first.
+Exact types: types.md § Core & data.
 
-`DataValue = number | string | Date | null`. Strings are fine everywhere — parsing turns `'$1,200'`,
-`'12%'`, `'01/02/2022'`, `'2.5k'` into typed values. Cells that are `null`, `undefined`, `''` (or
-whitespace), or `'-'` count as empty. Rows whose every cell is empty are dropped.
+## Column types and value formats
 
-## Locale
+Every column gets one of three data types: numeric, temporal, or categorical. The type comes from the column's value format, and the value format is inferred from the first non-empty cell in the column. The whole column is then parsed with that format.
 
-Supported locales: `'en-GB' | 'en-US' | 'ar' | 'pt-PT'`. Two separate settings use them.
+Inference checks, in order:
 
-| Setting | Where | Default | Governs |
-|---|---|---|---|
-| parsing locale | `_metadata.parsingLocale` on the data object (host state) | `'en-GB'` | how source cells are read — most importantly numeric date order |
-| `config({ parsingLocale })` | the spec | `'en-US'` | display formatting (axes, tooltips, headline, data labels) and value coercion in predicates and annotation anchors |
+1. A number, or a string that reads as a number (`'1,234.5'`, `'12k'`): `decimal`.
+2. A string that matches a date format for the parsing locale: `date`, `month_year`, `quarter`, `day_month`, `month`, `year`, or `datetime`.
+3. A weekly range such as `'Jan 1 – Jan 7'`: `weekly_date_range`, or `weekly_date_range_with_year` when both parts carry a year.
+4. A `Date` object: `date`.
+5. A string ending in `%`: `percentage`.
+6. A string starting with a currency symbol (`'$1,200'`, `'€45'`): `currency`.
+7. Anything else: `text`.
 
-`formattingLocale` on `GraphProvider` overrides `config({ parsingLocale })` for display only
-(`locale = formattingLocale ?? parsingLocale`). Neither spec setting affects cell parsing.
-
-Numeric date order is the trap: `'en-US'` reads `01/02/2022` as Jan 2 (month-day-year);
-`'en-GB'`, `'pt-PT'`, `'ar'` read it as Feb 1 (day-month-year). The other orders are tried as
-fallbacks only when the primary one fails. Since the parsing locale is not on the public `Data`
-type, hand numeric-separated dates over in an unambiguous form (`'2022-02-01'`, `'Feb 1, 2022'`,
-`Date` objects).
-
-## Type and format inference
-
-Per column, the engine:
-
-1. Skips the column if `_metadata.isHidden` is set, or drops it if it has no non-empty cell. A
-   column with a declared `valueFormat` skips inference altogether, including the year pass; one
-   declared as `year` is the dataset's year column, so the year pass reads no other column as years.
-2. **Year pass** — scans the first 5 non-empty rows of every undeclared column. The first column
-   whose ≥ 2 non-empty values there all read as years 1800–2199 (strings must be whole numbers;
-   numeric cells only need to fall in range) becomes `{ type: 'year' }` (temporal). At most one
-   column per dataset wins this pass.
-3. Otherwise the **first non-empty cell alone** decides the column's `ValueFormat`, tried in order:
-   number → date string (an ISO-8601 datetime string gives `datetime`) → weekly date range
-   (`'Jan 1 – Jan 7'`, ends 6 days apart, 5 across a possible leap day) → `Date` object → percentage (`'12%'`) →
-   currency (`'$5'`, `'€5'`, …) → `text` (catch-all).
-4. Every cell in the column is then parsed with that one format. **Cells that don't fit become
-   `null` silently** — no error.
-
-Parsing details:
-
-- Numbers accept thousands separators and magnitude suffixes: `'1,200'` → 1200, `'2.5k'` → 2500,
-  also `m`, `b`, `t`. A unix timestamp is a number, so it stays `decimal`.
-- Percentages are stored as fractions: `'12%'` → `0.12`. Only percent **strings** infer the
-  percentage format — bare fractions (0.12) infer `decimal` and render as plain numbers. Inside a
-  percentage column a bare numeric cell passes through unscaled (`12` renders "1200%"), so don't mix
-  bare numbers into a percent-string column.
-- Currency is recognised by symbol only, adjacent to the number at the start or end (`'$5'`, `'-$5'`,
-  `'5€'`; not `'5 €'` or `'USD 5'`); the symbol sets the format's `iso` (e.g. `'usd'`).
-- Dates become UTC `Date` objects. `'2022-02'` and `'February 2022'` parse as month + year; `'Q1 2022'`
-  as a quarter; bare `'February'`/`'Feb'` as a month with no year; `'February 1, 2022'`, `'1 Feb 2022'`
-  and `/`, `-`, `.` separated forms all parse. A `Date` object infers `date`; only an ISO-8601 datetime
-  string infers `datetime`.
-
-### Declaring a format
-
-The same cell can mean two things: `2010` is a headcount or a year, `'1'` a category or a number.
-When you know, set `valueFormat` on the column and inference is skipped for it:
+One special case runs before the cascade. The first column with no declared format whose cells in the first five non-empty rows are all four-digit years (1800 to 2199) becomes a `year` column, so `2021, 2022, 2023` reads as time rather than as a number. It needs at least two non-empty cells among those rows, and it is skipped when any column declares `{ type: 'year' }`. A column with no non-empty cell at all is dropped from the dataset.
 
 ```ts
-columns: [
-  { key: 'headcount', valueFormat: { type: 'integer' } }, // 2010, 2050, 2100 stay counts, not years
-  { key: 'cluster', valueFormat: { type: 'text' } }, // '1', '2', '3' stay categories
-  { key: 'price', valueFormat: { type: 'currency', iso: 'usd' } }, // bare numbers format as dollars
-],
-```
+import type { Data } from '@graphysdk/react';
 
-Any `type` in the *ValueFormat* table below except `lookup` is accepted; a temporal one can carry
-the `dateFormat` its cells use, such as `{ type: 'date', dateFormat: 'dd-MM-yyyy' }`. Cells are
-parsed under the declared format, and one that does not fit becomes `null`, as under inference.
-
-### Chronological years for year-less dates
-
-A temporal column whose format carries no year — `month`, `day_month`, `weekly_date_range` — gets
-synthetic years assigned by the compiler, so the values sort as a sequence rather than collapsing
-onto one calendar year.
-
-The rule: walk the column **in row order**, starting from the year the first value parsed with (the
-current calendar year). Whenever a value sorts before its predecessor (compared on month/day, year
-ignored), bump the year. Each **group** — the explicit `group` aesthetic if mapped, else the
-combination of the categorical visual aesthetics (`color`, `size`, `alpha`, `strokeWidth`, `lineType`)
-— runs its own sequence; ungrouped rows share one. The pass runs per layer, after grouping, so two
-layers grouped differently can assign different years to the same rows.
-
-What follows:
-
-- `Jan, Feb, … Dec, Jan, Feb` reads as fourteen consecutive months across two years.
-- The same month repeated across two series stays aligned on the axis, because each series restarts
-  the sequence.
-- Row order is the input order — sort the rows the way you want the axis read. Reordering rows
-  changes the assigned years.
-
-## ValueFormat
-
-The per-column format descriptor, inferred or declared. It travels with the variable through the
-pipeline: the compiler tags axes, legends, tooltips and headline figures with it, and the renderer
-turns value + format + locale into the display string. You never format values yourself — control
-display by declaring the column's `valueFormat` or by controlling what the data parses as (plus
-`config({ numberFormat })` for decimals, abbreviation, prefix and suffix).
-
-| `type` | Data type | Rendered example (en-US) |
-|---|---|---|
-| `decimal` | numeric | `1,234.5` |
-| `integer` | numeric | `1,235` — never inferred from raw data; comes from a `count` aggregation or a declared `valueFormat` |
-| `percentage` | numeric | `0.12` → `12%` |
-| `currency` (+ `iso`) | numeric | `$1,234.50` |
-| `duration` | numeric (ms) | `1h 5m` — never inferred, only declared; always rendered in English |
-| `text` | categorical | passed through |
-| `date` | temporal | `Jan 5, 2025` |
-| `datetime` | temporal | `Jan 5, 2025 • 14:30:00` |
-| `time` | temporal | `14:30` |
-| `year` | temporal | `2025` |
-| `quarter` | temporal | `Q1 2025` |
-| `month` | temporal | `January` |
-| `month_year` | temporal | `Jan 2025` |
-| `day_month` | temporal | `January 5` |
-| `weekly_date_range` | temporal | `January 5 – 11` |
-| `weekly_date_range_with_year` | temporal | `Jan 5 – 11, 2025` |
-| `lookup` | per observation | `{ byVariable, cases, fallback }` — one format per source column after a mixed-format reshape (below) |
-
-So a revenue column supplied as `'$1,200'` strings gets a currency-formatted y-axis and tooltip for
-free; the same column as bare numbers renders as plain decimals.
-
-## Long data vs `transform.reshape`
-
-Geoms want **long** data: one observation per row, with a categorical column to split series on.
-
-**Already long — map the series column directly:**
-
-```ts
-const data = {
-  columns: [{ key: 'month' }, { key: 'region' }, { key: 'sales' }],
+const data: Data = {
+  columns: [{ key: 'year' }, { key: 'growth' }, { key: 'sales' }, { key: 'team' }],
   rows: [
-    { month: 'Jan', region: 'North', sales: 120 },
-    { month: 'Jan', region: 'South', sales: 90 },
-    { month: 'Feb', region: 'North', sales: 140 },
-    { month: 'Feb', region: 'South', sales: 100 },
+    { year: 2022, growth: '4.5%', sales: '$1,200', team: 'Ops' },
+    { year: 2023, growth: '5.1%', sales: '$1,450', team: 'Ops' },
   ],
 };
-const input = pipe(createSpec(), mapping({ x: 'month', y: 'sales', color: 'region' }), geom.line(), scale.x(), scale.y());
+// year: temporal (year), growth: numeric (percentage, stored as 0.045),
+// sales: numeric (currency usd, stored as 1200), team: categorical (text)
 ```
 
-**Wide (one column per series) — reshape first:**
+The data type decides how the column is placed and scaled. The value format decides how its values are written in axes, tooltips, and labels (`0.045` shows as `4.5%`, `1200` as `$1,200`).
+
+## Declaring a column's value format
+
+Set `valueFormat` on a column to skip inference for it. Use this when the first cell is misleading or when a plain number should be shown in a specific way.
 
 ```ts
-import { createSpec, pipe, mapping, geom, scale, transform } from '@graphysdk/viz-engine';
+import type { Data } from '@graphysdk/react';
+
+const data: Data = {
+  columns: [
+    { key: 'code', valueFormat: { type: 'text' } },
+    { key: 'price', valueFormat: { type: 'currency', iso: 'eur' } },
+    { key: 'share', valueFormat: { type: 'percentage' } },
+    { key: 'day', valueFormat: { type: 'date', dateFormat: 'MM/dd/yyyy' } },
+  ],
+  rows: [
+    { code: '0042', price: 19.9, share: 0.31, day: '02/01/2024' },
+    { code: '0043', price: 24.5, share: 0.12, day: '02/15/2024' },
+  ],
+};
+```
+
+- `{ type: 'text' }` keeps digit strings such as postcodes or IDs categorical.
+- `{ type: 'currency', iso }` formats bare numbers as money. `iso` is a lower-case three-letter code (`'usd'`, `'gbp'`, `'eur'`, ...).
+- `{ type: 'percentage' }` takes fractions: `0.31` shows as `31%`.
+- A temporal format takes an optional `dateFormat`, a date-fns pattern the strings are parsed with. This is the way to read dates whose order the parsing locale would get wrong.
+- `{ type: 'integer' }`, `{ type: 'decimal' }`, `{ type: 'duration' }` (milliseconds) are the other numeric formats. `{ type: 'time' }` is the temporal format for a time of day.
+
+The format list is `ExplicitValueFormat` in types.md § Supporting types.
+
+## Numbers
+
+Numeric cells can be numbers or strings. Strings may carry thousands separators, a sign, and a `k`, `m`, `b`, or `t` suffix: `'1,250'`, `'-3.5'`, `'12k'` become `1250`, `-3.5`, `12000`. A percentage string `'12.5%'` becomes `0.125`. A currency string `'$1,200'` becomes `1200` with the symbol recorded as the column's currency. The symbol may sit at the start or the end of the string.
+
+Prefer real numbers in rows when you control the data. Strings exist for data that arrives from files and spreadsheets.
+
+## Dates
+
+Temporal cells can be `Date` objects, ISO strings (`'2024-02-01T00:00:00Z'` reads as `datetime`), or dates written the way people write them. Recognised string shapes, with `/`, `-`, `.`, or a space as separator:
+
+- Day, month, and year in the parsing locale's order: `'01/02/2024'`, `'1 February 2024'`, `'February 1, 2024'`.
+- Month and year: `'February 2024'`, `'2024-02'`.
+- Quarter: `'Q1 2024'`.
+- Day and month without a year: `'1 February'`, `'February 1'`.
+- Month only: `'February'` or `'Feb'`.
+- Bare years: `'2024'` or `2024` (see the year rule above).
+
+Short month names (`Feb`) and long ones (`February`) both work. Dates are parsed to UTC.
+
+When a format has no year (`month`, `day_month`, `weekly_date_range`), the graph shows the value without a year as well. Values that fail to parse under the column's format become `null`.
+
+## Parsing locale and formatting locale
+
+Two locales are involved, and they default differently.
+
+The parsing locale decides how ambiguous strings are read. `'01/02/2024'` is 1 February in `en-GB` and 2 January in `en-US`. Data is parsed with `en-GB` order (day first) unless the data carries a parsing locale in its metadata. That metadata field is not part of the public `Data` type, so when your dates are month-first strings, do one of these instead:
+
+- Pass `Date` objects or ISO strings. They are read the same way in every locale.
+- Declare the column with a `dateFormat`: `{ type: 'date', dateFormat: 'MM/dd/yyyy' }`.
+
+The formatting locale decides how axis ticks, tooltips, legends, and labels are written: decimal and thousands separators, month names, currency symbols. It is `formattingLocale` on `GraphProvider` when set, otherwise `config({ parsingLocale })` in the spec, which defaults to `'en-US'`.
+
+```tsx
+import { GraphProvider, GraphRenderer, config, createSpec, geom, pipe, scale } from '@graphysdk/react';
 
 const data = {
-  columns: [{ key: 'month' }, { key: 'north' }, { key: 'south' }],
+  columns: [{ key: 'month' }, { key: 'revenue' }],
   rows: [
-    { month: 'Jan', north: 120, south: 90 },
-    { month: 'Feb', north: 140, south: 100 },
+    { month: '2024-01', revenue: 1200.5 },
+    { month: '2024-02', revenue: 1350.25 },
   ],
 };
 
-const input = pipe(
-  createSpec(),
-  transform.reshape({ reshape: ['north', 'south'], keyName: 'region', valueName: 'sales' }),
-  mapping({ x: 'month', y: 'sales', color: 'region' }),
+const spec = pipe(
+  createSpec({ x: 'month', y: 'revenue' }),
   geom.line(),
+  scale.x(),
+  scale.y(),
+  config({ parsingLocale: 'pt-PT' })
+);
+
+export function PortugueseGraph() {
+  return (
+    <GraphProvider data={data} spec={spec} formattingLocale="pt-PT">
+      <GraphRenderer />
+    </GraphProvider>
+  );
+}
+```
+
+`config({ parsingLocale })` is also the locale used to read values written inside the spec, such as a date in a highlight predicate or an annotation anchor. Set it to match the data when the two differ.
+
+Supported locales: `'en-GB'`, `'en-US'`, `'pt-PT'`, `'ar'`. Durations always format in English.
+
+## Missing values
+
+`null`, `undefined`, an empty string, and `'-'` all read as missing. A row where every cell is missing is dropped. Everything else stays and becomes `null` for that cell.
+
+How a missing value is drawn depends on the geom. Lines and areas take a `missingValues` param:
+
+```ts
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const gapLine = pipe(
+  createSpec({ x: 'month', y: 'revenue' }),
+  geom.line({ params: { missingValues: 'gap' } }),
+  scale.x(),
+  scale.y()
+);
+
+const bridgedLine = pipe(
+  createSpec({ x: 'month', y: 'revenue' }),
+  geom.line({ params: { missingValues: 'connect' } }),
   scale.x(),
   scale.y()
 );
 ```
 
-`transform.reshape(options)` collapses numeric columns into two new variables:
+- `'gap'` breaks the line at the missing observation. Default for lines.
+- `'connect'` skips the missing observation and joins its neighbours.
+- `'zero'` draws the missing observation as zero. Default for areas, which cannot show a gap inside a stack; an area asked for `'gap'` draws `'zero'`.
 
-| Option | Default | Meaning |
-|---|---|---|
-| `reshape` | numeric variables not named in `keep` | Columns to collapse into rows. Numeric only — reshaping a categorical/temporal column is an error. |
-| `keep` | all categorical/temporal variables | Columns carried through unchanged. |
-| `keyName` | `'key'` | New categorical column holding the source column names. Must not collide with a kept column. |
-| `valueName` | `'value'` | New numeric column holding the values. Same collision rule. |
+Bars and points have no `missingValues` param.
 
-With all defaults, `transform.reshape()` melts every numeric column and keeps the rest — often
-exactly right for a wide table. If the source columns share a format (all currency), the value
-column keeps it; if they differ, the value column gets a `lookup` format keyed on `keyName`, so each
-series still displays in its own format (a `lookup` column cannot be reshaped again). A mixed-format value column is still one axis holding two
-units, so observations across it are not comparable — an `annotation.differenceArrow` spanning them
-compiles with an `INCOMPARABLE_ARROW_ENDPOINTS` warning (`reference/storytelling.md`).
+## Wide and long data
 
-## Gotchas
+A graph with one group per column (one column per region, per year, per product) is wide data. The mapping works on long data, where one column holds the group name and one holds the value. `transform.reshape` folds wide numeric columns into two long ones.
 
-- **Month names are dates, not categories.** A column of `'Jan'`, `'Feb'`, … infers as temporal
-  `month`; each cell becomes a real date and picks up a synthetic year in row order. A stray
-  non-month cell like `'Total'` becomes `null` — filter summary rows out before charting. Short and
-  long forms (`'Feb'`/`'February'`) can be mixed.
-- **Mixed-type columns fail silently.** Only the first non-empty cell picks the format.
-  `['12', 'n/a', '15']` keeps two values; `['n/a', '12', '15']` makes the whole column `text`.
-- **Bare 4-digit numbers are decimals, not years** — unless the column passes the year pass (its
-  first 5 non-empty rows hold ≥ 2 values in 1800–2199). A y-axis over 2020–2023 then shows `2,020`.
-- **Inference cannot read intent — declare it.** A count column whose first rows sit in 1800–2199
-  (headcount 2010, 2050) is read as years; digit-string ids meant as categories infer as numbers.
-  Set `valueFormat: { type: 'integer' }` or `{ type: 'text' }` on the column rather than bending
-  the data. A year column belongs on `scale.x.datetime()`; `scale.x.continuous()` over it fails
-  with `INCOMPATIBLE_TYPE`.
-- **Numeric dates depend on locale.** `'01/02/2022'` flips month/day between `'en-US'` and the
-  `'en-GB'` parsing default. Unambiguous forms are locale-proof.
-- **Column keys must match row keys exactly.** A `columns` entry whose key appears in no row is
-  dropped, and mapping to it fails downstream.
-- **`'-'` means empty**, not a minus sign or a category.
+```ts
+import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+
+const wide = {
+  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }],
+  rows: [
+    { month: 'Jan', North: 120, South: 95 },
+    { month: 'Feb', North: 150, South: 110 },
+  ],
+};
+
+const spec = pipe(
+  createSpec(),
+  transform.reshape({ keep: ['month'], reshape: ['North', 'South'], keyName: 'region', valueName: 'revenue' }),
+  mapping({ x: 'month', y: 'revenue', color: 'region' }),
+  geom.bar({ position: 'dodge' }),
+  scale.x(),
+  scale.y()
+);
+```
+
+Every option is optional. By default all categorical and temporal columns are kept and all numeric columns are folded; the new columns are named `key` and `value`. When the folded columns had different value formats (one currency, one percentage), the value column keeps them per observation, so tooltips still format each group its own way.
+
+`mapping(...)` is another way to add the mapping; `createSpec({ x: 'month', y: 'revenue', color: 'region' })` followed by the transform builds the same spec. Item order does not matter. The transform throws an `INVALID_DATA_SHAPE` error when a folded column is not numeric, or when `keep` contains `keyName` or `valueName`.
+
+## From data type to scale
+
+`scale.x()`, `scale.y()`, and `scale.ySecondary()` with no arguments infer the scale kind from the mapped column's data type. A colour scale is added for you when none is declared: a palette by default, or one inferred from the column under a tile. Declare `scale.color.continuous()`, `scale.color.discrete()`, or `scale.color.palette()` to choose.
+
+- numeric position: continuous.
+- categorical position: band (one slot per distinct value).
+- temporal position: datetime, with date-aware ticks.
+
+Geoms can override this. A bar's main axis is always a band, even for numbers or dates, so `geom.bar()` with a numeric `x` places one bar per distinct value. Declaring `scale.x.continuous()` under a bar is reported as a warning and replaced by a band. A tile also needs bands on both axes. A bar or area holds zero on its value axis, so a `domainMin` above zero is overruled there with a warning. An undeclared `x` or `y` scale raises no diagnostic; the geom is simply not placed.
+
+To force a kind, call the typed builder: `scale.x.datetime()`, `scale.x.discrete()`, `scale.y.log()`. Options such as `domainMin` and `reverse` can be passed to the inferred form as well: `scale.y({ domainMin: 0 })`. See spec.md § Scales.
+
+## Loading files with data-import-utils
+
+`@graphysdk/data-import-utils` turns CSV, TSV, JSON, and spreadsheet files into the `{ columns, rows }` shape. The delimited and spreadsheet parsers generate column keys `c1`, `c2`, ... and put the header text into `label`, so a spec maps the generated keys, or looks a key up by label. `hasHeader` (default `true`) says whether the first row is the header.
+
+```ts
+import { fromCSV } from '@graphysdk/data-import-utils/csv';
+import { createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+const data = fromCSV('Month,Revenue\nJan,120\nFeb,150');
+// data.columns: [{ key: 'c1', label: 'Month' }, { key: 'c2', label: 'Revenue' }]
+
+const revenueKey = data.columns.find((column) => column.label === 'Revenue')?.key ?? 'c2';
+const spec = pipe(createSpec({ x: 'c1', y: revenueKey }), geom.bar(), scale.x(), scale.y());
+```
+
+In those parsers numeric strings become numbers at import, using the `locale` option (`'EN_US'`, `'EN_GB'`, `'PT_PT'`, `'AR'`, default `'EN_US'`) to read thousands and decimal separators. Spreadsheet dates come back as ISO strings and booleans as `1` or `0`. Everything else stays a string, and the graph infers types from there as described above.
+
+`fromJSON` is different. It accepts a JSON string, an array of row objects (columns are the union of keys, in first-seen order), or a `{ columns, rows }` table. Keys are kept as they are, `locale` is ignored, strings and numbers pass through, booleans become `'true'` or `'false'`, and nested values are stringified.
+
+Imported columns are typed `{ key, label? }` and carry no `valueFormat`. To add one, map them into new column objects typed as the graph's `Data`:
+
+```ts
+import { fromCSV } from '@graphysdk/data-import-utils/csv';
+import type { Data } from '@graphysdk/react';
+
+const imported = fromCSV('Code,Price\n0042,19.9\n0043,24.5');
+
+const data: Data = {
+  columns: imported.columns.map((column) =>
+    column.label === 'Code' ? { ...column, valueFormat: { type: 'text' } } : column
+  ),
+  rows: imported.rows,
+};
+```
+
+Each format has its own subpath so only its parser is bundled. The root entry exports types only.
+
+```ts
+import { fromXLSX } from '@graphysdk/data-import-utils/xlsx';
+import { fromJSON } from '@graphysdk/data-import-utils/json';
+import { fromText } from '@graphysdk/data-import-utils/text';
+import { fromBuffer } from '@graphysdk/data-import-utils/buffer';
+import { fromFile } from '@graphysdk/data-import-utils/file';
+import { fromURL } from '@graphysdk/data-import-utils/url';
+
+const fromSheet = await fromXLSX(buffer, { sheet: 'Revenue' });
+const fromJsonText = fromJSON('[{ "month": "Jan", "revenue": 120 }]');
+const fromAnyText = fromText(csvString, 'csv', { locale: 'EN_GB', hasHeader: true });
+const fromAnyBuffer = await fromBuffer(buffer, 'xlsx');
+const fromDisk = await fromFile('sales.csv');
+const fromWeb = await fromURL('https://example.com/sales.csv', {
+  headers: { Authorization: 'Bearer token' },
+  timeout: 10_000,
+  signal: controller.signal,
+});
+```
+
+`fromFile` reads from disk and needs Node. In the browser read the file with the File API and hand the text to `fromCSV` or `fromTSV`, or the `ArrayBuffer` to `fromXLSX`, `fromXLS`, or `fromODS`. Spreadsheet parsers read the first sheet unless `sheet` is given, by name or index. `fromURL` takes fetch `headers`, a `timeout` in milliseconds (default 30 seconds), and an abort `signal`. The `maxFileSize`, `maxRows`, and `maxCells` limits throw when exceeded.
+
+## Pitfalls
+
+- A column whose first cell is a number but whose later cells are text is numeric, and the text cells become `null`. Declare `{ type: 'text' }` when a column mixes.
+- IDs, postcodes, and product codes made of digits are read as numbers. Declare `{ type: 'text' }`.
+- Month-first date strings (`'02/01/2024'` meaning 1 February) are read day-first. Use `Date` objects, ISO strings, or a column `dateFormat`.
+- Percentages are fractions. A `percentage` column with the value `45` shows as `4500%`. Store `0.45`, or use `'45%'` strings.
+- One column per group is wide data. Reshape it, or map the column directly to `y` when you only need one group.
+- Row keys must match column keys exactly, including case. Mappings name the column `key`, never the `label`.

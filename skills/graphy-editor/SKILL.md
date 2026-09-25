@@ -78,7 +78,7 @@ persist.
 | Canvas-only annotation editing (no panel) | `recipes/annotation-canvas.md` |
 | A complete tabbed editor UI with the pre-built panel | `recipes/tabbed-editor.md` |
 | Adopt my design system in the panel | `recipes/design-system.md` |
-| Author the spec/styles/annotations themselves; install the SDK | the `graphy-charts` skill (`reference/install.md` there for setup) |
+| Author the spec/styles/annotations themselves; install the SDK | the `graphy-charts` skill (`reference/setup.md` there for setup) |
 
 ## Hard rules
 

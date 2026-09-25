@@ -1,128 +1,72 @@
 # Neo Brutalist
 
-Technique: config + stylesheet + theme tokens (no plugins). One optional `Swatch` slot for hollow-forecast legend keys. Everything the chart *draws* — sheet, frame, grid, engine text, bar borders, legend pills, tooltip — is a `styles()` entry; config only decides what exists and where it sits, and theme tokens dress only the header and footer type. See `reference/styling.md` for the cascade.
+A theme is a stylesheet plus config. It is not a provider prop. Pipe it into the spec with `styles({ extends: [theme] })`. Fonts are loaded by the host page, not by the chart.
 
-Near-black sheets (`#171717`, square corners) framed by a 1px dashed border, with acid `#C8FF00` reserved strictly for data — chrome stays grey. Cartesian bar charts trade the dashed bottom edge for a solid 2px acid baseline the bars sit on; gridlines are solid 1px grey rows. All engine text is Space Grotesk 500 at 10px; titles are uppercase rich text with acid accent words.
+Near-black sheets, square corners, a dashed chrome-grey frame, Space Grotesk, and acid green kept for data only. Render with `colorScheme="dark"`.
 
-Chrome strokes take a `lineType` of `'solid' | 'dashed' | 'dotted'`, and the engine draws the dash array for each: `dashed` is a tight `2 3`, `dotted` a `1 3` stipple. The frame takes `dashed` — at 1px it reads hand-drawn — and the grid rows stay solid, which holds the row rhythm at this weight better than a stipple.
-
-## Constants
-
-```ts
-export const NB_COLORS = {
-  background: '#0B0B0B', // page (outside the chart)
-  surface: '#171717', // sheets, radius 0
-  body: '#F0F0F0', // primary text and the white series
-  secondary: '#8A8A8A', // secondary text and the grey series
-  acid: '#C8FF00', // the accent — data only
-  acidDim: '#9AB800', // overflow series slot
-  greyMid: '#4A4A4A', // muted series
-  greyDeep: '#2E2E2E', // ghost series / remainder tracks
-  chrome: '#333333', // grid rows, tick lines, and the dashed frame
-  metaRule: '#3A3A3A', // dashed rule (page chrome)
-} as const;
-
-export const NB_FONT_FAMILY = {
-  heading: '"Space Grotesk", Inter, sans-serif', // headings and engine text
-  body: 'Inter, "Helvetica Neue", Arial, sans-serif', // the shared base
-} as const;
-
-export const NB_DONUT_RAMP = [
-  NB_COLORS.acid,
-  NB_COLORS.body,
-  NB_COLORS.secondary,
-  NB_COLORS.greyMid,
-  NB_COLORS.greyDeep,
-];
-```
-
-## Theme
-
-The stylesheet paints the plot and the tooltip, legend items and direct series labels; theme tokens are left with the HTML header and footer. `fontFamilyHeading` is the family a plain-string title takes; `fontFamilyDefault` is what a plain-string subtitle, caption and the source line take (and the measurement fallback) — the rich-text title and sub line below inherit the host page's font unless their `textStyle` mark names `font` (they do, via the `fontFamily` alias). `textPrimary` inks the title, subtitle and caption; `textSecondary` only the source line. Pie labels are data labels and take the `style.dataLabel` entry below. The legend overflow "+N" pill and its popover still read theme tokens (`legendBackground`, `legendBorderColor`, `legendTextColor`, `fontLegendLabel`, `tooltip*`), so a narrow legend collapses into an unstyled pill unless those are set too.
-
-```ts
-import type { ThemeOverrides } from '@graphysdk/react-renderer';
-
-export const neoBrutalistTheme: ThemeOverrides = {
-  // Header and footer text: title, subtitle and caption in body white; the source line in grey.
-  textPrimary: NB_COLORS.body,
-  textSecondary: NB_COLORS.secondary,
-  fontFamilyDefault: NB_FONT_FAMILY.body,
-  fontFamilyHeading: NB_FONT_FAMILY.heading,
-};
-```
-
-## Shared stylesheet builder
-
-The sheet paint: square corners, chrome-grey dashed frame (the built-in 1px graph ring survives, so it is recolored chrome too), solid grid rows, and Space Grotesk 500 at 10px across axis, tick, data, direct and legend labels — `style.graph({ fontFamily })` sets the family once for every text target. The tooltip sits on the same sheet: surface ground, square, chrome-grey ring, no shadow; `style.tooltip.primaryRow({ background })` and `style.headlineItem.label` / `.trend.up` / `.trend.down` / `.trend.flat` are not set, so they keep their built-in paint. Cartesian bar charts pass `hasAcidBaseline` to swap the dashed bottom edge for the solid acid rule the bars stand on: the bare `style.panelBorder` sets all four edges, and the `.bottom` entry after it redeclares that one — within a list, the last matching entry wins.
-
-```ts
-import { style, styles } from '@graphysdk/viz-engine';
-
-const createNeoBrutalistStyles = (options: { hasAcidBaseline?: boolean } = {}) =>
-  styles({
-    defaults: [
-      // Space Grotesk for every text target: axis, ticks, data and direct labels, legend, tooltip.
-      style.graph({ background: NB_COLORS.surface, borderColor: NB_COLORS.chrome, borderRadius: 0, fontFamily: NB_FONT_FAMILY.heading }),
-      style.axisLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
-      style.tickLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.secondary }),
-      style.dataLabel({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
-      // No `textColor`: an authored one replaces the series color on every end label, and the
-      // acid lead is meant to reach its own label.
-      style.directLabel({ fontSize: 11, fontWeight: 500, lineHeight: 1.4 }),
-      // The built-in legend item is already bare text (no background, no border); only type and ink are set.
-      style.legendItem({
-        fontSize: 10,
-        fontWeight: 500,
-        lineHeight: 1.4,
-        textColor: NB_COLORS.body,
-      }),
-      // Tooltip on the sheet: surface ground, square, chrome-grey ring, no shadow.
-      style.tooltip({
-        background: NB_COLORS.surface,
-        borderColor: NB_COLORS.chrome,
-        borderWidth: 1,
-        borderRadius: 0,
-        shadow: 'none',
-      }),
-      style.tooltip.heading({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
-      style.tooltip.label({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.secondary }),
-      style.tooltip.value({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
-      style.gridLine({ lineType: 'solid', strokeWidth: 1, color: NB_COLORS.chrome }),
-      // The built-in tick line is 0 wide and 0 long, so a color alone paints nothing.
-      style.tickLine({ color: NB_COLORS.chrome, strokeWidth: 1, length: 4 }),
-      style.panelBorder({ lineType: 'dashed', strokeWidth: 1, color: NB_COLORS.chrome, borderRadius: 0 }),
-      ...(options.hasAcidBaseline === true
-        ? [style.panelBorder.bottom({ lineType: 'solid', strokeWidth: 2, color: NB_COLORS.acid })]
-        : []),
-    ],
-  });
-```
-
-`fontSize` on a style target is a plain px number (a rich-text mark's `fontSize` is not — see the title helpers); `borderRadius` on `graph` and `panelBorder` is plain pixels, `0` for the square corners this style is built on.
-
-## Shared config builder
-
-```ts
-import { config } from '@graphysdk/viz-engine';
+```tsx
+import { config, style, styles, type GraphSlots, type SwatchSlotProps } from '@graphysdk/react';
 import type { RichTextContent } from '@graphysdk/viz-engine';
 
-// Shared container grammar: a generous 32px margin, x axis bare, y axis ruled.
-const createNeoBrutalistConfig = (options: { legendPosition?: 'none' | 'top' | 'right' } = {}) =>
-  config({
-    legend: { position: options.legendPosition ?? 'none' },
-    layout: {
-      padding: 32,
-    },
-    axes: {
-      x: { position: 'bottom', grid: { isVisible: false }, ticks: { isVisible: false } },
-      y: { position: 'left', grid: { isVisible: true } },
-    },
-  });
+export const NB_COLORS = {
+  background: '#0B0B0B',
+  surface: '#171717',
+  body: '#F0F0F0',
+  secondary: '#8A8A8A',
+  acid: '#C8FF00',
+  acidDim: '#9AB800',
+  greyMid: '#4A4A4A',
+  greyDeep: '#2E2E2E',
+  chrome: '#333333',
+} as const;
 
-// Uppercase title with per-segment acid accents. A mark `fontSize` is n/10 em of its parent, so 24 is
-// 2.4em of the h1 (itself 2em of the 10px root), not 24px; the mark sets no weight, so the h1's 700 stands.
-const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
+export const NB_DONUT_RAMP = [NB_COLORS.acid, NB_COLORS.body, NB_COLORS.secondary, NB_COLORS.greyMid, NB_COLORS.greyDeep];
+
+// Load Space Grotesk on the host page:
+// https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap
+export const NB_FONT_FAMILY = {
+  heading: '"Space Grotesk", Inter, sans-serif',
+  body: 'Inter, "Helvetica Neue", Arial, sans-serif',
+} as const;
+
+export const nbConfig = config({
+  legend: { position: 'none' },
+  axes: {
+    x: { position: 'bottom', grid: { isVisible: false }, ticks: { isVisible: false } },
+    y: { position: 'left', grid: { isVisible: true } },
+  },
+});
+
+export const nbTheme = styles({
+  defaults: [
+    style.graph({ fill: NB_COLORS.surface, cornerRadius: 0, fontFamily: NB_FONT_FAMILY.heading, padding: 32 }),
+    style.axisLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.body }),
+    style.tickLabel({ fontSize: 10, fontWeight: 500, lineHeight: 1.4, textColor: NB_COLORS.secondary }),
+    style.dataLabel({ fontSize: 10, fontWeight: 500, textColor: NB_COLORS.body }),
+    style.legendItem({
+      fontFamily: NB_FONT_FAMILY.heading,
+      fontSize: 10,
+      fontWeight: 500,
+      lineHeight: 1.4,
+      textColor: NB_COLORS.body,
+      fill: 'transparent',
+      stroke: 'transparent',
+    }),
+    style.directLabel({ fontFamily: NB_FONT_FAMILY.heading, fontSize: 10, fontWeight: 500, lineHeight: 1.4 }),
+    style.gridLine({ dashArray: [], strokeWidth: 1 }),
+    style.tickLine({ stroke: NB_COLORS.chrome }),
+    style.panelBorder({ dashArray: [2, 3], strokeWidth: 1, stroke: NB_COLORS.chrome, cornerRadius: 0 }),
+    // Every Neo Brutalist graph sets this per spec; it sits here so one theme covers it.
+    style.geom.bar({ cornerRadius: 'none' }),
+  ],
+});
+
+// Bar graphs trade the dashed bottom edge for a solid acid baseline.
+export const nbBaselineTheme = styles({
+  defaults: [style.panelBorder.bottom({ dashArray: [], strokeWidth: 2, stroke: NB_COLORS.acid })],
+});
+
+export const createNbTitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
   type: 'doc',
   content: [
     {
@@ -134,7 +78,7 @@ const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string 
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? NB_COLORS.body, fontFamily: NB_FONT_FAMILY.heading, fontSize: 24 },
+            attrs: { color: color ?? NB_COLORS.body, fontFamily: NB_FONT_FAMILY.heading, fontSize: '24px' },
           },
         ],
       })),
@@ -142,8 +86,7 @@ const createNeoBrutalistTitle = (segments: Array<{ text: string; color?: string 
   ],
 });
 
-// Sub line: `fontSize: 10` is 1em of the paragraph it sits in, not 10px.
-const createNeoBrutalistSubtitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
+export const createNbSubtitle = (segments: Array<{ text: string; color?: string }>): RichTextContent => ({
   type: 'doc',
   content: [
     {
@@ -154,164 +97,19 @@ const createNeoBrutalistSubtitle = (segments: Array<{ text: string; color?: stri
         marks: [
           {
             type: 'textStyle',
-            attrs: { color: color ?? NB_COLORS.secondary, fontFamily: NB_FONT_FAMILY.heading, fontSize: 10 },
+            attrs: { color: color ?? NB_COLORS.secondary, fontFamily: NB_FONT_FAMILY.heading, fontSize: '10px' },
           },
         ],
       })),
     },
   ],
 });
-```
 
-## Example: stacked bars on an acid baseline
-
-Surface-colored 1px borders cut hairline gaps between segments; the acid series carries the emphasis. Bar corner rounding is a token — `'none'` for the square corners this style is built on.
-
-```tsx
-import { config, createSpec, geom, mapping, pipe, scale, style, styles } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-
-const listingsData = {
-  columns: [{ key: 'year' }, { key: 'segment' }, { key: 'listings' }],
-  rows: [
-    { year: '2021', segment: 'UK', listings: 1060 },
-    { year: '2021', segment: 'International', listings: 330 },
-    { year: '2022', segment: 'UK', listings: 1000 },
-    { year: '2022', segment: 'International', listings: 310 },
-    { year: '2023', segment: 'UK', listings: 970 },
-    { year: '2023', segment: 'International', listings: 300 },
-    { year: '2024', segment: 'UK', listings: 930 },
-    { year: '2024', segment: 'International', listings: 280 },
-  ],
-};
-
-const listingsSpec = pipe(
-  createSpec(),
-  mapping({ x: 'year', y: 'listings', color: 'segment' }),
-  geom.bar({ position: 'stack' }),
-  styles({
-    defaults: [style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 1 })],
-  }),
-  scale.x(),
-  scale.y(),
-  scale.color.discrete({ domain: ['UK', 'International'], range: [NB_COLORS.acid, NB_COLORS.greyMid] }),
-  createNeoBrutalistConfig({ legendPosition: 'top' }),
-  createNeoBrutalistStyles({ hasAcidBaseline: true }),
-  config({
-    content: {
-      title: createNeoBrutalistTitle([
-        { text: 'Long-term ' },
-        { text: 'decline', color: NB_COLORS.acid },
-        { text: ' in listings.' },
-      ]),
-      isTitleVisible: true,
-      subtitle: createNeoBrutalistSubtitle([{ text: 'Listed companies by segment' }]),
-      isSubtitleVisible: true,
-    },
-  })
-);
-
-export function NeoBrutalistListingsChart() {
-  return (
-    <GraphProvider data={listingsData} input={listingsSpec} colorScheme="dark" themeOverrides={neoBrutalistTheme}>
-      <GraphRenderer sizing={{ mode: 'responsive' }} />
-    </GraphProvider>
-  );
-}
-```
-
-## Example: line race with weighted strokes and direct labels
-
-The lead series takes the acid 2.5px stroke, the follower the white 1.5px one. Map `strokeWidth` to the series and scale it: a mapped aesthetic is the cascade's data tier, so the width arrives with the encoding and the geom stays bare.
-
-```tsx
-import { config, createSpec, geom, mapping, pipe, scale } from '@graphysdk/viz-engine';
-import { GraphProvider, GraphRenderer } from '@graphysdk/react-renderer';
-
-const productValueData = {
-  columns: [{ key: 'month' }, { key: 'product' }, { key: 'value' }],
-  rows: [
-    { month: 'Jan', product: 'Product A', value: 120 },
-    { month: 'Jan', product: 'Product B', value: 105 },
-    { month: 'Feb', product: 'Product A', value: 180 },
-    { month: 'Feb', product: 'Product B', value: 115 },
-    { month: 'Mar', product: 'Product A', value: 150 },
-    { month: 'Mar', product: 'Product B', value: 140 },
-    { month: 'Apr', product: 'Product A', value: 220 },
-    { month: 'Apr', product: 'Product B', value: 130 },
-    { month: 'May', product: 'Product A', value: 260 },
-    { month: 'May', product: 'Product B', value: 170 },
-    { month: 'Jun', product: 'Product A', value: 300 },
-    { month: 'Jun', product: 'Product B', value: 205 },
-  ],
-};
-
-const productRaceSpec = pipe(
-  createSpec(),
-  mapping({ x: 'month', y: 'value', color: 'product', strokeWidth: 'product' }),
-  geom.line(),
-  scale.x(),
-  scale.y.continuous({ domainMin: 100 }),
-  scale.color.discrete({ domain: ['Product A', 'Product B'], range: [NB_COLORS.acid, NB_COLORS.body] }),
-  scale.strokeWidth.discrete({ domain: ['Product A', 'Product B'], range: [2.5, 1.5] }),
-  createNeoBrutalistConfig(),
-  createNeoBrutalistStyles(),
-  config({
-    legend: { position: 'right', display: 'direct' },
-    content: {
-      title: createNeoBrutalistTitle([{ text: 'Product A', color: NB_COLORS.acid }, { text: ' pulls ahead.' }]),
-      isTitleVisible: true,
-      subtitle: createNeoBrutalistSubtitle([{ text: 'Monthly value by product · index, Jan = 100' }]),
-      isSubtitleVisible: true,
-    },
-  })
-);
-
-export function NeoBrutalistProductRace() {
-  return (
-    <GraphProvider data={productValueData} input={productRaceSpec} colorScheme="dark" themeOverrides={neoBrutalistTheme}>
-      <GraphRenderer sizing={{ mode: 'responsive' }} />
-    </GraphProvider>
-  );
-}
-```
-
-## The hollow forecast bar and its Swatch slot
-
-Signature pattern: a forecast bar is a `transparent` fill behind an acid 1.5px border — invisible on solid acid bars, a crisp outline on the empty one:
-
-```ts
-geom.bar({ position: 'identity', params: { width: 0.6 } }),
-styles({
-  defaults: [style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.acid, borderWidth: 1.5 })],
-}),
-scale.color.discrete({ domain: ['actual', 'forecast'], range: [NB_COLORS.acid, 'transparent'] }),
-```
-
-The fill comes from the `color` mapping and the border from the stylesheet, so the two never contend: `defaults` entries apply only where no mapped aesthetic decided the value, and nothing maps to `borderColor`.
-
-Because the forecast series color is `transparent`, the default legend swatch would paint nothing. Fix with a `Swatch` slot (see `reference/slots.md`) that draws a hollow acid outline for that series:
-
-```tsx
-import { DefaultSwatch, type GraphSlots, type SwatchSlotProps } from '@graphysdk/react-renderer';
-
-const NeoBrutalistSwatch = (props: SwatchSlotProps) => {
-  // The slot replaces the swatch on every surface; only the legend key is hollowed here.
-  if (props.surface !== 'legend') {
-    return (
-      <DefaultSwatch
-        shape={props.shape}
-        color={props.color}
-        lineType={props.lineType}
-        width={props.width}
-        height={props.height}
-        strokeWidth={props.strokeWidth}
-      />
-    );
-  }
+// A hollow forecast bar has a transparent colour, so the default swatch would paint nothing.
+// This swatch draws a square, acid-outlined for the forecast.
+const NbSwatch = (props: SwatchSlotProps) => {
   const width = props.width ?? 12;
   const height = props.height ?? 12;
-  // `label` is the formatted legend text, so match it as the legend prints it.
   const isHollow = props.label === 'forecast';
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
@@ -328,27 +126,45 @@ const NeoBrutalistSwatch = (props: SwatchSlotProps) => {
   );
 };
 
-const neoBrutalistSwatchSlots: GraphSlots = { Swatch: NeoBrutalistSwatch };
-// <GraphRenderer sizing={{ mode: 'responsive' }} slots={neoBrutalistSwatchSlots} />
+export const nbSlots: GraphSlots = { Swatch: NbSwatch };
 ```
 
-The slot is handed every swatch surface — `legend | tooltip | headline | callout | rule-label` — which is why it delegates all but the legend to `DefaultSwatch`. Only needed when a series color is `transparent`.
+Bars with a hollow forecast: its colour is transparent and every bar carries an acid stroke, so only the empty one shows an outline.
 
-## Fonts
+```tsx
+import { config, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale, style, styles, type Data } from '@graphysdk/react';
 
-`style.graph({ fontFamily })` applies Space Grotesk to the chart text, the title and sub-line marks' `fontFamily` to the rich-text header, and `fontFamilyHeading` / `fontFamilyDefault` to plain-string header/footer text; none of them loads a font — the host page must load Space Grotesk:
+const spec = pipe(
+  createSpec({ x: 'quarter', y: 'cpm', color: 'type' }),
+  geom.bar({ position: 'identity', params: { width: 0.6 } }),
+  scale.x(),
+  scale.y.continuous({ domainMin: 0, domainMax: 8 }),
+  scale.color.discrete({ domain: ['actual', 'forecast'], range: [NB_COLORS.acid, 'transparent'] }),
+  nbConfig,
+  nbTheme,
+  nbBaselineTheme,
+  styles({ defaults: [style.geom.bar({ stroke: NB_COLORS.acid, strokeWidth: 1.5 })] }),
+  config({
+    legend: { position: 'top' },
+    content: {
+      title: createNbTitle([{ text: 'CPM rips ' }, { text: 'past €6.', color: NB_COLORS.acid }]),
+      isTitleVisible: true,
+    },
+  })
+);
 
-```html
-<link
-  rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap"
-/>
+export const NbGraph = ({ data }: { data: Data }) => (
+  <GraphProvider data={data} spec={spec} colorScheme="dark">
+    <GraphRenderer slots={nbSlots} />
+  </GraphProvider>
+);
 ```
 
-## Other charts in this style
+Per graph:
 
-All three are polar, so they take `createNeoBrutalistStyles()` with no acid baseline, and carry their own bar entry for the cut between wedges.
-
-- Donut: `geom.bar({ position: 'fill' })` + `style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 3 })` + `coord.polar({ theta: 'y', innerRadius: 0.55 })`; colors from `NB_DONUT_RAMP`; percentage + category data labels outside.
-- Rose (coxcomb): `geom.bar({ position: 'identity', params: { width: 1 } })` + `style.geom.bar({ borderRadius: 'none', borderColor: NB_COLORS.surface, borderWidth: 1 })` + `coord.polar({ theta: 'x' })`; emphasised wedges in `acid`, the rest in `greyDeep`.
-- Racetrack: `geom.bar({ position: 'stack', params: { width: 0.9 } })` + `style.geom.bar({ borderRadius: 'none' })` + `coord.polar({ theta: 'y', innerRadius: 0.25 })`; achieved in `acid`, remainder in `greyDeep`; add `config({ layout: { gaps: { header: 20 } } })`.
+- Stacked bars: `NB_COLORS.acid` and `NB_COLORS.greyMid`, `style.geom.bar({ stroke: NB_COLORS.surface, strokeWidth: 1 })`, a top legend, `nbBaselineTheme`, and `nbSlots` on the renderer. The story uses the swatch slot on both bar graphs.
+- Lines: map `strokeWidth: 'product'` as well as colour, then `scale.strokeWidth.discrete({ domain: ['Product A', 'Product B'], range: [2.5, 1.5] })` so the lead line is bolder.
+- Donut: `NB_DONUT_RAMP`, `innerRadius: 0.55`, `stroke: NB_COLORS.surface, strokeWidth: 3` between slices, no baseline theme.
+- Rose (`coord.polar({ theta: 'x' })`, `params: { width: 1 }`): `NB_COLORS.acid` against `NB_COLORS.greyDeep`, `stroke: NB_COLORS.surface, strokeWidth: 1`.
+- Racetrack (stacked, `params: { width: 0.9 }`, `innerRadius: 0.25`): `NB_COLORS.acid` against `NB_COLORS.greyDeep`, plus `style.header({ margin: { bottom: 20 } })`.
+- Subtitles are rich text through `createNbSubtitle`, drawn small in the heading font.
