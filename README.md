@@ -38,39 +38,23 @@ Supports 50+ agents (Cursor, OpenCode, Cline, Codex, Claude Code, etc.) — make
 ## Repo layout
 
 ```
-skills/<skill-name>/            # canonical skills — what both channels ship (auto-discovered by the Claude Code plugin)
+skills/<skill-name>/            # published copy of the skills (auto-discovered by the Claude Code plugin)
 .claude-plugin/plugin.json      # Claude Code plugin manifest (skills/ is auto-discovered)
 .claude-plugin/marketplace.json # plugin marketplace manifest
-apps/graph-codegen/             # dev bench: agent + live preview for testing graphy-charts
+apps/graph-codegen/             # local chat bench: agent + live preview against the published skills
 llms.txt                        # source of truth for graphy.dev/llms.txt — the agent-facing link index
-pnpm-workspace.yaml             # workspace + catalog pinning the SDK versions used repo-wide
-package.json                    # deps for the skills' helper scripts
+pnpm-workspace.yaml             # catalog pinning the SDK version this copy was published with
 ```
+
+`skills/graphy-charts` and `skills/graphy-editor` are copied here from the Graphy monorepo when an npm publish succeeds. Edits to those folders on this repo are overwritten on the next publish. The SDK versions in `pnpm-workspace.yaml` are updated to that published version in the same step. `apps/graph-codegen` lives only in this repo and reads the published skill copy.
 
 ## Development
 
-This repo is a pnpm workspace. The Graphy SDK versions everything builds against are defined once, in the `catalog:` block of `pnpm-workspace.yaml`. To move to a new SDK release, bump them there, run `pnpm install`, and regenerate the type reference. The commands for that live in [MAINTAINING.md](MAINTAINING.md).
-
-```bash
-pnpm install
-
-# graphy-charts helper scripts (run from the repo root)
-node skills/graphy-charts/scripts/validate-spec.mjs path/to/spec.mjs   # compile a spec, print diagnostics
-node skills/graphy-charts/scripts/generate-types-reference.mjs        # regenerate reference/types.md (--check for CI)
-node skills/graphy-charts/scripts/check-samples.mjs                   # verify every code sample against the installed SDK
-
-# graphy-editor helper scripts
-node skills/graphy-editor/scripts/generate-types-reference.mjs        # regenerate the editing-surface types.md (--check for CI)
-node skills/graphy-charts/scripts/check-samples.mjs skills/graphy-editor   # same sample checker, pointed at the editor skill
-```
-
-`check-samples.mjs` is the guard against documentation drift: it resolves every `@graphysdk` import in
-the skill's fenced samples and typechecks each block against the packages currently installed. Run it
-after any SDK bump — a sample that no longer compiles is a doc that no longer works.
+Skill authoring, sample checks, type-reference generation, and evals live in the monorepo. See [MAINTAINING.md](MAINTAINING.md).
 
 ### Try graph-codegen: describe a graph, watch an agent build it
 
-`apps/graph-codegen` is the fastest way to see what these skills can do. It's a small chat bench where a Claude agent, given nothing but the `graphy-charts` skill, writes real `@graphysdk` chart code from your prompt and renders it in a live preview next to the conversation. Some things to try:
+`apps/graph-codegen` is a small chat bench where a Claude agent, given nothing but the published `graphy-charts` skill, writes real `@graphysdk` chart code from your prompt and renders it in a live preview next to the conversation. Some things to try:
 
 - **Upload a CSV** and ask it to visualize the data — it picks the chart type and the built-in theme that fit best.
 - **Upload a screenshot of any chart** you've seen elsewhere and ask it to recreate it with Graphy.
