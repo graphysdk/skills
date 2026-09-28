@@ -120,7 +120,7 @@ The package ships a single-file browser build at `dist/index.browser.mjs` (the p
       "react/jsx-runtime": "https://esm.sh/react@19.2.0/jsx-runtime",
       "react-dom": "https://esm.sh/react-dom@19.2.0",
       "react-dom/client": "https://esm.sh/react-dom@19.2.0/client",
-      "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1/dist/index.browser.mjs"
+      "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react/dist/index.browser.mjs"
     }
   }
 </script>
