@@ -1,9 +1,6 @@
 {
   "name": "@graphysdk/skills",
   "version": "1.0.0",
-  "scripts": {
-    "eval": "claude plugin eval . --trust-plugin --no-publish --runs 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/graphysdk/skills.git"
