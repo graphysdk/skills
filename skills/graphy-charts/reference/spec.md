@@ -508,3 +508,4 @@ Waterfall, funnel, mekko, and table are not chart types in this SDK. The old cha
 - Wide data (one column per group) needs `transform.reshape` before the mapping can name `color`. Put `mapping()` after the transform.
 - A `rule` draws one line per layer. Several reference lines are several `geom.rule` calls.
 - `area` cannot leave gaps. `missingValues: 'gap'` becomes `'zero'`.
+- Mapped `size` and `label` on a point do not appear in the default tooltip. The heading is x; the row is color plus y.

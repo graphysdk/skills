@@ -1,6 +1,6 @@
 ---
 name: graphy-charts
-description: Build charts in React with the Graphy SDK (@graphysdk/react). Covers install, data, specs, styling, annotations, slots, and custom geoms. Editing an existing chart is the graphy-editor skill.
+description: Build charts in React with the Graphy SDK (@graphysdk/react). Covers install, HTML artifacts via the jsDelivr CDN, data, specs, styling, annotations, slots, and custom geoms. Editing an existing chart is the graphy-editor skill.
 ---
 
 # Graphy charts
@@ -8,6 +8,8 @@ description: Build charts in React with the Graphy SDK (@graphysdk/react). Cover
 `@graphysdk/react` builds a chart from two inputs: a `data` table and a `spec`. You build the spec by piping small functions together. `GraphProvider` compiles the table and the spec. `GraphRenderer` paints the result.
 
 Start from the closest recipe before opening a reference. Recipes are complete components.
+
+HTML artifacts and any page with no bundler must use the HTML page in [setup](reference/setup.md), not this React component. Those hosts cannot `npm install` `@graphysdk/react`. Start with the jsDelivr CDN. If the chart is blank or the console refuses `cdn.jsdelivr.net`, follow the offline vendor steps in that same file. Never esm.sh. Never `@graphysdk/react@1` (that tag 404s).
 
 ## Minimal graph
 
@@ -64,7 +66,7 @@ Open one file, then use the contents list at the top of that file.
 
 | Task | Read |
 | --- | --- |
-| Install, CDN, brand mark | [setup](reference/setup.md) |
+| Install, HTML artifacts, jsDelivr CDN, offline vendor, brand mark | [setup](reference/setup.md) |
 | Data, dates, CSV | [data](reference/data.md) |
 | Mappings, geoms, scales, config | [spec](reference/spec.md) |
 | Provider, sizing, live data, dark mode | [React](reference/react.md) |
@@ -109,6 +111,10 @@ Themes are one file each under [recipes/themes](recipes/themes). Each file is a 
 - Build the spec once, or memoize it. A new spec object recompiles the chart.
 - A responsive chart with no parent height is zero pixels tall.
 - `@graphysdk/react` shows the brand mark unless the spec turns it off.
+- An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may be blocking the CDN: use the offline vendor steps there.
+- Never load React or Graphy from esm.sh. jsDelivr only.
+- `@graphysdk/react@1` 404s on jsDelivr. There is no stable 1.x yet. Use `@latest` or an exact published version.
+- Mapped `size` and `label` on a point or bubble do not appear in the default tooltip. The heading is x; the row is color plus y. Use annotations or a custom Tooltip slot for anything else.
 - Waterfall, funnel, mekko, and table are not chart types here. Say so and stop. Do not write a plugin for them.
 
 ## Checking a spec

@@ -44,15 +44,15 @@ the renderer differs. A complete editable chart:
 import { useRef, useState } from 'react';
 import { GraphProvider, useGraphHistoryShortcuts, type GraphHandle } from '@graphysdk/react-renderer';
 import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-import type { SpecInput, Data } from '@graphysdk/viz-engine';
+import type { Spec, Data } from '@graphysdk/viz-engine';
 
-function EditableChart({ data, initialSpec }: { data: Data; initialSpec: SpecInput }) {
+function EditableChart({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef); // ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z, Ctrl+Y
 
   return (
-    <GraphProvider input={spec} data={data} handleRef={handleRef} onChange={setSpec}>
+    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
       <EditableGraphRenderer mode="editable" />
     </GraphProvider>
   );
@@ -97,13 +97,13 @@ import map.
 The save surface is one callback on `GraphProvider`:
 
 ```ts
-onChange?: (next: SpecInput) => void;
+onChange?: (next: Spec) => void;
 ```
 
 - It fires **once per finished gesture** — a whole drag, a whole burst of typing into a title — not
-  per frame. Persist what it hands you (the `SpecInput` is plain JSON) and restore the chart later
+  per frame. Persist what it hands you (the `Spec` is plain JSON) and restore the chart later
   by passing it back as `input`.
-- The round-trip `input={spec} onChange={setSpec}` does not loop: the provider compares against
+- The round-trip `spec={spec} onChange={setSpec}` does not loop: the provider compares against
   what it last compiled, so its own change never re-triggers the callback.
 - Data is never edited. Commands change the spec only; `data` stays whatever you pass.
 
@@ -123,6 +123,6 @@ Editing surfaces reach the spec unevenly. From narrowest to widest:
 3. **Commands** — the full catalogue, including per-layer control the panel does not expose
    (`reference/commands.md`). Everything the canvas and panel do is commands underneath, so your
    code can do anything they can.
-4. **Rebuild the `SpecInput`** — anything no command covers yet. Build a new input with the
+4. **Rebuild the `Spec`** — anything no command covers yet. Build a new input with the
    authoring API (the `graphy-charts` skill) and pass it as `input`. This bypasses the undo
    history, so prefer a command when one exists.

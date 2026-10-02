@@ -10,9 +10,9 @@ import {
 } from '@graphysdk/react-renderer';
 import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
 import {
-  createSpec, pipe, mapping, geom, scale, config, annotation,
+  createSpec, pipe, mapping, geom, scale, config, annotation, style, styles,
   AddAnnotationCommand, RemoveAnnotationCommand, TEXT_ANNOTATION_DEFAULTS,
-  type Data, type SpecInput, type RichTextContent,
+  type Data, type Spec, type RichTextContent,
 } from '@graphysdk/viz-engine';
 
 const data: Data = {
@@ -31,7 +31,7 @@ const boldLine = (text: string): RichTextContent => ({
               content: [{ type: 'text', text, marks: [{ type: 'bold' }] }] }],
 });
 
-const annotatedSpec: SpecInput = pipe(
+const annotatedSpec: Spec = pipe(
   createSpec(),
   mapping({ x: 'quarter', y: 'revenue' }),
   geom.bar({ position: 'identity' }),
@@ -44,7 +44,11 @@ const annotatedSpec: SpecInput = pipe(
   annotation.shape({
     id: 'target-band', zOrder: 'background',
     region: { anchorType: 'panel', x: 0, y: 0, width: 1, height: 0.25 },
-    fillColor: '#f4a261', fillOpacity: 0.2, strokeWidth: 0,
+  }),
+  styles({
+    overrides: [
+      style.annotation.shape({ fill: '#f4a261', fillAlpha: 0.2, strokeWidth: 0 }, { annotation: 'target-band' }),
+    ],
   }),
   annotation.text({
     id: 'note', content: boldLine('Stretch zone'),
@@ -94,7 +98,7 @@ export function AnnotationCanvas() {
   useGraphHistoryShortcuts(handleRef);
 
   return (
-    <GraphProvider input={spec} data={data} handleRef={handleRef} onChange={setSpec}>
+    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, blockSize: 480 }}>
         <AnnotationToolbar handle={handleRef} />
         <div style={{ flex: 1, minBlockSize: 0 }}>

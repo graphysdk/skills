@@ -4,12 +4,12 @@
 
 Generated from `@graphysdk/viz-engine@1.8.0` and `@graphysdk/react-renderer@1.8.0`.
 
-> The exact public chart-authoring API, extracted verbatim (with JSDoc) from the
+> Selected chart-authoring declarations (with JSDoc), extracted from the
 > built `.d.ts` of `@graphysdk/viz-engine` and `@graphysdk/react-renderer`.
 > Check precise signatures, option keys, and accepted values here; see
-> `spec.md` for how the pieces compose. Every type these declarations
-> reference is defined in this file, most under "Supporting types" at the
-> end. The only opaque names are compiled/internal shapes an author never constructs: CreateSpecBuilderOptions, Dataset, FormattedAxis, FormattedHeadline, FormattedLegend, GeomCompilerInput, GeomStyleReaders, GeomSummaries, GraphHandle, HeadlineMeasurer, InteractiveOverlayApi, LayerIntroPlan, Observation, RegistryEntries, RegistryVocabularies, ResolvedLayerSpec, ResolvedPaint, STYLE_TARGETS, SceneLayerOf, SpecBuilder, StatCompilerInput, StyleBuilderTree, StyleReadersOf, TextMeasurer, TooltipContract, TransformStrategy, vars.
+> [spec.md](spec.md) for how the pieces compose. Supporting types follow the
+> main sections; React and standard-library types remain external. Legacy
+> GraphConfig alternatives are omitted. The only opaque names are compiled/internal shapes an author never constructs: CreateSpecBuilderOptions, Dataset, FormattedAxis, FormattedHeadline, FormattedLegend, GeomCompilerInput, GeomDefsOf, GeomStyleReaders, GeomSummaries, GraphHandle, HeadlineMeasurer, InteractiveOverlayApi, LayerIntroPlan, NodeBuilder, Observation, RegistryEntries, RegistryVocabularies, ResolvedLayerSpec, ResolvedPaint, STYLE_TARGETS, SceneLayer, SceneLayerOf, SpecBuilder, StatCompilerInput, StyleReadersForLayer, StyleReadersOf, TextMeasurer, TooltipContract, TransformStrategy, vars.
 
 ## Core & data
 
@@ -181,13 +181,14 @@ const coord: {
     polar: (params?: Partial<PolarCoordParams>) => PolarCoordSpec;
 };
 
-/** Factories for the stats a layer can apply (identity, count, smooth, mean, sum). */
+/** Factories for the stats a layer can apply (identity, count, smooth, mean, sum, summary). */
 const stat: {
     identity: typeof identity;
     count: typeof count;
     smooth: typeof smooth;
     mean: typeof mean;
     sum: typeof sum;
+    summary: typeof summary;
 };
 
 /** Factories for data transforms applied before charting (reshape, filter, sort, aggregate, constant). */
@@ -326,8 +327,9 @@ interface CustomTransformSpec<Name extends string = string> {
  * - `'smooth'` — Fit a regression curve through `(x, y)` and emit the fitted points
  * - `'mean'` — Reduce the dataset to a single observation holding the mean of `y`
  * - `'sum'` — Total `y` per x-axis value, per series
+ * - `'summary'` — Reduce `y` per x-axis value and group to an estimate and, when asked for, an interval
  */
-type StatName = 'identity' | 'count' | 'smooth' | 'mean' | 'sum';
+type StatName = 'identity' | 'count' | 'smooth' | 'mean' | 'sum' | 'summary';
 
 /**
  * Regression methods supported by the `smooth` stat.
@@ -371,7 +373,7 @@ type ConfigSpec = Omit<DeepPartial<ResolvedConfigSpec>, 'legend' | 'content'> & 
 function styles(stylesheet: Stylesheet): StylesheetSpec;
 
 /**
- * Typed builders for stylesheet entries — shorthand for the serialized {@link StyleRule} shape. The
+ * Typed builders for stylesheet entries — shorthand for the serialized `StyleRule` shape. The
  * path addresses an element (serialized into `select`), the options argument holds conditions
  * (serialized into `when`) plus the optional `id`. `style.geom` takes the paint every kind shares;
  * `style.geom.bar` stamps `select.kind = 'bar'` and opens the bar vocabulary, and the other kinds nest
@@ -383,13 +385,16 @@ function styles(stylesheet: Stylesheet): StylesheetSpec;
  * Annotations nest by kind like geoms: `style.annotation.shape` stamps `select.kind = 'shape'`, and the
  * `annotation` option narrows an annotation entry to one annotation, by id.
  *
+ * The default kit's builders: the built-in kinds and no plugin. A kit built with plugins carries
+ * theirs on `kit.style` as well.
+ *
  * @example
  *   styles({
  *     defaults: [style.geom({ fill: '#c9ced8' }), style.gridLine({ dashArray: [] })],
  *     overrides: [style.geom.bar({ cornerRadius: 'full' }, { where: { variable: 'sales', gt: 500 } })],
  *   })
  */
-const style: StyleBuilderTree;
+const style: StyleBuilders<[]>;
 
 /**
  * Reference a color from the stylesheet's token table.
@@ -428,8 +433,8 @@ interface StylesheetSpec extends Stylesheet {
  * edits. Within a list, order is specificity: the last matching entry that declares a property wins.
  */
 type StyleRule = {
-    [Root in keyof typeof STYLE_TARGETS]: RegistryEntries<(typeof STYLE_TARGETS)[Root]>;
-}[keyof typeof STYLE_TARGETS];
+    [Root in ChromeTargetName]: RegistryEntries<(typeof STYLE_TARGETS)[Root]>;
+}[ChromeTargetName] | GeomStyleRule;
 
 /** The declarations an entry can author, color-valued properties in any authored form. */
 type StyleDeclarations = StyleDeclarationsFor<AuthoredStyleDomainValues>;
@@ -453,8 +458,9 @@ type StyleProperty = (typeof STYLE_PROPERTY_NAMES)[number];
  * - `edge` / `axis` / `role` / `position` / `part` — restrict an entry to one partition of its
  *   target: a panel-border, legend, axis-label or tick-label edge; the axis a grid line, tick line,
  *   axis label or tick label belongs to; a data label's role and where it sits; a tooltip part;
- *   a heading level; a source link; a legend popover; a legend-item part; or an annotation's label.
- *   Absent, the entry addresses the whole target. A bare heading is a wildcard over `h1` and `h2`;
+ *   a heading level; a source link; a legend popover; a legend-item part; an annotation's label; or
+ *   one part of a plugin geom's mark. Absent, the entry addresses the whole target, and on a plugin
+ *   geom the part that paints its observations. A bare heading is a wildcard over `h1` and `h2`;
  *   a bare source is the label, not a wildcard over the link. `position` needs a role and stack
  *   totals (`aggregate`) always sit outside, so it never partitions them.
  */
@@ -699,7 +705,8 @@ type GraphAnimation = boolean | GraphAnimationProps;
 /** Per-kind animation settings. Each kind is independent: turning one off leaves the other running. */
 interface GraphAnimationProps {
     /**
-     * Settings for the intro animation played when the chart first mounts or the chart type changes.
+     * Settings for the intro animation played when the chart first mounts, or when its panel comes into view
+     * with `trigger: 'inView'`.
      * `false` disables it, an object overrides individual intro settings. Defaults on.
      */
     intro?: boolean | Partial<IntroAnimationOptions>;
@@ -871,7 +878,10 @@ interface SwatchSlotProps {
     shape: SwatchShape;
     /** The colour a stroke swatch draws with, and what a filled one falls back to without `paint`. */
     color: string;
-    /** The paint a filled swatch draws with, the owning geom's `fill`; a gradient, pattern or image beside a colour. */
+    /**
+     * The owning geom's gradient, pattern or image `fill`. A square or slice draws it; every other shape
+     * draws the one colour it stands in as, as its geom does.
+     */
     paint?: ResolvedPaint;
     surface: SwatchSurface;
     label?: string;
@@ -931,11 +941,11 @@ interface RenderOnlyPlugin {
  *
  * A geom declares its capabilities as fields and hooks with sensible base-class defaults; a subclass
  * overrides only what differs. The compile and runtime pipeline reads these declarations to decide
- * behaviour rather than branching on `type`, so a custom geom is a first-class participant.
+ * behavior rather than branching on `type`, so a custom geom is a first-class participant.
  *
  * What earns a place on the def: a field belongs here only if it answers a question a name-agnostic
  * pipeline stage must ask of *every* geom (e.g. "which coord systems do you support?", "what spatial
- * index do you paint into?"). A single geom's one-off behaviour is an optional hook that geom alone
+ * index do you paint into?"). A single geom's one-off behavior is an optional hook that geom alone
  * implements — never a shared flag the base class asserts for all geoms. Fields are grouped below by
  * the concern that consumes them.
  */
@@ -946,10 +956,18 @@ abstract class Geom<TParams = Record<string, never>> {
     readonly identityKey: IdentityKey;
     /** How overlapping marks of this geom arrange when the layer omits a position (bar → dodge, area → stack). */
     readonly defaultPosition: PositionAdjustment;
+    /**
+     * The stat a layer of this geom applies when it names none (a boxplot summarises its values; `null` passes
+     * the data through as `identity`). Registering the geom registers this stat with it, so a layer can also
+     * name it outright, or name `identity` to map already-summarised columns itself.
+     */
+    readonly defaultStat: Stat | null;
     /** Position adjustments this geom can render under; a layer position outside this set is rejected. */
     readonly supportedPositions: readonly PositionAdjustment[];
     /** Whether layers of this geom take part in hover hit-testing by default (rule opts out). */
     readonly defaultInteractive: boolean;
+    /** Whether this geom's observations take the hover alongside other layers', or only when none answers. */
+    readonly hoverPriority: HoverPriority;
     /**
      * The aesthetics this geom honours, each tagged by {@link GeomAesthetic} `kind`: a `'visual'` scaled
      * channel (`color`, `size`) or a `'data'` relational/layout input read straight from its mapped column
@@ -962,7 +980,11 @@ abstract class Geom<TParams = Record<string, never>> {
      * They don't exist in the input data, so they're exempt from the unknown-variable check.
      */
     readonly derivedVariables: readonly string[];
-    /** How this geom composes highlight matches above its base render; `null` opts out of highlighting. */
+    /**
+     * How this geom composes highlight matches above its base render; `null` opts out of highlighting.
+     * A geom opts in by naming the strategy its renderer can actually serve — an `overlay-anchor` geom
+     * has to supply `getOverlayAnchor`, or its layer dims with nothing raised above it.
+     */
     readonly highlightStrategy: HighlightStrategy | null;
     /** Scale-domain constraints this geom imposes (discrete band axis, zero-anchored y); unset = none. */
     readonly scaleConstraints?: ScaleConstraints;
@@ -989,6 +1011,8 @@ abstract class Geom<TParams = Record<string, never>> {
     readonly isComposite: boolean;
     /** The tooltip contract this geom declares. */
     readonly tooltip: TooltipContract;
+    /** What the mark paints: its observations, and each part beside them. Unset, the geom paints the shared vocabulary. */
+    readonly styleTarget?: GeomStyleTarget;
     /** Per-layer aggregate summaries this geom opts into (grand total, stack totals, per-group headline). */
     readonly summaries: GeomSummaries;
     /** Optional bespoke mapping requirement not expressible as a position role's `aes` source. */
@@ -1001,7 +1025,7 @@ abstract class Geom<TParams = Record<string, never>> {
     /**
      * Optional: the fraction of its band this geom occupies (a bar's `width`). An `axis` annotation
      * anchor aligns to that rather than the whole band, so `align: 'left'` lands where the geoms end.
-     * A geom that draws on the band centre with no width doesn't implement it.
+     * A geom that draws on the band center with no width doesn't implement it.
      */
     resolveBandFraction?: (params: ResolvedLayerSpec['params'], coordSystem: CoordSystem) => number;
     /**
@@ -1016,6 +1040,18 @@ abstract class Geom<TParams = Record<string, never>> {
      * the user's config override it.
      */
     resolveDataLabelDefaults?: (position: PositionAdjustment) => Partial<ResolvedDataLabelsSpec>;
+    /**
+     * Optional: place this layer's data labels, in panel pixels, under the coords {@link dataLabelCoordTypes}
+     * names; declaring one without the other is a registration fault. Called once per layer showing any label:
+     * honour the `context.layer.dataLabels.show*` flags that apply, and print through the context's formatters
+     * so labels match the axis and tooltip. Narrowing `context.layer` is sound because it is this geom's own.
+     */
+    getDataLabelPlacements?: (context: PluginPlacementContext) => PlacementResult;
+    /**
+     * Optional: what a `format: 'percentage'` label divides by. Resolved once per layer, before placement,
+     * since the context's formatter closes over it. Unimplemented, a percentage label prints its absolute value.
+     */
+    resolvePercentageValueStrategy?: (layer: SceneLayer, coordType: CoordType_2) => PercentageValueStrategy;
     /**
      * The geom's name. The built-in subclasses narrow this to a `GeomName` literal; the base accepts
      * any `string` so a custom geom carries a name outside the built-in union (runtime identity is a
@@ -1057,9 +1093,7 @@ type StatDefinition = Stat;
  *   The name is constrained to {@link GeomName}, so a by-name override of an unknown built-in is a
  *   compile-time error. To restyle a *custom* geom, rebind its definition (which you hold) via the first form.
  */
-function defineGeomRenderer<Definition extends Geom<unknown>>(definition: Definition, contract: GeomRenderContract): GeomRendererDefinition & {
-    readonly definition: Definition;
-};
+function defineGeomRenderer<Definition extends Geom<unknown>>(definition: Definition, contract: GeomRenderContract): BoundGeomRendererDefinition<Definition>;
 function defineGeomRenderer<G extends GeomName>(geom: G, contract: GeomRenderContract): ResolvedGeomRenderer;
 
 /**
@@ -1075,7 +1109,7 @@ interface GeomRendererDefinition extends ResolvedGeomRenderer {
 
 /**
  * Ergonomic entry point for a React app: pass `plugins` once and get back a {@link GraphyKit} — the
- * typed builder plus a `GraphProvider` that already carries them. Pure sugar over the primitives
+ * full typed builder plus a `GraphProvider` that already carries them. Pure sugar over the primitives
  * (`createSpecBuilder`, `<GraphProvider plugins>`); use those directly for headless or advanced
  * wiring. The `const` type parameter captures the `plugins` tuple literally, so `kit.geom.<customName>`
  * is typed.
@@ -1083,10 +1117,11 @@ interface GeomRendererDefinition extends ResolvedGeomRenderer {
 function createGraphyKit<const P extends readonly Plugin_2[] = []>(options?: CreateSpecBuilderOptions<P>): GraphyKit<P>;
 
 /**
- * A plugin-bound authoring kit: the typed `geom`/`stat`/`transform`/`scale`/`coord` factories plus
- * `createSpec`/`pipe`, and a `GraphProvider` pre-bound to the same `plugins` — so what can be written
- * and what can render derive from one array and cannot diverge. Generic over the `plugins` tuple so
- * the typed per-plugin builder methods (`geom.<name>`, …) flow through to the React entry point.
+ * A plugin-bound authoring kit: the whole typed {@link SpecBuilder} surface — every spec-item factory
+ * plus `createSpec`/`pipe` — and a `GraphProvider` pre-bound to the same `plugins`, so what can be
+ * written and what can render derive from one array and cannot diverge. Generic over the `plugins`
+ * tuple so the typed per-plugin builder methods (`geom.<name>`, …) flow through to the React entry
+ * point.
  */
 interface GraphyKit<P extends readonly Plugin_2[] = readonly Plugin_2[]> extends SpecBuilder<P> {
     GraphProvider: (props: Omit<GraphProviderProps, 'plugins'>) => ReactElement;
@@ -1105,6 +1140,13 @@ Types referenced by the sections above, included so no name dangles.
  * - { value: DataValue } (constant value applied to every observation)
  */
 type AestheticValue = string | VariableMapping | ValueMapping;
+
+/** A part carries `aesthetics` only when it declares them, as `createGeomStyleNode` stamps it. */
+type AestheticsSlot<Part> = Part extends {
+    aesthetics: infer Declared;
+} ? {
+    aesthetics: Declared;
+} : unknown;
 
 /***************************************************************
  * Aggregate Transform
@@ -1285,6 +1327,94 @@ interface AnnotationRegionAnchor {
  */
 type AnnotationZOrder = 'background' | 'foreground';
 
+/** The node shape walks and the compiler read; the literal types are only for derivation. */
+type AnyStyleTargetNode = StyleTargetNode;
+
+/**
+ * Represents a series of observations as a filled area. Multiple areas will be stacked on top of each other.
+ *
+ * Like the line geom, if the x variable is numeric or temporal, the data will be sorted by x.
+ */
+class AreaGeom extends Geom<AreaGeomParams> {
+    readonly type: "area";
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly strokeWidth: "pixels";
+                readonly dashArray: "dashArray";
+                readonly lineCap: "lineCap";
+                readonly lineJoin: "lineJoin";
+            };
+            readonly aesthetics: {
+                readonly fill: "color";
+                readonly fillAlpha: "alpha";
+                readonly strokeWidth: "strokeWidth";
+                readonly dashArray: "lineType";
+            };
+            readonly rest: {
+                readonly fill: StyleTokenRef;
+                readonly fillAlpha: 0.3;
+                readonly strokeWidth: 2;
+                readonly dashArray: readonly [];
+            };
+        };
+    };
+    /** An area fills the spider polygon under polar, so polar joins the cartesian pair. */
+    readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
+    readonly defaultParams: AreaGeomParams;
+    readonly defaultPosition: PositionAdjustment;
+    readonly scaleConstraints: ScaleConstraints;
+    readonly positionRoles: readonly [{
+        readonly axis: "x";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "min";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "max";
+        readonly valueKind: "value";
+        readonly aes: "y";
+    }];
+    readonly aesthetics: readonly [{
+        readonly kind: "visual";
+        readonly name: "color";
+    }, {
+        readonly kind: "visual";
+        readonly name: "strokeWidth";
+    }, {
+        readonly kind: "visual";
+        readonly name: "lineType";
+    }, {
+        readonly kind: "visual";
+        readonly name: "alpha";
+    }];
+    readonly summaries: GeomSummaries;
+    readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
+    readonly resolvePercentageValueStrategy: (layer: SceneLayer) => PercentageValueStrategy;
+    readonly isComposite = true;
+    readonly legend: LegendPolicy;
+    readonly highlightStrategy: "overlay-anchor";
+    /** The band between `yMin` and the value is painted, so a cursor inside it is on the observation. */
+    readonly spatialKind: SpatialKind;
+    /**
+     * Anchors on the observation's own vertex — the point the fill is drawn to — for either purpose. An
+     * area band has extent, but the eye follows its boundary; stacking moves the vertex up the column
+     * without changing which point stands for the observation.
+     */
+    readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
+    /** Areas can't render gaps mid-stack, so `missingValues: 'gap'` is normalised to `'zero'`. */
+    resolveParams(options: {
+        params: Record<string, unknown> | undefined;
+        diagnostics?: DiagnosticsSink;
+    }): Record<string, unknown>;
+    readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
+    compile({ data, mapping }: GeomCompilerInput): GeomCompileResult;
+}
+
 /**
  * Area-specific parameters.
  */
@@ -1407,8 +1537,110 @@ interface AxisTicksConfig {
     mode: AxisTickMode;
 }
 
+/**
+ * The canonical built-in geom defs, in registration order. The registry seeds from this tuple and the
+ * authoring surface recovers the built-in names from it, so {@link GeomName} stays cross-checked
+ * against the real defs (see {@link _GeomNamesMatchBuiltIns}).
+ */
+const BUILT_IN_GEOMS: readonly [BarGeom, PointGeom, LineGeom, AreaGeom, RuleGeom, TileGeom];
+
 /** A bar's rounding: a token scaled to the bar or a number of pixels. */
 type BarCornerRadius = BorderRadiusToken | number;
+
+/**
+ * Represents each observation as a rectangular bar spanning from a baseline (`yMin = 0`) to the
+ * y value (`yMax`), centered on its x band.
+ */
+class BarGeom extends Geom<BarGeomParams> {
+    readonly type: "bar";
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly cornerRadius: "barRadius";
+                readonly strokeWidth: "pixels";
+            };
+            readonly aesthetics: {
+                readonly fill: "color";
+                readonly alpha: "alpha";
+                readonly strokeWidth: "strokeWidth";
+            };
+            readonly rest: {
+                readonly fill: StyleTokenRef;
+                readonly fillAlpha: 1;
+                readonly cornerRadius: number | "none" | "xs" | "sm" | "md" | "lg" | "xl";
+                readonly strokeWidth: 1;
+                readonly stroke: StyleTokenRef;
+            };
+            readonly hovered: {
+                readonly stroke: StyleTokenRef;
+                readonly shadow: {
+                    readonly offsetX: 0;
+                    readonly offsetY: 4;
+                    readonly blur: 6;
+                    readonly color: "rgba(14, 14, 52, 0.16)";
+                };
+            };
+        };
+    };
+    readonly defaultParams: BarGeomParams;
+    readonly defaultPosition: PositionAdjustment;
+    readonly positionRoles: readonly [{
+        readonly axis: "x";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "min";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "max";
+        readonly valueKind: "value";
+        readonly aes: "y";
+    }];
+    readonly aesthetics: readonly [{
+        readonly kind: "visual";
+        readonly name: "color";
+    }, {
+        readonly kind: "visual";
+        readonly name: "alpha";
+    }];
+    readonly summaries: GeomSummaries;
+    readonly grid: Partial<Record<CoordType, GridPolicy>>;
+    readonly legend: LegendPolicy;
+    readonly scaleConstraints: ScaleConstraints;
+    readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    readonly dataLabelCoordTypes: readonly ["cartesian", "flip", "polar"];
+    readonly highlightStrategy: "observation-rerender";
+    readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
+    readonly spatialKind: SpatialKind;
+    /** Stacked/filled segments read best with centred labels, matching the auto placement for stacks. */
+    readonly resolveDataLabelDefaults: (position: PositionAdjustment) => Partial<ResolvedDataLabelsSpec>;
+    /** A bar spans `width` of its band, leaving breathing room either side that nothing paints into. */
+    readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordSystem: CoordSystem) => number;
+    /**
+     * Anchors at the `align` box-point of the bar's extent when the anchor names one — under polar, of
+     * the bounds the slice sweeps, so the same `align` names the same edge on a pie as on a bar.
+     *
+     * Otherwise at the middle of the band and along the value axis wherever
+     * {@link resolveValueAxisAnchor} puts it, or the slice midpoint under polar.
+     */
+    readonly resolveAnchorPosition: (observation: Observation, { coordSystem, position, purpose, align }: AnchorContext) => AnchorPosition | null;
+    /**
+     * Substitutes an undrawable `width` with a safe value and reports the substitution, so the same
+     * spec can't diverge across the React, canvas, and node renderers. A `width` outside `(0, 1]` has
+     * no renderable band — non-positive or non-finite values collapse or invert the band edges, and a
+     * value above `1` overlaps the neighbouring bands.
+     */
+    resolveParams(options: {
+        params: Record<string, unknown> | undefined;
+        diagnostics?: DiagnosticsSink;
+    }): Record<string, unknown>;
+    readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
+    readonly resolvePercentageValueStrategy: (layer: SceneLayer, coordType: CoordType_2) => PercentageValueStrategy;
+    compile({ data, mapping, params, coordType }: GeomCompilerInput): GeomCompileResult;
+    private resolveWidthParam;
+}
 
 /**
  * Bar/Column-specific parameters. `width` is geometry — it sets the band envelope the compiler
@@ -1450,6 +1682,10 @@ interface BaseGeomOptions<T extends GeomParams> {
     interactive?: boolean;
     dataLabels?: DataLabelsSpec;
 }
+
+type BaseStyleBuilderTree = {
+    readonly [Root in keyof typeof STYLE_TARGETS]: NodeBuilder<(typeof STYLE_TARGETS)[Root]>;
+};
 
 /**
  * Named corner-rounding scale for geoms that paint rect-like shapes. Semantic rather than a pixel
@@ -1539,6 +1775,8 @@ interface CategoricalValueFormat {
  * compile. Keys are registry roots other than `geom`.
  */
 type ChromeStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
+
+type ChromeTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
 
 /**
  * Options for a continuous `color` scale. Same as {@link ContinuousScaleOptions}, but the value maps to a
@@ -1736,6 +1974,10 @@ type CoordSpec = CartesianCoordSpec | FlipCoordSpec | PolarCoordSpec;
  */
 type CoordSystem = CartesianCoordSystem | PolarCoordSystem;
 
+type CoordSystemFor<C extends CoordType_2> = Extract<CoordSystem, {
+    type: C;
+}>;
+
 /**
  * Coordinate system type for transforming geometric positions.
  *
@@ -1744,6 +1986,9 @@ type CoordSystem = CartesianCoordSystem | PolarCoordSystem;
  * - `'flip'` — Cartesian with x and y axes swapped
  */
 type CoordType = (typeof COORD_TYPES)[number];
+
+/** Coord-system narrowed by `CoordSystem['type']`. */
+type CoordType_2 = CoordSystem['type'];
 
 /**
  * Resolved count stat spec.
@@ -1768,6 +2013,10 @@ interface CurrencyValueFormat {
  */
 type Curve = 'linear' | 'smooth';
 
+type CustomGeomStyleBuilders<P extends readonly Plugin[]> = {
+    [Def in GeomDefsOf<P> as [DeclaredStyleTarget<Def>] extends [never] ? never : Def['type'] & string]: NodeBuilder<GeomStyleNodeFor<Def['type'] & string, DeclaredStyleTarget<Def>>>;
+};
+
 /** A single named color slot within a custom palette supplied by the host. */
 type CustomPaletteColor = {
     id: string;
@@ -1780,6 +2029,15 @@ type CustomPaletteSpec = {
     type: 'custom';
     id: string;
 };
+
+/**
+ * The `role` partition of the dataLabel target — which on-canvas label an entry addresses.
+ *
+ * - `observation` — per-observation value labels.
+ * - `category` — per-observation category text placed as its own label beside the value label.
+ * - `aggregate` — labels over values derived from several observations, e.g. stack totals.
+ */
+const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
 
 /**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
@@ -1847,6 +2105,19 @@ type DataLabelJustify = DataLabelAlign | 'panel-start' | 'panel-end';
  */
 type DataLabelPosition = 'auto' | 'inside' | 'outside';
 
+/** Label role shared by placement, measurement and paint: per-observation, aggregate or category text. */
+type DataLabelRole = (typeof DATA_LABEL_ROLES)[number];
+
+/**
+ * Renderer-supplied measurer that knows which font to apply for each role at each position.
+ * Lets placement strategies measure text without the engine ever holding a `FontSpec`.
+ *
+ * Must return the label's final box — text metrics plus the renderer's own padding. The engine
+ * uses the returned `width`/`height` as `PlacedDataLabel.width`/`height`, adding no padding of
+ * its own.
+ */
+type DataLabelTextMeasurer = (role: DataLabelRole, position: ResolvedDataLabelPosition, text: string) => MeasuredText;
+
 /** User-facing data-labels options; any omitted field falls back to its resolved default. */
 type DataLabelsSpec = DeepPartial<Omit<ResolvedDataLabelsSpec, 'labelSource'>>;
 
@@ -1886,6 +2157,14 @@ interface DatetimeScaleSpec {
     reverse?: boolean;
     clamp?: boolean;
 }
+
+/** A vocabulary's declarations at one tier: each property optional, its value in the domain's shape. */
+type DeclarationsIn<Vocab extends StyleVocabulary, Tier extends Record<StyleDomain, unknown>> = {
+    [Property in keyof Vocab]?: Tier[Extract<Vocab[Property], StyleDomain>];
+};
+
+/** The style target a def declares. A def inheriting the base's optional field declares none. */
+type DeclaredStyleTarget<Def extends Geom<unknown>> = undefined extends Def['styleTarget'] ? never : NonNullable<Def['styleTarget']>;
 
 /**
  * Recursively makes every property of `T` optional.
@@ -1968,7 +2247,7 @@ type DiscreteScaleOptions<RangeValue extends number | string = number | string> 
     range?: RangeValue[];
     /**
      * Explicit domain values controlling category order and membership.
-     * Only these values appear in the scale.
+     * Only these values appear in the scale, except an x whose layers stand on the constant x, as a pie's.
      */
     domain?: Array<string | number>;
     /**
@@ -2032,6 +2311,11 @@ interface FilterTransformSpec {
     options: FilterOptions;
 }
 
+/** Flattened so a derived vocabulary is the same type as one written out by hand. */
+type Flatten_2<Shape> = {
+    [Key in keyof Shape]: Shape[Key];
+};
+
 type FlipCoordParams = BaseCoordParams;
 
 interface FlipCoordSpec {
@@ -2039,6 +2323,8 @@ interface FlipCoordSpec {
     coordType: 'flip';
     params?: Partial<BaseCoordParams>;
 }
+
+const GEOM_ENTRY_OPTIONS: readonly ["where", "state", "layer"];
 
 /**
  * An aesthetic a geom reads from its layer's mapping, tagged by how the engine treats it:
@@ -2077,7 +2363,7 @@ interface GeomMappingValidationInput {
     /** The layer's effective mapping (root + layer merged). */
     mapping: AesMapping;
     /** Aesthetics the layer's stat computes at compile time, which count as "provided". */
-    computedVariables: ReadonlySet<AestheticKey>;
+    computedVariables: ReadonlySet<string>;
 }
 
 /**
@@ -2091,6 +2377,17 @@ interface GeomMappingValidationInput {
  * - `'tile'` — Rectangular cell filling a band on both axes; the heatmap mark
  */
 type GeomName = 'point' | 'line' | 'area' | 'bar' | 'rule' | 'tile';
+
+/**
+ * What a geom's observations paint. The shared geom paint extends the declared vocabulary, so a chart
+ * wide `style.geom({ fill })` reaches the layer without it naming `fill`; `sharedPaint: false`
+ * declines that, for a kind whose mark speaks fewer words than every other.
+ */
+interface GeomObservationPart<Vocab extends StyleVocabulary = StyleVocabulary> extends GeomStylePart<Vocab> {
+    sharedPaint?: boolean;
+    /** The dash array each `lineType` preset draws as, when an aesthetic answers `dashArray`. Unset, a line's. */
+    dashPresets?: Readonly<Record<LineType, DashArray>>;
+}
 
 type GeomOptions<G extends GeomName> = BaseGeomOptions<GeomParamsMap[G]>;
 
@@ -2106,6 +2403,86 @@ interface GeomParamsMap {
     bar: BarGeomParams;
     rule: RuleGeomParams;
     tile: TileGeomParams;
+}
+
+/** The node {@link createGeomStyleNode} builds, in the literal types the builders and readers derive from. */
+type GeomStyleNodeFor<Kind extends string, Target> = {
+    select: {
+        target: 'geom';
+        kind: Kind;
+    };
+    vocabulary: ObservationVocabularyOf<Target>;
+    aesthetics: NonNullable<AnyStyleTargetNode['aesthetics']>;
+    options: OptionsOf<ObservationOf<Target>>;
+    children: {
+        [Part in keyof PartsOf<Target> & string]: {
+            select: {
+                target: 'geom';
+                kind: Kind;
+                part: Part;
+            };
+            vocabulary: VocabularyOf<PartsOf<Target>[Part]>;
+            options: OptionsOf<PartsOf<Target>[Part]>;
+        } & AestheticsSlot<PartsOf<Target>[Part]> & StateSlots<PartsOf<Target>[Part]>;
+    };
+} & StateSlots<ObservationOf<Target>>;
+
+/** One part of a geom's mark: the properties it paints and its built-in look in each state. */
+interface GeomStylePart<Vocab extends StyleVocabulary = StyleVocabulary> {
+    vocabulary: Vocab;
+    /**
+     * The entry options this part takes. Defaults to `where`, `state` and `layer`; a part styled as a
+     * whole — a rule's label — narrows it so an entry naming it carries no conditions.
+     */
+    options?: readonly EntryOption[];
+    /**
+     * The aesthetic that supplies each property's data-driven value. Only a part painted once per
+     * observation declares any (a lollipop's stem).
+     */
+    aesthetics?: {
+        [property: string]: AestheticKey | undefined;
+    };
+    rest?: VocabularyDeclarations<Vocab>;
+    dimmed?: VocabularyDeclarations<Vocab>;
+    hovered?: VocabularyDeclarations<Vocab>;
+}
+
+/**
+ * An entry addressing a geom's observations or one part of its mark. The kinds are not a set a type
+ * can enumerate — a kit registers its own — so the compile stage checks the declarations against the
+ * kind's declared vocabulary, and the type carries the address alone.
+ */
+interface GeomStyleRule {
+    id?: string;
+    select: GeomStyleSelect;
+    declarations: StyleDeclarations;
+    when?: WhenClause;
+}
+
+/**
+ * The address a geom entry carries. A part belongs to the kind that declares it, so an entry naming a
+ * part names its kind too; without one it addresses every kind's observations.
+ */
+type GeomStyleSelect = {
+    target: 'geom';
+    layer?: string;
+} & ({
+    kind: string;
+    part?: string;
+} | {
+    kind?: undefined;
+    part?: undefined;
+});
+
+/**
+ * The style target a geom registers. `observation` is the layer's own paint at
+ * `{ target: 'geom', kind }`: it reads the data tier and takes every geom entry that names no part.
+ * Each entry of `parts` sits at `{ target: 'geom', kind, part }`, takes only the entries naming it,
+ * and reads the data tier only through the `aesthetics` it declares.
+ */
+interface GeomStyleTarget {
+    observation?: GeomObservationPart;
+    parts?: Record<string, GeomStylePart>;
 }
 
 /** Output of the layout computation. */
@@ -2224,8 +2601,8 @@ interface HighlightBuilderOptions {
 }
 
 /**
- * How a geom composes highlight matches above its base render. Looked up per geom in
- * `HIGHLIGHT_STRATEGY_BY_GEOM` and stamped onto `SceneLayer.highlight.strategy` by
+ * How a geom composes highlight matches above its base render. Declared by each geom as
+ * `highlightStrategy` and stamped onto `SceneLayer.highlight.strategy` by
  * the layer compiler. Tells the renderer how to consume {@link HighlightComposition}:
  *
  * - `'observation-rerender'`: re-render `composition.matchedLayer` through the same geom renderer
@@ -2273,6 +2650,12 @@ interface HoverHitBase {
      */
     observation: Observation;
 }
+
+/**
+ * `'low'` observations take the hover only where no normal-priority layer answers, for a geom drawn over another (an
+ * error bar on its bar) that must not take the hover from it. They still join the winner's tooltip as related.
+ */
+type HoverPriority = 'normal' | 'low';
 
 /**
  * What makes "the same observation" across recompiles, for morphs and hover stability.
@@ -2459,6 +2842,71 @@ type LegendSidePlacement = 'never' | 'whenCrowded' | 'whenStackedVertical';
 type LegendSpec = Partial<ResolvedLegendSpec>;
 
 /**
+ * Represents a series of points connected by a line.
+ *
+ * If the x variable is numeric or temporal, the data will be sorted by x (this is to ensure the line is connected in the correct order).
+ */
+class LineGeom extends Geom<LineGeomParams> {
+    readonly type: "line";
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly strokeWidth: "pixels";
+                readonly dashArray: "dashArray";
+                readonly lineCap: "lineCap";
+                readonly lineJoin: "lineJoin";
+            };
+            readonly aesthetics: {
+                readonly stroke: "color";
+                readonly strokeAlpha: "alpha";
+                readonly strokeWidth: "strokeWidth";
+                readonly dashArray: "lineType";
+            };
+            readonly rest: {
+                readonly stroke: StyleTokenRef;
+                readonly strokeWidth: 2;
+                readonly dashArray: readonly [];
+            };
+        };
+    };
+    /** A line connects the spider outline under polar, so polar joins the cartesian pair. */
+    readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
+    readonly defaultParams: LineGeomParams;
+    readonly positionRoles: readonly [{
+        readonly axis: "x";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }];
+    readonly aesthetics: readonly [{
+        readonly kind: "visual";
+        readonly name: "color";
+    }, {
+        readonly kind: "visual";
+        readonly name: "strokeWidth";
+    }, {
+        readonly kind: "visual";
+        readonly name: "lineType";
+    }, {
+        readonly kind: "visual";
+        readonly name: "alpha";
+    }];
+    readonly summaries: GeomSummaries;
+    readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
+    readonly isComposite = true;
+    readonly legend: LegendPolicy;
+    readonly highlightStrategy: "overlay-anchor";
+    readonly spatialKind: SpatialKind;
+    readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
+    readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
+    compile(input: GeomCompilerInput): GeomCompileResult;
+}
+
+/**
  * Line-specific parameters.
  */
 interface LineGeomParams {
@@ -2530,6 +2978,14 @@ type MatchScope = 'data-point' | 'series' | 'x-value';
  */
 interface MeanStatSpec {
     type: 'mean';
+}
+
+/** Pixel dimensions of a measured string, including the baseline split into ascent and descent. */
+interface MeasuredText {
+    width: number;
+    height: number;
+    ascent: number;
+    descent: number;
 }
 
 /**
@@ -2629,11 +3085,24 @@ interface ObservationAnchorSpec {
     align?: AnchorAlign;
 }
 
+type ObservationOf<Target> = Target extends {
+    observation: infer Observation;
+} ? Observation : Record<never, never>;
+
+/** What the observations paint: the declared vocabulary over the shared paint, unless they decline it. */
+type ObservationVocabularyOf<Target> = ObservationOf<Target> extends infer Observation ? Observation extends {
+    sharedPaint: false;
+} ? VocabularyOf<Observation> : Flatten_2<Omit<typeof SHARED_GEOM_VOCABULARY, keyof VocabularyOf<Observation>> & VocabularyOf<Observation>> : never;
+
 type OpenIdSelect<Options> = NonNullable<Options> extends readonly EntryOption[] ? ('layer' extends NonNullable<Options>[number] ? {
     layer?: string;
 } : unknown) & ('annotation' extends NonNullable<Options>[number] ? {
     annotation?: string;
 } : unknown) : unknown;
+
+type OptionsOf<Part> = Part extends {
+    options: infer Options extends readonly EntryOption[];
+} ? Options : typeof GEOM_ENTRY_OPTIONS;
 
 /**
  * Configure a different overflow strategy per direction.
@@ -2692,6 +3161,10 @@ interface PanelConfig {
  */
 type PanelOverflowStrategy = 'outside' | 'inside' | 'none';
 
+type PartsOf<Target> = Target extends {
+    parts: infer Parts;
+} ? Parts : Record<never, never>;
+
 type PastelPaletteSpec = {
     type: 'pastel';
     variant?: PastelPaletteVariant;
@@ -2699,6 +3172,18 @@ type PastelPaletteSpec = {
 
 /** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
 type PastelPaletteVariant = 'default' | 'waterfall';
+
+/**
+ * Names where the percentage-share denominator comes from for a layer. Strategies declare this
+ * once per (geom, position); the placement context owns the dispatch from kind → denominator.
+ *
+ * - `stack` — per-x stack total looked up on `summary.stackTotals` (sign-aware).
+ * - `fill` — segment's own normalised height (`|yMax − yMin|`); fill positions are pre-normalised
+ *   to 1 within each stack, so the segment height is its share by construction.
+ * - `absoluteGrandTotal` — `summary.absoluteGrandTotal` (Σ|y| across observations).
+ * - `none` — no share semantics; `format: 'percentage'` falls back to absolute regardless.
+ */
+type PercentageValueStrategy = 'stack' | 'fill' | 'absoluteGrandTotal' | 'none';
 
 /**
  * Pinned-number annotation: a marker dot pinned to a single observation. The
@@ -2709,6 +3194,82 @@ interface PinnedNumberAnnotationSpec {
     id?: string;
     at: ObservationAnchorSpec;
 }
+
+/**
+ * One placed label, ready for a renderer to paint. Coordinates are in panel-pixel space
+ * with origin at the panel's top-left — renderers translate into their own frame.
+ *
+ * Labels are placed independently, with no cross-label overlap resolution — paint each as given.
+ * (Contrast `computeDirectLabelsLayout`, which de-collides line-end labels against each other.)
+ */
+interface PlacedDataLabel {
+    /** Id of the layer this label belongs to, so the renderer can group/style by source layer. */
+    layerId: string;
+    x: number;
+    y: number;
+    text: string;
+    /** Box width/height in pixels, as returned by `measureDataLabel` (text + renderer padding). (x, y) is the box centre. */
+    width: number;
+    height: number;
+    /** When true, paint the label rotated -90° around `(x, y)`. */
+    isRotated: boolean;
+    /** Which on-canvas element this label decorates (per-observation vs stack total). */
+    role: DataLabelRole;
+    /** Where the label sits relative to its geom or stack. */
+    position: ResolvedDataLabelPosition;
+    /**
+     * The fill an `inside` label sits on, at the opacity it is painted with, so it may be translucent: the
+     * renderer composites it over the frame before picking the ink against it. Absent where the label sits on
+     * no fill of its own.
+     */
+    backdropColor?: string;
+}
+
+/**
+ * Pre-resolved per-layer state handed to a strategy: formatters and value readers already wired.
+ * No `scene` reference — strategies receive the formatters they need, so any future placement
+ * function depending on more of the scene must declare that dependency explicitly.
+ */
+interface PlacementContextFor<L extends SceneLayer, C extends CoordType_2> {
+    layer: L;
+    coordSystem: CoordSystemFor<C>;
+    panelRect: Rect;
+    measureDataLabel: DataLabelTextMeasurer;
+    /** The layer's style readers, for the size and fill a label is placed against. */
+    styleReaders: StyleReadersForLayer<L>;
+    /**
+     * Formatted text for a per-observation label. Reads the variable named by
+     * `layer.dataLabels.labelSource` (or the constant when the source is `{ value }`) and applies
+     * the matching formatter.
+     */
+    formatLabel: (observation: Observation) => string;
+    /**
+     * Always-axis-style formatter. Stack totals call this with their pre-aggregated total — they
+     * paint as absolute regardless of `layer.dataLabels.format` because a stack total is already
+     * a sum, not a share.
+     */
+    formatAbsolute: (value: DataValue) => string;
+    /**
+     * Formatted category text (the mapped x value, falling back to the group key), using the
+     * category variable's own value format so it matches axis and tooltip formatting; `null` when
+     * the observation carries no category.
+     */
+    formatCategory: (observation: Observation) => string | null;
+}
+
+/**
+ * Labels placed for one layer, plus how many requested labels the fit cascade discarded.
+ */
+interface PlacementResult {
+    labels: PlacedDataLabel[];
+    droppedCount: number;
+}
+
+/**
+ * What `getDataLabelPlacements` receives: the base scene layer and style readers, since a geom outside
+ * the built-in union reads its columns dynamically. Branch on `coordSystem.type` where placement differs.
+ */
+type PluginPlacementContext<C extends CoordType_2 = CoordType_2> = PlacementContextFor<SceneLayer, C>;
 
 /**
  * One entry in the unified `plugins` array. Either a bare compile definition, a render half that carries
@@ -2744,6 +3305,72 @@ type PointAnchorSpec = {
     align?: AnchorAlign;
     offset?: AnchorOffset;
 } | AxisAnchor | SelectionPointAnchor | AnnotationPointAnchor;
+
+/**
+ * Represents each observation as a point (e.g. for scatter plots).
+ */
+class PointGeom extends Geom<PointGeomParams> {
+    readonly type: "point";
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly size: "pixels";
+                readonly symbol: "pointSymbol";
+                readonly strokeWidth: "pixels";
+            };
+            readonly aesthetics: {
+                readonly fill: "color";
+                readonly alpha: "alpha";
+                readonly size: "size";
+                readonly strokeWidth: "strokeWidth";
+            };
+            readonly rest: {
+                readonly fill: StyleTokenRef;
+                readonly fillAlpha: 1;
+                readonly size: 8;
+                readonly symbol: "circle";
+                readonly stroke: StyleTokenRef;
+                readonly strokeWidth: 1;
+            };
+            readonly hovered: {
+                readonly stroke: StyleTokenRef;
+            };
+        };
+    };
+    /** Point vertices are the radar/spider mark, so polar joins the cartesian pair. */
+    readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
+    readonly defaultParams: PointGeomParams;
+    readonly positionRoles: readonly [{
+        readonly axis: "x";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }];
+    readonly aesthetics: readonly [{
+        readonly kind: "visual";
+        readonly name: "color";
+    }, {
+        readonly kind: "visual";
+        readonly name: "size";
+    }, {
+        readonly kind: "visual";
+        readonly name: "alpha";
+    }];
+    readonly summaries: GeomSummaries;
+    readonly highlightStrategy: "overlay-anchor";
+    readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
+    readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
+    /**
+     * A point's label prints the bound `size` it is drawn at, but its position still stands for y — so an
+     * annotation measuring it keeps the segment-y default.
+     */
+    readonly resolveValueSource: (mapping: AesMapping, purpose: ValueSourcePurpose) => AestheticValue | null;
+    readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
+    compile({ data }: GeomCompilerInput): GeomCompileResult;
+}
 
 /**
  * Point-specific parameters.
@@ -2931,6 +3558,15 @@ interface QuantitativeScaleMethods {
 }
 
 /**
+ * Where a data label sits relative to the geom or stack it decorates, independent of its role.
+ *
+ * - `inside` — over the geom.
+ * - `outside` — past the geom's edge; labels on zero-extent anchors (line points, markers) always
+ *   read as outside.
+ */
+const RESOLVED_DATA_LABEL_POSITIONS: readonly ("outside" | "inside")[];
+
+/**
  * A rectangle in pixel coordinates, origin at top-left. Every rect on a {@link GraphLayout} is measured
  * from the graph container top-left (with the graph's outer padding already included), never panel-local coordinates.
  */
@@ -3054,6 +3690,8 @@ interface ResolvedContentSpec {
     isBrandMarkVisible: boolean;
 }
 
+type ResolvedDataLabelPosition = (typeof RESOLVED_DATA_LABEL_POSITIONS)[number];
+
 /**
  * Resolved data-labels config carried per-layer.
  */
@@ -3166,6 +3804,36 @@ interface ResolvedLegendSpec {
 }
 
 /**
+ * Resolved smooth (regression) stat spec.
+ */
+interface ResolvedSmoothStatSpec {
+    type: 'smooth';
+    method: SmoothMethod;
+    /** Polynomial order — only meaningful when `method: 'polynomial'`. */
+    order: number;
+    /** LOESS bandwidth — only meaningful when `method: 'loess'`. */
+    bandwidth: number;
+}
+
+/**
+ * Discriminated union of all resolved stat specs (post-resolution).
+ */
+type ResolvedStatSpec = IdentityStatSpec | CountStatSpec | ResolvedSmoothStatSpec | MeanStatSpec | SumStatSpec | ResolvedSummaryStatSpec;
+
+/**
+ * Resolved summary stat spec. `interval` stays absent when the author asked for none: the stat never picks one.
+ */
+interface ResolvedSummaryStatSpec {
+    type: 'summary';
+    estimate: SummaryEstimate;
+    interval?: SummaryInterval;
+    /** Confidence level — only meaningful when `interval: 'ci'`. */
+    level: number;
+    /** How many standard errors or deviations each end sits from the mean — only meaningful for `'stderr'` and `'stdev'`. */
+    mult: number;
+}
+
+/**
  * TipTap-compatible rich text node (no tiptap dependency).
  */
 interface RichTextContent {
@@ -3183,6 +3851,94 @@ interface RichTextContent {
      * every other `fontSize`. Unrecognized keys are ignored.
      */
     attrs?: Record<string, unknown>;
+}
+
+/**
+ * Reference line at a numeric value, supplied as a constant mapping or read from a stat-output
+ * variable (e.g. `stat.mean()`). Emits a 1-observation dataset on a synthetic variable.
+ *
+ * The other axis is cleared so inherited mappings don't reach the position mapper. With no x
+ * variable, a rule has nothing for an observation anchor to address, so it declares no
+ * `resolveAnchorPosition`.
+ */
+class RuleGeom extends Geom<RuleGeomParams> {
+    readonly type: "rule";
+    /** The rule's own line paints no fill: it is chrome drawn from data, not a filled mark. */
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly stroke: "color";
+                readonly strokeAlpha: "unitInterval";
+                readonly strokeWidth: "pixels";
+                readonly dashArray: "dashArray";
+                readonly lineCap: "lineCap";
+                readonly lineJoin: "lineJoin";
+                readonly shadow: "shadow";
+                readonly blendMode: "blendMode";
+            };
+            readonly sharedPaint: false;
+            readonly dashPresets: {
+                readonly solid: readonly [];
+                readonly dashed: readonly [2, 3];
+                readonly dotted: readonly [0, 2];
+            };
+            readonly aesthetics: {
+                readonly stroke: "color";
+                readonly strokeWidth: "strokeWidth";
+                readonly dashArray: "lineType";
+            };
+            readonly rest: {
+                readonly stroke: StyleTokenRef;
+                readonly strokeWidth: 1;
+                readonly dashArray: readonly [2, 3];
+            };
+        };
+        readonly parts: {
+            readonly label: {
+                readonly vocabulary: {
+                    readonly fontFamily: "fontFamily";
+                    readonly fontSize: "pixels";
+                    readonly fontWeight: "fontWeight";
+                    readonly fontStyle: "fontStyle";
+                    readonly letterSpacing: "signedPixels";
+                    readonly textTransform: "textTransform";
+                    readonly textDecoration: "textDecoration";
+                    readonly textOutlineColor: "color";
+                    readonly textOutlineWidth: "pixels";
+                    readonly textShadow: "shadow";
+                    readonly lineHeight: "multiplier";
+                    readonly textColor: "color";
+                };
+                readonly options: readonly ["layer"];
+                readonly rest: {
+                    readonly fontSize: 11.5;
+                    readonly fontWeight: 500;
+                    readonly lineHeight: 1;
+                };
+            };
+        };
+    };
+    readonly defaultParams: RuleGeomParams;
+    readonly defaultInteractive = false;
+    readonly positionRoles: readonly [{
+        readonly axis: "y";
+        readonly role: "scalar";
+        readonly valueKind: "value";
+        readonly aes: "y";
+    }, {
+        readonly axis: "x";
+        readonly role: "scalar";
+        readonly valueKind: "value";
+        readonly aes: "x";
+    }];
+    readonly highlightStrategy: null;
+    readonly spatialKind: SpatialKind;
+    /**
+     * A rule reads a scalar from exactly one axis. Require a numeric value on `x` or `y` — but not
+     * both — unless a stat produces it at compile time (e.g. `stat.mean()` populates `y`).
+     */
+    readonly validateMapping: ({ mapping, computedVariables, }: GeomMappingValidationInput) => readonly UserInputIssue[];
+    compile({ data: inputData, mapping }: GeomCompilerInput): GeomCompileResult;
 }
 
 /**
@@ -3218,6 +3974,21 @@ const SCHEME_ALIASES: {
  * drives autocomplete. `viridis`/`cividis` are perceptually uniform and colour-vision-deficiency safe.
  */
 const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "Blues", "Greens", "Greys", "Oranges", "Purples", "Reds"];
+
+/** The paint every geom speaks, a plugin geom's observations included. */
+const SHARED_GEOM_VOCABULARY: {
+    readonly fill: "paint";
+    readonly stroke: "color";
+    readonly alpha: "unitInterval";
+    readonly fillAlpha: "unitInterval";
+    readonly strokeAlpha: "unitInterval";
+    readonly saturation: "multiplier";
+    readonly blur: "pixels";
+    readonly brightness: "multiplier";
+    readonly contrast: "multiplier";
+    readonly shadow: "shadow";
+    readonly blendMode: "blendMode";
+};
 
 /** Every {@link StyleBlendMode}. */
 const STYLE_BLEND_MODES: readonly ["normal", "multiply", "screen", "overlay", "darken", "lighten"];
@@ -3490,7 +4261,11 @@ interface SourceContent {
  * - `'buckets'` — marks bucket along an axis for nearest-position snapping (line crosshair).
  * - `'filled-buckets'` — buckets whose paint covers the band between the cross-axis bounds (area), so
  *   a cursor inside the band is on the observation rather than snapped to its edge.
- * - `'rects'` — marks are rectangles (bars).
+ * - `'spanned-buckets'` — buckets whose marks one stroke joins across the bucket itself, lowest to
+ *   highest, with none running on to the next — a dumbbell's connector, a lollipop's stem — so that
+ *   stroke's whole length is in its bucket's column. The stretch comes from the marks the bucket holds
+ *   and from any interval each one declares, so a bucket of one still has length.
+ * - `'rects'` — marks are rectangles: a bar, or a candle's body width over its wick.
  * - `'points'` — marks are discrete vertices (scatter).
  * - `'noop'` — nothing hit-testable.
  * - `'render-hit-test'` — geometry comes from a render-side layout algorithm rather than position
@@ -3499,7 +4274,7 @@ interface SourceContent {
  * Every shape but `'render-hit-test'` is derived from position scales at compile time, so the runtime
  * builds its index from the compiled data alone.
  */
-type SpatialKind = 'buckets' | 'filled-buckets' | 'rects' | 'cells' | 'points' | 'noop' | 'render-hit-test';
+type SpatialKind = 'buckets' | 'filled-buckets' | 'spanned-buckets' | 'rects' | 'cells' | 'points' | 'noop' | 'render-hit-test';
 
 type SpecItem = LayerSpec | ScaleSpec | CoordSpec | ConfigItem | AnyTransformSpec | MappingItem | HighlightSpec | AnnotationItem | StylesheetSpec;
 
@@ -3514,9 +4289,21 @@ abstract class Stat {
     abstract readonly type: string;
     /**
      * Aesthetics this stat will compute (e.g. count computes 'y'). Used by validation to skip existence checks.
+     * Names a geom's custom positional aesthetics too, when the stat computes them (a boxplot's `q1`).
      */
-    abstract readonly computedVariables: ReadonlySet<AestheticKey>;
+    abstract readonly computedVariables: ReadonlySet<string>;
+    /**
+     * The aesthetics this stat computes under one layer's resolved spec and params, which is what validation reads. A
+     * stat whose settings decide what it computes (a summary asked for an interval or not) overrides this; the rest
+     * compute {@link computedVariables} whatever the settings. A built-in stat's settings live on its spec; a custom
+     * stat's spec is only `{ type }`, so it reads its settings from the layer's `params`, as `computeStat` does.
+     */
+    resolveComputedVariables(_spec: ResolvedStatSpec, _params?: Readonly<Record<string, unknown>>): ReadonlySet<string>;
     compute(input: StatCompilerInput): StatCompileResult;
+    /**
+     * Runs on every layer, including one with zero rows: an empty frame still needs the stat's mapping so
+     * the aesthetics it computes stay mapped. An empty frame's column types are placeholders, not schema.
+     */
     protected abstract computeStat(input: StatCompilerInput): StatCompileResult;
 }
 
@@ -3531,7 +4318,15 @@ interface StatCompileResult {
 /**
  * User-facing stat input — either a {@link StatName} string shorthand or an object spec.
  */
-type StatSpec = IdentityStatSpec | CountStatSpec | SmoothStatSpec | MeanStatSpec | SumStatSpec;
+type StatSpec = IdentityStatSpec | CountStatSpec | SmoothStatSpec | MeanStatSpec | SumStatSpec | SummaryStatSpec;
+
+type StateSlot<Part, State extends 'rest' | 'dimmed' | 'hovered'> = Part extends {
+    [Key in State]: infer Declared;
+} ? {
+    [Key in State]: Declared;
+} : unknown;
+
+type StateSlots<Part> = StateSlot<Part, 'rest'> & StateSlot<Part, 'dimmed'> & StateSlot<Part, 'hovered'>;
 
 /**
  * Sticker annotation: a built-in emoji-like image positioned by a {@link PointAnchorSpec}.
@@ -3547,6 +4342,11 @@ type StickerId = string;
 
 /** How a geom's paint composites with what lies under it; the set both SVG and Canvas draw. */
 type StyleBlendMode = (typeof STYLE_BLEND_MODES)[number];
+
+/** The built-in kinds reach `style.geom` the way a plugin kind does: as geoms the kit carries. */
+type StyleBuilders<P extends readonly Plugin[]> = Omit<typeof baseStyle, 'geom'> & {
+    geom: (typeof baseStyle)['geom'] & CustomGeomStyleBuilders<readonly [...typeof BUILT_IN_GEOMS, ...P]>;
+};
 
 /**
  * A color-valued declaration in any of its authored forms: a CSS color literal, an inline
@@ -3696,6 +4496,40 @@ interface StyleShadow<ColorValue> {
 /** `'none'` hides the shadow; an object paints one. */
 type StyleShadowValue<ColorValue> = StyleShadow<ColorValue> | 'none';
 
+/**
+ * One addressable style target, root or nested, as written. `vocabulary` is empty on a namespace
+ * (`headlineItem`) that only groups children. {@link defineStyleTarget} returns the literal it is
+ * given, so `select`, `vocabulary`, `options`, `rest` and the flags keep their exact types for the
+ * builders, the compiler and the reader tree to derive from.
+ */
+interface StyleTargetNode {
+    select: StyleTargetSelect;
+    vocabulary: StyleVocabulary;
+    options?: readonly EntryOption[];
+    aesthetics?: {
+        [property: string]: AestheticKey | undefined;
+    };
+    rest?: object;
+    hovered?: object;
+    dimmed?: object;
+    children?: Record<string, StyleTargetNode>;
+    /** The root accepts kinds that name no child; they read the root vocabulary. */
+    acceptsUnknownKinds?: boolean;
+    /** A bare entry on this node also addresses child `part`s. Heading and the edit outline carry this. */
+    partWildcard?: boolean;
+}
+
+/** The address a target node (and the entries it emits) carries. */
+interface StyleTargetSelect {
+    target: string;
+    kind?: string;
+    edge?: string;
+    axis?: string;
+    role?: string;
+    position?: string;
+    part?: string;
+}
+
 /** The line drawn through or under the glyphs. */
 type StyleTextDecoration = (typeof STYLE_TEXT_DECORATIONS)[number];
 
@@ -3705,11 +4539,45 @@ type StyleTextTransform = (typeof STYLE_TEXT_TRANSFORMS)[number];
 /** A named color in the stylesheet's token table: one literal or a light-dark pair. */
 type StyleTokenValue = string | LightDarkColor;
 
+/** What one target may declare, each property with the domain its value must land in. */
+type StyleVocabulary = Partial<Record<StyleProperty, StyleDomain>>;
+
 /**
  * Resolved sum stat spec.
  */
 interface SumStatSpec {
     type: 'sum';
+}
+
+/**
+ * The value the `summary` stat reduces each group to.
+ */
+type SummaryEstimate = 'mean' | 'median';
+
+/**
+ * The interval the `summary` stat computes around its estimate:
+ *
+ * - `'stderr'` — the mean ± `mult` standard errors
+ * - `'stdev'` — the mean ± `mult` standard deviations
+ * - `'ci'` — a `level` confidence interval for the mean, from Student's t distribution
+ * - `'iqr'` — the first to the third quartile, around the median
+ * - `'range'` — the smallest value to the largest
+ */
+type SummaryInterval = 'stderr' | 'stdev' | 'ci' | 'iqr' | 'range';
+
+/**
+ * User-facing input for the `summary` stat (params optional).
+ */
+interface SummaryStatSpec {
+    type: 'summary';
+    /** The value each group reduces to. Defaults to `'mean'`. */
+    estimate?: SummaryEstimate;
+    /** The interval around the estimate. No default: without one the stat computes the estimate alone. */
+    interval?: SummaryInterval;
+    /** Confidence level for `interval: 'ci'`, in `(0, 1)`. Defaults to `0.95`. */
+    level?: number;
+    /** Multiplier for `interval: 'stderr'` or `'stdev'`, greater than `0`. Defaults to `1`. */
+    mult?: number;
 }
 
 interface TemporalValueFormat {
@@ -3762,6 +4630,95 @@ interface TextStyle {
     textOutlineColor?: string;
     textOutlineWidth?: number;
     textShadow?: StyleShadowValue<string>;
+}
+
+/**
+ * Represents each observation as a rectangular cell filling its `(x, y)` band on both axes — the heatmap
+ * mark (ggplot2's `geom_tile`). The value rides on `color`, not on a length.
+ */
+class TileGeom extends Geom<Record<string, never>> {
+    readonly type: "tile";
+    readonly styleTarget: {
+        readonly observation: {
+            readonly vocabulary: {
+                readonly cornerRadius: "pixels";
+                readonly strokeWidth: "pixels";
+            };
+            readonly aesthetics: {
+                readonly fill: "color";
+                readonly alpha: "alpha";
+                readonly strokeWidth: "strokeWidth";
+            };
+            readonly rest: {
+                readonly fill: StyleTokenRef;
+                readonly fillAlpha: 1;
+                readonly cornerRadius: 8;
+                readonly strokeWidth: 0;
+            };
+            readonly hovered: {
+                readonly stroke: StyleTokenRef;
+                readonly strokeWidth: 2;
+            };
+        };
+    };
+    readonly defaultParams: Record<string, never>;
+    readonly positionRoles: readonly [{
+        readonly axis: "x";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "x";
+        readonly role: "min";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "x";
+        readonly role: "max";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "point";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "min";
+        readonly valueKind: "value";
+    }, {
+        readonly axis: "y";
+        readonly role: "max";
+        readonly valueKind: "value";
+    }];
+    readonly supportedPositions: readonly ["identity"];
+    readonly supportedCoordTypes: readonly ["cartesian"];
+    readonly aesthetics: readonly [{
+        readonly kind: "visual";
+        readonly name: "color";
+        readonly required: true;
+    }];
+    /** No padding: cells abut, and the renderer's inset separates them visually. */
+    readonly scaleConstraints: ScaleConstraints;
+    readonly grid: Partial<Record<CoordType, GridPolicy>>;
+    /** The gradient colour bar is the only place the value scale shows — never suppress it. */
+    readonly legend: LegendPolicy;
+    /** A heatmap reads cell-by-cell, so the value labels every cell by default. */
+    readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    readonly dataLabelCoordTypes: readonly ["cartesian"];
+    readonly highlightStrategy: "observation-rerender";
+    readonly spatialKind: SpatialKind;
+    readonly identityKey: "x-y";
+    /**
+     * The cell's encoded value, not its `x`/`y` bands — the header and the hovered cell already give those.
+     * Omitting `key` labels the row with the value variable's friendly name.
+     */
+    readonly tooltip: TooltipContract;
+    readonly resolveValueSource: (mapping: AesMapping) => AestheticValue | null;
+    /** The cell centre, so annotations land mid-tile. */
+    readonly resolveAnchorPosition: (observation: Observation) => AnchorPosition | null;
+    readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
+    /**
+     * Writes symmetric band offsets on both axes, which the extent mappers turn into scaled bounds
+     * relative to each band centre.
+     */
+    compile({ data }: GeomCompilerInput): GeomCompileResult;
 }
 
 /**
@@ -3824,7 +4781,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED';
 
 /**
  * Constant mapping - a literal value applied to every observation.
@@ -3893,6 +4850,27 @@ type VizErrorKind = 'user-input' | 'internal';
 /** Whether a diagnostic is fatal (`error`) or advisory (`warning`). */
 type VizErrorSeverity = 'error' | 'warning';
 
+/** What an entry on a node may author: its vocabulary's properties in their authored shapes. */
+type VocabularyDeclarations<Vocab extends StyleVocabulary> = DeclarationsIn<Vocab, AuthoredStyleDomainValues>;
+
+type VocabularyOf<Part> = Part extends {
+    vocabulary: infer Vocab extends StyleVocabulary;
+} ? Vocab : Record<never, never>;
+
+/**
+ * The conditions under which a style entry applies — facts that need data or runtime context, as
+ * opposed to the structural address in {@link StyleSelect}.
+ *
+ * - `where` — match observations over the layer's post-transform variables. Absent, every observation
+ *   matches.
+ * - `state` — apply only while the renderer reads with this {@link StyleState} active. Absent, the
+ *   entry is stateless.
+ */
+interface WhenClause {
+    where?: Predicate;
+    state?: StyleState;
+}
+
 /**
  * X-axis configuration (after defaults applied)
  */
@@ -3960,6 +4938,12 @@ function area(options?: GeomOptions<'area'>): LayerSpecFor<'area'>;
 
 function bar(options?: GeomOptions<'bar'>): LayerSpecFor<'bar'>;
 
+/**
+ * The chrome builders and the geom root, with no kind under it. A kit adds its kinds, the built-ins
+ * included, so `style.geom.bar` comes from `createSpecBuilder` rather than from this module.
+ */
+const baseStyle: BaseStyleBuilderTree;
+
 function constant(options: ConstantOptions): ConstantTransformSpec;
 
 function count(): CountStatSpec;
@@ -3999,6 +4983,21 @@ function sort(options: SortOptions): SortTransformSpec;
 
 function sum(): SumStatSpec;
 
+/**
+ * Builder for the summary stat: one observation per x value and group, holding an estimate of `y` and, when asked
+ * for, an interval around it.
+ *
+ * @example
+ *   geom.bar({ stat: stat.summary() })
+ *   geom.point({ stat: stat.summary({ estimate: 'median', interval: 'iqr' }) })
+ */
+function summary(options?: {
+    estimate?: SummaryEstimate;
+    interval?: SummaryInterval;
+    level?: number;
+    mult?: number;
+}): SummaryStatSpec;
+
 function tile(options?: GeomOptions<'tile'>): LayerSpecFor<'tile'>;
 ```
 
@@ -4007,6 +5006,14 @@ function tile(options?: GeomOptions<'tile'>): LayerSpecFor<'tile'>;
 Types referenced by the sections above, included so no name dangles.
 
 ```ts
+/**
+ * A {@link GeomRendererDefinition} holding exactly `Definition`. Intersecting with the base instead would
+ * merge each declared field with its base type, so a typed `styleTarget` would lose its part names.
+ */
+type BoundGeomRendererDefinition<Definition extends Geom<unknown>> = Omit<GeomRendererDefinition, 'definition'> & {
+    readonly definition: Definition;
+};
+
 /**
  * How the badge paints at the current frame size:
  * - `full` — glyph + "Made with Graphy" pill
@@ -4137,7 +5144,7 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
      */
     renderHighlight?: (input: HighlightRenderInput<G, C>) => ReactNode;
     renderHover: (input: HoverRenderInput<G, C>) => ReactNode;
-    renderHoverCompanions: (input: HoverCompanionsRenderInput<G>) => ReactNode;
+    renderHoverCompanions: (input: HoverCompanionsRenderInput<G, C>) => ReactNode;
     /**
      * Editing only: the shapes point and edit outlines for the observations in `layer`, as data in panel pixels.
      * A region is what they cover, one path where there are many, with rounded corners traced into it; a line is
@@ -4216,8 +5223,9 @@ interface HighlightRenderInput<G extends GeomName | string = string, C extends C
     sourceLayer: SceneLayerOf<G>;
 }
 
-interface HoverCompanionsRenderInput<G extends GeomName | string = string> extends GeomRenderInputBase {
+interface HoverCompanionsRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInputBase {
     layer: SceneLayerOf<G>;
+    coordSystem: CoordSystemFor<C>;
     primary: HoverHit;
     related: HoverHit[];
 }
@@ -4249,6 +5257,8 @@ interface HoverRenderInput<G extends GeomName | string = string, C extends Coord
 interface IntroAnimationOptions {
     /** Whether the entrance plays at all */
     enabled: boolean;
+    /** When the entrance starts: as the graph mounts, or once its panel, where the geoms paint, is in view. */
+    trigger: IntroTrigger;
     /** Multiplier applied to every entrance duration and stagger delay. */
     durationScale: number;
     /** Whether geoms that support staggered entrance (bars) enter staggered rather than all at once. */
@@ -4256,6 +5266,9 @@ interface IntroAnimationOptions {
     /** The order staggered point geoms enter in. Bars and slices always enter in visual order. */
     staggerOrder: IntroStaggerOrder;
 }
+
+/** Without an IntersectionObserver, as in a test environment, `inView` plays on mount. */
+type IntroTrigger = 'mount' | 'inView';
 
 interface MorphingEditOutlineShape {
     /** SVG path data in panel pixels. */

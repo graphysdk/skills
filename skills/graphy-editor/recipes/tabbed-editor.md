@@ -16,7 +16,7 @@ import {
   AppearanceSection, CalloutsSection, TitleSection, SubtitleSection, CaptionSection,
   SourceSection, GoalSection, TrendsAndAveragesSection, TextSizeSection,
 } from '@graphysdk/react-renderer/editable';
-import type { Data, SpecInput } from '@graphysdk/viz-engine';
+import type { Data, Spec } from '@graphysdk/viz-engine';
 
 // The host owns the tab bar entirely; the SDK owns the panel root and sections.
 const TABS = [
@@ -89,13 +89,13 @@ const HistoryTrail = () => {
   );
 };
 
-export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: SpecInput }) {
+export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef);
 
   return (
-    <GraphProvider input={spec} data={data} handleRef={handleRef} onChange={setSpec}>
+    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
       <div style={{ display: 'flex', gap: 16, blockSize: 'calc(100dvh - 2rem)' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minInlineSize: 0 }}>
           <div style={{ flex: 1, minBlockSize: 0 }}>

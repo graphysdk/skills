@@ -8,7 +8,8 @@ Contents
 - Mental model
 - Hiding the brand mark
 - Editable graphs
-- CDN without a bundler
+- CDN without a bundler (HTML artifacts, jsDelivr only)
+- When the CDN is blocked
 - Pitfalls
 
 ## Install
@@ -107,44 +108,93 @@ const spec = pipe(
 
 ## CDN without a bundler
 
+Use this for HTML artifacts and any page with no bundler, when the host can fetch `cdn.jsdelivr.net`. Those hosts cannot install npm packages, so a bare `import` from `@graphysdk/react` fails.
+
+Some artifact sandboxes allow the CDN. Others set a CSP that blocks every external host except Google Fonts. The skill cannot know which one you are in. Start with this CDN page. If the chart panel stays blank, or the console says it refused `cdn.jsdelivr.net` (CSP, failed fetch, or 404), stop retrying the CDN and use [When the CDN is blocked](#when-the-cdn-is-blocked).
+
 The package ships a single-file browser build at `dist/index.browser.mjs` (the package's `jsdelivr` entry). It bundles viz-engine, react-renderer, and all styles. Only `react`, `react-dom`, and `react/jsx-runtime` stay external, so the page supplies them through an import map and every module shares one React.
+
+React's npm files are not browser ESM, so load them with jsDelivr `/+esm` and a pinned version. Load Graphy from `dist/index.browser.mjs`, not from `/+esm`.
+
+There is no stable `@graphysdk/react@1` on npm. That URL 404s. Use `@latest` (today that is a beta on the `latest` dist-tag) or pin an exact published version from npm.
 
 ```html
 <!doctype html>
-<meta charset="utf-8" />
-<div id="graph" style="height: 320px"></div>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Chart</title>
+  </head>
+  <body>
+    <div id="graph" style="height: 320px"></div>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://cdn.jsdelivr.net/npm/react@19.2.0/+esm",
+          "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
+          "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
+          "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@latest/dist/index.browser.mjs"
+        }
+      }
+    </script>
+    <script type="module">
+      import { createElement } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { GraphProvider, GraphRenderer, createSpec, geom, pipe, scale } from '@graphysdk/react';
+
+      const data = {
+        columns: [{ key: 'month' }, { key: 'revenue' }],
+        rows: [
+          { month: 'Jan', revenue: 120 },
+          { month: 'Feb', revenue: 150 },
+        ],
+      };
+      const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.bar(), scale.x(), scale.y());
+
+      createRoot(document.getElementById('graph')).render(
+        createElement(GraphProvider, { data, spec }, createElement(GraphRenderer))
+      );
+    </script>
+  </body>
+</html>
+```
+
+Pin the same React version in every import map entry. Never omit the React version. The editing surface has its own file, `dist/editable.browser.mjs`, which is a superset of the read-only one. A page imports one of the two, never both.
+
+## When the CDN is blocked
+
+jsDelivr `/+esm` files do not use bare specifiers. They import with root paths such as `from"/npm/react@19.2.0/+esm"` and `from"/npm/scheduler@0.27.0/+esm"`. On jsDelivr those resolve on that host. If you download the files and serve them unchanged, those paths hit your origin and the graph never loads.
+
+Vendor the files next to the HTML, then rewrite those `/npm/.../+esm` imports to relative filenames:
+
+1. Save these jsDelivr URLs as local files (React 19.2.0, Graphy `@latest` or an exact version):
+   - `vendor/react.mjs` from `https://cdn.jsdelivr.net/npm/react@19.2.0/+esm`
+   - `vendor/jsx-runtime.mjs` from `https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm`
+   - `vendor/react-dom.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm`
+   - `vendor/react-dom-client.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm`
+   - `vendor/scheduler.mjs` from `https://cdn.jsdelivr.net/npm/scheduler@0.27.0/+esm`
+   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@latest/dist/index.browser.mjs`
+2. In the React DOM files, replace every `from"/npm/<package>@<version>/+esm"` (and any `/npm/<package>@<version>/<path>/+esm`) with a relative path to the matching local file. `graphy.mjs` already imports `react`, `react-dom`, and `react/jsx-runtime` as bare specifiers, so leave it alone.
+3. Point the import map at the local files:
+
+```html
 <script type="importmap">
   {
     "imports": {
-      "react": "https://esm.sh/react@19.2.0",
-      "react/jsx-runtime": "https://esm.sh/react@19.2.0/jsx-runtime",
-      "react-dom": "https://esm.sh/react-dom@19.2.0",
-      "react-dom/client": "https://esm.sh/react-dom@19.2.0/client",
-      "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react/dist/index.browser.mjs"
+      "react": "./vendor/react.mjs",
+      "react/jsx-runtime": "./vendor/jsx-runtime.mjs",
+      "react-dom": "./vendor/react-dom.mjs",
+      "react-dom/client": "./vendor/react-dom-client.mjs",
+      "@graphysdk/react": "./vendor/graphy.mjs"
     }
   }
 </script>
-<script type="module">
-  import { createElement } from 'react';
-  import { createRoot } from 'react-dom/client';
-  import { GraphProvider, GraphRenderer, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
-  const data = {
-    columns: [{ key: 'month' }, { key: 'revenue' }],
-    rows: [
-      { month: 'Jan', revenue: 120 },
-      { month: 'Feb', revenue: 150 },
-    ],
-  };
-  const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.bar(), scale.x(), scale.y());
-
-  createRoot(document.getElementById('graph')).render(
-    createElement(GraphProvider, { data, spec }, createElement(GraphRenderer))
-  );
-</script>
 ```
 
-Pin the same React version in every import map entry. The editing surface has its own file, `dist/editable.browser.mjs`, which is a superset of the read-only one. A page imports one of the two, never both.
+Serve the folder as a set of files (a local static server, or an artifact host that allows extra same-origin scripts). Keep `<meta charset="utf-8" />` in `<head>` so quotes and degree signs do not mojibake.
+
+If the host only accepts one HTML file and also blocks the network, Graphy cannot load there. Say that and stop. Do not keep swapping CDN URLs.
 
 ## Pitfalls
 
@@ -153,3 +203,9 @@ Pin the same React version in every import map entry. The editing surface has it
 - Building the spec inside render without `useMemo`. Every render then recompiles the graph.
 - Mixing `@graphysdk/react` and `@graphysdk/react-renderer` providers in one app is fine, but the mark default differs between them.
 - Installing TipTap for a read-only graph. Those peers are only for `/editable`.
+- Loading React or Graphy from esm.sh. jsDelivr only.
+- Loading Graphy with `/+esm` instead of `dist/index.browser.mjs`.
+- `@graphysdk/react@1` on jsDelivr. That tag 404s. Use `@latest` or an exact version.
+- Saving `/+esm` files and serving them without rewriting `from"/npm/.../+esm"` to relative paths.
+- An HTML artifact that uses a React component file and a bare `@graphysdk/react` import. That package is not on the artifact allow-list.
+- Skipping `<meta charset="utf-8" />` in `<head>`. Curly quotes and degree signs then mojibake on some hosts.

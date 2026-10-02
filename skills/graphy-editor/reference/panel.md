@@ -133,14 +133,14 @@ import { SetBarWidthCommand } from '@graphysdk/viz-engine';
 const BarWidthSection = () => {
   const graph = usePanelGraph();
   const { Slider } = useControls();
-  const width = 0.7; // in a real section, read back from graph.getCompiled()
+  const width = 0.7; // in a real section, read back from graph.getScene()
   return (
     <Section title="Bar width" layout="collapsible">
       <Row label="Width">
         <Slider
           min={0.05} max={1} step={0.01} value={width}
           onChange={(next) => graph.commands.dispatch(new SetBarWidthCommand({ width: next }), { transient: true })}
-          onCommit={graph.commands.seal}
+          onCommit={graph.commands.commit}
         />
       </Row>
     </Section>

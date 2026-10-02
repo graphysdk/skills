@@ -22,12 +22,12 @@ skill.
 - **One gesture, one undo entry.** During a drag or a burst of typing, dispatch each change with
   `{ transient: true }` and call `seal()` when the gesture ends — the whole run becomes a single
   undo entry and a single `onChange` call.
-- **Saving is a round-trip.** `GraphProvider onChange` hands you a plain-JSON `SpecInput` after
+- **Saving is a round-trip.** `GraphProvider onChange` hands you a plain-JSON `Spec` after
   every finished gesture; store it, and pass it back as `input` to restore. Passing it back does
   not re-trigger the callback. Data is never edited — commands change the spec only.
 - **Each surface reaches a different amount of the spec.** Canvas gestures reach the least, the
   pre-built panel a curated subset, commands the most (including per-layer control). Anything
-  commands miss is edited by rebuilding the `SpecInput` with the authoring API from
+  commands miss is edited by rebuilding the `Spec` with the authoring API from
   `graphy-charts`. The panel is one optional UI over the commands, not the whole editor.
 
 ## Minimal editable chart
@@ -36,15 +36,15 @@ skill.
 import { useRef, useState } from 'react';
 import { GraphProvider, useGraphHistoryShortcuts, type GraphHandle } from '@graphysdk/react-renderer';
 import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-import type { Data, SpecInput } from '@graphysdk/viz-engine';
+import type { Data, Spec } from '@graphysdk/viz-engine';
 
-function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: SpecInput }) {
+function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef); // ⌘/Ctrl+Z undo/redo shortcuts
 
   return (
-    <GraphProvider input={spec} data={data} handleRef={handleRef} onChange={setSpec}>
+    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
       <EditableGraphRenderer mode="editable" />
     </GraphProvider>
   );
@@ -99,7 +99,7 @@ persist.
   blur, key up) — without it, `onChange` is delayed until the next edit.
 - **The pre-built panel covers a subset of the spec.** Check the section catalog in
   `reference/panel.md` before promising a setting exists; beyond it, dispatch commands, and beyond
-  those, rebuild the `SpecInput` (a new `input` from outside replaces the edited state and is not
+  those, rebuild the `Spec` (a new `input` from outside replaces the edited state and is not
   an undo step).
 - A panel mounted outside the chart's React tree needs both a `handle` (from
   `GraphProvider handleRef`) and the `./editable` entry's own `IntlProvider` — react-intl's is a

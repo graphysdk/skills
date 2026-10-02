@@ -20,8 +20,10 @@
 // and `PANEL_ROOT_ATTRIBUTE` from dangling relative paths, so they cannot be
 // extracted here; reference/panel.md documents their shape in prose.
 //
-// Usage:  node scripts/generate-types-reference.mjs [--check]
-//         (reads the dist .d.ts from the packages installed in this repo's node_modules)
+// Usage:  node scripts/generate-types-reference.mjs [--check] [--packages <dir>]
+//         Reads dist/*.d.ts of @graphysdk/viz-engine and @graphysdk/react-renderer, resolved from
+//         this skill's node_modules, or from <dir>/<package>/dist when --packages names a checkout
+//         of the monorepo's packages folder.
 //         --check: exit 1 if reference/types.md is out of date instead of writing.
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -35,9 +37,25 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const outPath = resolve(scriptDir, "../reference/types.md");
 const checkMode = process.argv.includes("--check");
 
+const packagesFlag = process.argv.indexOf("--packages");
+const packagesDir = packagesFlag === -1 ? null : process.argv[packagesFlag + 1];
+if (packagesFlag !== -1 && (!packagesDir || packagesDir.startsWith("--"))) {
+  console.error(
+    "Usage: node generate-types-reference.mjs [--check] [--packages <dir>]",
+  );
+  process.exit(1);
+}
+
 // The published packages don't export package.json, so resolve the entry point
 // and take the sibling .d.ts in dist/ (and package.json one level up).
 function findPackage(pkg, dtsFile = "index.d.ts") {
+  if (packagesDir) {
+    const root = resolve(packagesDir, pkg);
+    const { version } = JSON.parse(
+      readFileSync(resolve(root, "package.json"), "utf8"),
+    );
+    return { dts: resolve(root, "dist", dtsFile), version };
+  }
   const entry = createRequire(import.meta.url).resolve(`@graphysdk/${pkg}`);
   const dts = resolve(dirname(entry), dtsFile);
   const { version } = JSON.parse(
@@ -89,8 +107,8 @@ const GROUPS = [
       "useGraphHistoryShortcuts",
       "GraphHistoryShortcutsOptions",
       "useGraphSelection",
-      "useCompiledSelector",
-      "useHandleCompiled",
+      "useSceneSelector",
+      "useHandleScene",
       "pruneSelection",
       "GraphProviderProps",
     ],
@@ -109,7 +127,6 @@ const GROUPS = [
       "CommandStackSnapshot",
       "EditTarget",
       "areEditTargetsEqual",
-      "convertSpecToInput",
       "updateSpec",
     ],
   },
@@ -129,9 +146,9 @@ const GROUPS = [
       "SetLayerStatCommand",
       "SetLayerYScaleTypeCommand",
       "SetBarWidthCommand",
-      "SetBarBorderRadiusCommand",
+      "SetBarCornerRadiusCommand",
       "SetLineWidthCommand",
-      "SetLineInterpolationCommand",
+      "SetLineCurveCommand",
       "SetLineMissingValuesCommand",
       "SetPointSizeCommand",
       "SetRuleLabelCommand",
@@ -142,7 +159,7 @@ const GROUPS = [
       "ToggleCategoryLabelsCommand",
       "ToggleGoalLineCommand",
       "ToggleLineFillCommand",
-      "ToggleLinePointsVisibilityCommand",
+      "ToggleLinePointsCommand",
       "ToggleStackTotalsCommand",
     ],
   },
@@ -154,7 +171,6 @@ const GROUPS = [
       "SetScalePaletteCommand",
       "SetScaleReverseCommand",
       "SetScaleTransformCommand",
-      "SetScaleZeroCommand",
       "SetCoordLimitsCommand",
       "SetPolarInnerRadiusCommand",
       "SetPolarStartAngleCommand",
@@ -186,7 +202,6 @@ const GROUPS = [
       "SetHeadlineCompareWithCommand",
       "SetNumberFormatDecimalsCommand",
       "SetNumberFormatAbbreviationCommand",
-      "SetAppearanceTextScaleCommand",
     ],
   },
   {

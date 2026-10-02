@@ -190,3 +190,4 @@ Rows with `null` on x or y are skipped.
 - A string x column becomes a band axis and the points line up in columns. Keep both axes numeric.
 - `size` on a point is the marker diameter in pixels when set as a style. Mapped sizes go through `scale.size`.
 - Two observations can share an x. Nothing is stacked or dodged for points.
+- Mapped `size` and `label` do not appear in the default tooltip. The heading is x; the row is color plus y. Use annotations or a custom Tooltip slot to show them.

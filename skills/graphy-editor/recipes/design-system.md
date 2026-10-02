@@ -76,7 +76,7 @@ const SourceLinkSection = () => {
   const { TextField } = useControls();
 
   // Subscribe to the compiled spec and read the field you need from it.
-  const compiled = useSyncExternalStore(graph.subscribe, graph.getCompiled);
+  const compiled = useSyncExternalStore(graph.subscribe, graph.getScene);
   const source = compiled?.spec.config.content?.source ?? undefined;
 
   return (
@@ -89,7 +89,7 @@ const SourceLinkSection = () => {
               new SetContentSourceCommand({ source: { ...source, label } }),
               { transient: true },
             )}
-          onCommit={graph.commands.seal}
+          onCommit={graph.commands.commit}
           placeholder="e.g. Company filings"
         />
       </Row>
@@ -101,7 +101,7 @@ const SourceLinkSection = () => {
               new SetContentSourceCommand({ source: { ...source, url } }),
               { transient: true },
             )}
-          onCommit={graph.commands.seal}
+          onCommit={graph.commands.commit}
           placeholder="https://…"
         />
       </Row>

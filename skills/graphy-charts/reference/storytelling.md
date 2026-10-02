@@ -287,6 +287,8 @@ Hovering draws a guide on its own: bars draw a band across the whole x band, lin
 
 Tooltips are on by default. Turn them off with `<GraphRenderer showTooltips={false} />`. A layer with `interactive: false` never hovers.
 
+The default tooltip for a point or bubble shows the x value as the heading and one row that combines `color` (if mapped) with `y`. Mapped `size` and `label` never appear there, even though they are valid mapping channels. Use an annotation or a custom `Tooltip` slot (see slots.md) to surface those values.
+
 ## Anchors
 
 Every annotation is positioned by an anchor that re-resolves on each compile, so it follows resizes and data changes. Point anchors, by `anchorType`:

@@ -9,7 +9,7 @@ on one shared undo history. This file covers that shared machinery.
 | What | Import from |
 |---|---|
 | Command classes, `commandRegistry`, `EditTarget`, annotation/highlight helpers | `@graphysdk/viz-engine` (root) |
-| `useGraphCommands`, `useGraphHistory`, `useGraphHistoryShortcuts`, `useGraphSelection`, `useCompiledSelector`, `useHandleCompiled`, `GraphHandle`, `pruneSelection` | `@graphysdk/react-renderer` (root — not `./editable`; building your own editing UI needs nothing from the panel entry) |
+| `useGraphCommands`, `useGraphHistory`, `useGraphHistoryShortcuts`, `useGraphSelection`, `useSceneSelector`, `useHandleScene`, `GraphHandle`, `pruneSelection` | `@graphysdk/react-renderer` (root — not `./editable`; building your own editing UI needs nothing from the panel entry) |
 | `EditableGraphRenderer`, panel, sections, controls | `@graphysdk/react-renderer/editable` |
 
 ## The contract
@@ -38,12 +38,12 @@ an edit (an agent, a collaborator) — it travels through serialization and show
 import { useGraphCommands } from '@graphysdk/react-renderer';
 import { SetContentTitleCommand } from '@graphysdk/viz-engine';
 
-const { dispatch, seal } = useGraphCommands();
+const { dispatch, commit } = useGraphCommands();
 dispatch(new SetContentTitleCommand({ title: 'Revenue by quarter' }));
 ```
 
 The provider applies the command to the live spec, recompiles, repaints, pushes an undo entry and
-fires `onChange` with the new `SpecInput`. If a command's result fails to compile, the last good
+fires `onChange` with the new `Spec`. If a command's result fails to compile, the last good
 chart stays up and the failure is reported through `onError`; only a bad *external* `input`
 replaces the chart with the error panel.
 
@@ -56,7 +56,7 @@ run and fires `onChange` **once**:
 <Slider
   min={0.05} max={1} step={0.01} value={width} ariaLabel="Bar width"
   onChange={(next) => dispatch(new SetBarWidthCommand({ width: next }), { transient: true })}
-  onCommit={seal}
+  onCommit={commit}
 />
 ```
 
@@ -96,7 +96,7 @@ alone. To reset the history, remount `GraphProvider` with a React `key`.
 interface GraphHandle {
   commands: GraphCommands;                    // { dispatch, seal }
   subscribe(onChange: () => void): () => void; // + getCompiled — the useSyncExternalStore pair
-  getCompiled(): CompiledSpec | null;
+  getScene(): CompiledSpec | null;
   undo(): boolean;  redo(): boolean;
   getSelection(): readonly EditTarget[];
   setSelection(next: readonly EditTarget[]): void;
@@ -104,13 +104,13 @@ interface GraphHandle {
 }
 ```
 
-`useHandleCompiled(handle)` subscribes a component outside the provider to the compiled spec;
+`useHandleScene(handle)` subscribes a component outside the provider to the compiled spec;
 `useGraphHandle(handle?)` resolves an explicit handle or synthesizes one from the surrounding
-provider. Inside the tree, `useCompiledSelector((compiled) => …)` subscribes to a slice, re-rendering
+provider. Inside the tree, `useSceneSelector((compiled) => …)` subscribes to a slice, re-rendering
 only when the selected reference changes.
 
 **Reading the current spec for persistence or inspection**: the compiled spec retains the resolved
-spec; `convertSpecToInput(compiled.spec)` turns it back into a storable `SpecInput` (normally you
+spec; `convertSpecToInput(compiled.spec)` turns it back into a storable `Spec` (normally you
 just persist what `onChange` hands you).
 
 ## Selection
@@ -148,7 +148,7 @@ layer's geom/position + scale shape) as one undo entry: params are
 | 'stacked-bars' | 'lines'` — it names the geoms, so that arm carries no `geom`). A heatmap is
 `geom: 'tile'`, offerable only when `canBecomeHeatmap(spec)`. `readChartType(spec)` reads back what a
 chart is; `isComboChartType` narrows the combo arm. (There is no mapping command in the current SDK
-release — to remap a variable, rebuild the `SpecInput`; see "When no command exists" below.)
+release — to remap a variable, rebuild the `Spec`; see "When no command exists" below.)
 
 **Layers** (see "Per-layer control" below) — `AddLayerCommand`, `RemoveLayerCommand`,
 `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`,
@@ -256,7 +256,7 @@ clicks.
 ## When no command exists
 
 The catalogue does not cover the whole spec (and the panel covers less than the catalogue). For
-anything else, build a new `SpecInput` with the authoring API (the `graphy-charts` skill —
+anything else, build a new `Spec` with the authoring API (the `graphy-charts` skill —
 `updateSpec(target, updates)` helps apply deep partial changes) and pass it as `input`. A new
 input from outside replaces the edited state and is not an undo step — so prefer a command when
 one exists, and build on `onChange`'s latest value rather than the original spec, or you will

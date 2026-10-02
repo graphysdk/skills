@@ -12,10 +12,10 @@ import {
   commandRegistry,
   SetContentTitleCommand, SetStatLineCommand, SetLegendPositionCommand,
   SetBarWidthCommand, AddHighlightCommand,
-  type Data, type SpecInput, type SerializedCommand,
+  type Data, type Spec, type SerializedCommand,
 } from '@graphysdk/viz-engine';
 
-export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: SpecInput }) {
+export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
 
@@ -42,7 +42,7 @@ export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: Sp
     for (const width of frames) {
       handle.commands.dispatch(new SetBarWidthCommand({ width }), { transient: true });
     }
-    handle.commands.seal(); // one undo entry, one onChange
+    handle.commands.commit(); // one undo entry, one onChange
   };
 
   // Agent-driven: apply serialized commands received over the wire.
@@ -61,7 +61,7 @@ export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: Sp
   void wire; void polish; void animateBarWidth; void applyFromWire;
 
   return (
-    <GraphProvider input={spec} data={data} handleRef={handleRef} onChange={setSpec}>
+    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
       <EditableGraphRenderer mode="editable" />
     </GraphProvider>
   );
@@ -72,10 +72,10 @@ Reading state back — a surface outside the tree pairs `subscribe` with `getCom
 (`useSyncExternalStore`'s contract), or uses the hook:
 
 ```tsx
-import { useHandleCompiled, type GraphHandle } from '@graphysdk/react-renderer';
+import { useHandleScene, type GraphHandle } from '@graphysdk/react-renderer';
 
 const LayerList = ({ handle }: { handle: GraphHandle }) => {
-  const compiled = useHandleCompiled(handle); // null before the first compile
+  const compiled = useHandleScene(handle); // null before the first compile
   if (!compiled) return null;
   return <ul>{compiled.layers.map((layer) => <li key={layer.id}>{layer.geom}</li>)}</ul>;
 };

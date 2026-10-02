@@ -99,7 +99,7 @@ dispatch(new AddAnnotationCommand({
 
 // Update: restyle and reposition through one command — a partial patch of the kind's fields.
 dispatch(new UpdateAnnotationCommand({
-  kind: 'text', id: 'note-1', patch: { backgroundColor: '#fff3bf', width: 0.3 },
+  kind: 'text', id: 'note-1', patch: { width: 0.3 },
 }));
 
 // Move: a relative move in plot-area fractions (+y is down); clamped inside the plot on apply.

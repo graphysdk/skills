@@ -9,7 +9,7 @@ import {
   GraphProvider, useGraphHistory, useGraphHistoryShortcuts, type GraphHandle,
 } from '@graphysdk/react-renderer';
 import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-import { createSpec, pipe, mapping, geom, scale, config, type Data, type SpecInput } from '@graphysdk/viz-engine';
+import { createSpec, pipe, mapping, geom, scale, config, type Data, type Spec } from '@graphysdk/viz-engine';
 
 const data: Data = {
   columns: [{ key: 'quarter' }, { key: 'revenue' }],
@@ -21,7 +21,7 @@ const data: Data = {
   ],
 };
 
-const DEFAULT_SPEC: SpecInput = pipe(
+const DEFAULT_SPEC: Spec = pipe(
   createSpec(),
   mapping({ x: 'quarter', y: 'revenue' }),
   geom.bar(),
@@ -31,9 +31,9 @@ const DEFAULT_SPEC: SpecInput = pipe(
 );
 
 const STORAGE_KEY = 'revenue-chart-spec';
-const loadSpec = (): SpecInput => {
+const loadSpec = (): Spec => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? (JSON.parse(stored) as SpecInput) : DEFAULT_SPEC;
+  return stored ? (JSON.parse(stored) as Spec) : DEFAULT_SPEC;
 };
 
 // Undo/redo buttons live inside the provider so the hook can reach the history.
@@ -55,7 +55,7 @@ export function RevenueChartEditor() {
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef);
 
-  const handleChange = useCallback((next: SpecInput) => {
+  const handleChange = useCallback((next: Spec) => {
     setSpec(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
@@ -67,7 +67,7 @@ export function RevenueChartEditor() {
   };
 
   return (
-    <GraphProvider key={epoch} input={spec} data={data} handleRef={handleRef} onChange={handleChange}>
+    <GraphProvider key={epoch} spec={spec} data={data} handleRef={handleRef} onSpecChange={handleChange}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, blockSize: 480 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setIsEditing((v) => !v)}>{isEditing ? 'Done' : 'Edit'}</button>
@@ -87,8 +87,8 @@ What to notice:
 
 - **`onChange` is the save point.** It fires once per finished gesture — a whole drag of an
   annotation, a whole burst of typing into the title — never per frame. Persisting inside it is
-  exactly the right granularity; the stored `SpecInput` is plain JSON.
-- **The round-trip is loop-safe.** `input={spec}` with `onChange={setSpec}` doesn't re-notify on
+  exactly the right granularity; the stored `Spec` is plain JSON.
+- **The round-trip is loop-safe.** `spec={spec}` with `onChange={setSpec}` doesn't re-notify on
   its own echo; the provider diffs against what it last compiled.
 - **`mode` toggles; the component stays.** "Done" flips to `readonly` without remounting, so the
   undo history survives — the user can come back and undo. The `Edit`/`Done` state is the host's.
