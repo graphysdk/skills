@@ -652,6 +652,7 @@ interface GraphRendererProps {
      * and so does a chart denser than `maxAnimatedGeoms`.
      */
     animation?: GraphAnimation;
+    /** `false` hides the tooltip whatever `config.tooltip.mode` says. Left at `true`, the spec decides. */
     showTooltips?: boolean;
     mode?: GraphMode;
     /** Per-region component overrides. Unspecified regions render their default. */
@@ -1680,6 +1681,8 @@ interface BaseGeomOptions<T extends GeomParams> {
     params?: Partial<T>;
     transforms?: TransformSpec[];
     interactive?: boolean;
+    /** Changes which fields this layer's tooltip shows and how. See {@link LayerTooltipSpec}. */
+    tooltip?: LayerTooltipSpec;
     dataLabels?: DataLabelsSpec;
 }
 
@@ -2037,7 +2040,7 @@ type CustomPaletteSpec = {
  * - `category` — per-observation category text placed as its own label beside the value label.
  * - `aggregate` — labels over values derived from several observations, e.g. stack totals.
  */
-const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
+const DATA_LABEL_ROLES: readonly ("observation" | "aggregate" | "category")[];
 
 /**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
@@ -2787,12 +2790,33 @@ interface LayerSpecBase {
      * @default true
      */
     interactive?: boolean;
+    /** Changes which fields this layer's tooltip shows and how. See {@link LayerTooltipSpec}. */
+    tooltip?: LayerTooltipSpec;
 }
 
 type LayerSpecFor<G extends GeomName> = LayerSpecBase & {
     geom: G;
     params?: Partial<GeomParamsMap[G]>;
 };
+
+/** How a chart author changes one of a layer's tooltip fields. */
+interface LayerTooltipFieldSpec {
+    /** Replaces the row's label. The default rows keep their colour group's label, so it names them only without one. */
+    title?: string;
+    /** Formats the row's value in the chart's locale, in place of its variable's own format. */
+    format?: ExplicitValueFormat;
+    /** Heads the tooltip with the field's value instead of giving it a row, over the geom's heading and the anchor. */
+    heading?: boolean;
+}
+
+/**
+ * A layer's tooltip fields, in the order they show, merged over the geom's own. A key names a field of the geom's
+ * tooltip contract (its `key`, or its `aes`), an aesthetic the layer maps, or a variable the geom derives. A layer
+ * whose geom has no contract names its default rows `y`. `false` removes a field, `true` adds or moves it, and a
+ * {@link LayerTooltipFieldSpec} also renames it, reformats it, or heads the tooltip with it. The geom's remaining
+ * fields follow the author's.
+ */
+type LayerTooltipSpec = Readonly<Record<string, boolean | LayerTooltipFieldSpec>>;
 
 /**
  * Placement of the legend items along its flow.
@@ -3658,6 +3682,7 @@ interface ResolvedConfigSpec {
     axes: AxesConfig;
     panel: PanelConfig;
     headline: HeadlineConfig;
+    tooltip: TooltipConfig;
     numberFormat: NumberFormatConfig;
     content: ResolvedContentSpec;
 }
@@ -4727,6 +4752,17 @@ class TileGeom extends Geom<Record<string, never>> {
  */
 type TileGeomParams = Record<string, never>;
 
+/**
+ * Tooltip configuration (after defaults applied)
+ */
+interface TooltipConfig {
+    /**
+     * Which hovered observations the tooltip lists.
+     * @default 'band'
+     */
+    mode: TooltipMode;
+}
+
 /** Fully-derived tooltip content. The popover renders directly from this. */
 interface TooltipContent {
     /**
@@ -4734,11 +4770,20 @@ interface TooltipContent {
      * {@link TooltipContent.comment} is set — the two share one slot.
      */
     heading: string | null;
-    /** In legend order; the hovered row is the one with `isPrimary` set. */
+    /** In legend order; the hovered observation's rows have `isPrimary` set. */
     rows: TooltipRow[];
     /** Rich text of the comment whose mini bubble the pointer is over; `null` otherwise. */
     comment: RichTextContent | null;
 }
+
+/**
+ * Which hovered observations the tooltip lists.
+ * - 'band': everything at the hovered position: the hovered observation, its group (stacked segments, dodged
+ *   siblings) and the related observations on other layers (default)
+ * - 'observation': the hovered observation and, from each other layer, the related observation in its group
+ * - 'none': no tooltip; hover, highlight and cursor still respond
+ */
+type TooltipMode = 'band' | 'observation' | 'none';
 
 /**
  * One row in the chart tooltip popover. Pure projection of a `HoverHit` against the layer's
@@ -4766,7 +4811,7 @@ interface TooltipRow {
     label: string;
     /** Formatted Y reading for this hit. */
     value: string;
-    /** Styling hint: the row whose hit `=== primary`. Never re-orders. */
+    /** Styling hint: a row read from the primary's observation. Never re-orders. */
     isPrimary: boolean;
     /** Stable key — `${layerId}:${pointIndex}`. */
     key: string;
@@ -4781,7 +4826,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * Constant mapping - a literal value applied to every observation.

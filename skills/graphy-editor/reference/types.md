@@ -2091,6 +2091,15 @@ type AddLayerParams = {
     index?: number;
 };
 
+/** A row showing one aesthetic's value. */
+interface AesTooltipField {
+    /** Row label. When omitted, the label is resolved from the mapped variable's friendly name. */
+    readonly key?: string;
+    readonly aes: string;
+    /** Heads the tooltip with this value instead of a row, for geoms without a categorical `x` (a sankey's node). */
+    readonly heading?: boolean;
+}
+
 /** Name of a built-in aesthetic that can be mapped, such as `'x'` or `'color'`. */
 type AestheticKey = keyof KnownAesthetics;
 
@@ -3045,7 +3054,7 @@ interface CustomTransformSpec<Name extends string = string> {
  * - `category` — per-observation category text placed as its own label beside the value label.
  * - `aggregate` — labels over values derived from several observations, e.g. stack totals.
  */
-const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
+const DATA_LABEL_ROLES: readonly ("observation" | "aggregate" | "category")[];
 
 /**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
@@ -3814,6 +3823,25 @@ interface LayerSummary {
     /** Sum of |y| across observations — the percentage-share denominator. Emitted for grouped bars and pie/donut. */
     absoluteGrandTotal?: number;
 }
+
+/** How a chart author changes one of a layer's tooltip fields. */
+interface LayerTooltipFieldSpec {
+    /** Replaces the row's label. The default rows keep their colour group's label, so it names them only without one. */
+    title?: string;
+    /** Formats the row's value in the chart's locale, in place of its variable's own format. */
+    format?: ExplicitValueFormat;
+    /** Heads the tooltip with the field's value instead of giving it a row, over the geom's heading and the anchor. */
+    heading?: boolean;
+}
+
+/**
+ * A layer's tooltip fields, in the order they show, merged over the geom's own. A key names a field of the geom's
+ * tooltip contract (its `key`, or its `aes`), an aesthetic the layer maps, or a variable the geom derives. A layer
+ * whose geom has no contract names its default rows `y`. `false` removes a field, `true` adds or moves it, and a
+ * {@link LayerTooltipFieldSpec} also renames it, reformats it, or heads the tooltip with it. The geom's remaining
+ * fields follow the author's.
+ */
+type LayerTooltipSpec = Readonly<Record<string, boolean | LayerTooltipFieldSpec>>;
 
 /**
  * Placement of the legend items along its flow.
@@ -4595,6 +4623,15 @@ type PropertyDomains<Property extends StyleProperty> = PropertyDomainMap[Propert
  */
 const RESOLVED_DATA_LABEL_POSITIONS: readonly ("outside" | "inside")[];
 
+/** The range between two aesthetics, each end formatted by its own variable (an error bar's `10.5 – 13.5`). */
+interface RangeTooltipField {
+    /** Row label. When omitted, the observation's colour group, else the `y` variable's label. */
+    readonly key?: string;
+    readonly range: readonly [from: string, to: string];
+    /** Heads the tooltip with this range instead of a row. */
+    readonly heading?: boolean;
+}
+
 /**
  * A rectangle in pixel coordinates, origin at top-left. Every rect on a {@link GraphLayout} is measured
  * from the graph container top-left (with the graph's outer padding already included), never panel-local coordinates.
@@ -4726,6 +4763,7 @@ interface ResolvedConfigSpec {
     axes: AxesConfig;
     panel: PanelConfig;
     headline: HeadlineConfig;
+    tooltip: TooltipConfig;
     numberFormat: NumberFormatConfig;
     content: ResolvedContentSpec;
 }
@@ -4922,6 +4960,7 @@ interface ResolvedLayerSpecBase {
     yScaleType: YScaleType;
     transforms: TransformSpec[];
     interactive: boolean;
+    tooltip: LayerTooltipSpec;
     dataLabels: ResolvedDataLabelsSpec;
 }
 
@@ -7617,12 +7656,8 @@ interface SceneLayer {
     identityKey: IdentityKey;
     /** Baked from the geom def. */
     hoverPriority: HoverPriority;
-    /**
-     * The geom's tooltip contract, baked from the geom def. When non-empty the tooltip shows one row
-     * per field (the field's `key` label, the raw value of its `aes` from the hovered observation),
-     * replacing the default y-value row. Empty for geoms that use the default tooltip.
-     */
-    tooltip: TooltipContract;
+    /** What the layer's tooltip shows: the geom's contract with the author's `tooltip` entries merged over it. */
+    tooltip: SceneLayerTooltip;
     /** What the geom asks of the position scales it draws against, baked from the geom def. */
     scaleConstraints?: ScaleConstraints;
     /** Whether this layer's groups can be named on the edge of the panel instead of in a legend. */
@@ -7696,6 +7731,20 @@ interface SceneLayerStyles {
     dashPresets: Readonly<Record<LineType, DashArray>>;
     /** Each part beside the observations, keyed by part name. */
     parts: Record<string, SceneStylePart>;
+}
+
+/** What a layer's tooltip shows, resolved at compile time. */
+interface SceneLayerTooltip {
+    /**
+     * The fields in the order they show. A geom whose contract takes no row (none, or headings only) contributes one
+     * `group` field, its default rows.
+     */
+    fields: readonly SceneTooltipField[];
+    /**
+     * The author removed or headed the default rows, so a layer with no single observation to read its fields from
+     * lists nothing rather than its hits as default rows.
+     */
+    hidesDefaultRows: boolean;
 }
 
 /**
@@ -7875,6 +7924,39 @@ interface SceneTextAnnotation {
     width: number;
     /** Which point of the text's own box sits at `at`. */
     align: AnchorAlign;
+}
+
+/**
+ * One field of a layer's tooltip, resolved at compile time. Every kind but `group` heads the tooltip with `heading`.
+ * - `aes`: the value of an aesthetic, read through the layer mapping.
+ * - `variable`: the value of a variable the geom derives, read from the observation.
+ * - `range`: two aesthetics joined by an en dash.
+ * - `group`: the layer's default rows, one per listed observation, labelled by colour group or the `y` variable.
+ */
+type SceneTooltipField = (SceneTooltipFieldBase & {
+    kind: 'aes';
+    aes: string;
+    heading: boolean;
+}) | (SceneTooltipFieldBase & {
+    kind: 'variable';
+    variable: string;
+    heading: boolean;
+}) | (SceneTooltipFieldBase & {
+    kind: 'range';
+    range: readonly [from: string, to: string];
+    heading: boolean;
+}) | (SceneTooltipFieldBase & {
+    kind: 'group';
+});
+
+/** What a tooltip field shows, and how an author changed it. */
+interface SceneTooltipFieldBase {
+    /** The name an author's `tooltip` entry addresses the field by. */
+    name: string;
+    /** Replaces the row's default label. */
+    title?: string;
+    /** Replaces the value's own variable format. */
+    format?: ExplicitValueFormat;
 }
 
 /**
@@ -8893,13 +8975,33 @@ type ToggleStackTotalsParams = {
     showStackTotals: boolean;
 };
 
-type TooltipContract = ReadonlyArray<{
-    /** Row label. When omitted, the label is resolved from the mapped variable's friendly name. */
-    readonly key?: string;
-    readonly aes: string;
-    /** Leaves the row out, instead of empty, when the hovered observation has no value for it. */
-    readonly optional?: boolean;
-}>;
+/**
+ * Tooltip configuration (after defaults applied)
+ */
+interface TooltipConfig {
+    /**
+     * Which hovered observations the tooltip lists.
+     * @default 'band'
+     */
+    mode: TooltipMode;
+}
+
+type TooltipContract = readonly TooltipField[];
+
+/**
+ * One row of a geom's tooltip contract. Left out when the observation has no value, so one contract can cover
+ * several observation kinds (a sankey's nodes and flows).
+ */
+type TooltipField = AesTooltipField | RangeTooltipField;
+
+/**
+ * Which hovered observations the tooltip lists.
+ * - 'band': everything at the hovered position: the hovered observation, its group (stacked segments, dodged
+ *   siblings) and the related observations on other layers (default)
+ * - 'observation': the hovered observation and, from each other layer, the related observation in its group
+ * - 'none': no tooltip; hover, highlight and cursor still respond
+ */
+type TooltipMode = 'band' | 'observation' | 'none';
 
 /**
  * Discriminated union of the built-in transform inputs, keyed on `transformType`. Use
@@ -8940,7 +9042,7 @@ type UpdateAnnotationParams<TKind extends AnnotationKind = AnnotationKind> = {
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * One user-input problem authored once and used three ways: pushed onto the collector as a warning
@@ -9195,6 +9297,7 @@ interface GraphRendererProps {
      * and so does a chart denser than `maxAnimatedGeoms`.
      */
     animation?: GraphAnimation;
+    /** `false` hides the tooltip whatever `config.tooltip.mode` says. Left at `true`, the spec decides. */
     showTooltips?: boolean;
     mode?: GraphMode;
     /** Per-region component overrides. Unspecified regions render their default. */
