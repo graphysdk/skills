@@ -2053,7 +2053,7 @@ type CustomPaletteSpec = {
  * - `category` — per-observation category text placed as its own label beside the value label.
  * - `aggregate` — labels over values derived from several observations, e.g. stack totals.
  */
-const DATA_LABEL_ROLES: readonly ("observation" | "aggregate" | "category")[];
+const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
 
 /**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
@@ -3603,7 +3603,7 @@ interface QuantitativeScaleMethods {
  * - `outside` — past the geom's edge; labels on zero-extent anchors (line points, markers) always
  *   read as outside.
  */
-const RESOLVED_DATA_LABEL_POSITIONS: readonly ("outside" | "inside")[];
+const RESOLVED_DATA_LABEL_POSITIONS: readonly ("inside" | "outside")[];
 
 /**
  * A rectangle in pixel coordinates, origin at top-left. Every rect on a {@link GraphLayout} is measured

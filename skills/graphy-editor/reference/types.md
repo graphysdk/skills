@@ -3078,7 +3078,7 @@ interface CustomTransformSpec<Name extends string = string> {
  * - `category` — per-observation category text placed as its own label beside the value label.
  * - `aggregate` — labels over values derived from several observations, e.g. stack totals.
  */
-const DATA_LABEL_ROLES: readonly ("observation" | "aggregate" | "category")[];
+const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
 
 /**
  * Conventional `context` keys. A diagnostic's `context` is free-form `Record<string, JsonValue>`,
@@ -4645,7 +4645,7 @@ type PropertyDomains<Property extends StyleProperty> = PropertyDomainMap[Propert
  * - `outside` — past the geom's edge; labels on zero-extent anchors (line points, markers) always
  *   read as outside.
  */
-const RESOLVED_DATA_LABEL_POSITIONS: readonly ("outside" | "inside")[];
+const RESOLVED_DATA_LABEL_POSITIONS: readonly ("inside" | "outside")[];
 
 /** The range between two aesthetics, each end formatted by its own variable (an error bar's `10.5 – 13.5`). */
 interface RangeTooltipField {
@@ -6527,6 +6527,7 @@ const STYLE_TARGETS: {
             readonly target: "tooltip";
         };
         readonly vocabulary: {
+            readonly gap: "pixels";
             readonly fill: "paint";
             readonly stroke: "color";
             readonly strokeWidth: "pixels";
@@ -6537,6 +6538,7 @@ const STYLE_TARGETS: {
             readonly alpha: "unitInterval";
         };
         readonly rest: {
+            readonly gap: 4;
             readonly fill: StyleTokenRef;
             readonly stroke: StyleTokenRef;
             readonly strokeWidth: 1;
@@ -6662,7 +6664,12 @@ const STYLE_TARGETS: {
         readonly select: {
             readonly target: "headlineItem";
         };
-        readonly vocabulary: {};
+        readonly vocabulary: {
+            readonly gap: "pixels";
+        };
+        readonly rest: {
+            readonly gap: 2;
+        };
         readonly children: {
             readonly number: {
                 readonly select: {
@@ -6841,11 +6848,13 @@ const STYLE_TARGETS: {
             readonly target: "legend";
         };
         readonly vocabulary: {
+            readonly focusStroke: "color";
             readonly gap: "pixels";
             readonly margin: "margin";
         };
         readonly rest: {
             readonly gap: 8;
+            readonly focusStroke: StyleTokenRef;
         };
         readonly children: {
             readonly popover: {
@@ -6954,6 +6963,7 @@ const STYLE_TARGETS: {
             readonly cornerRadius: "boxRadius";
             readonly shadow: "shadow";
             readonly alpha: "unitInterval";
+            readonly gap: "pixels";
             readonly fontFamily: "fontFamily";
             readonly fontSize: "pixels";
             readonly fontWeight: "fontWeight";
@@ -6972,6 +6982,7 @@ const STYLE_TARGETS: {
             readonly strokeWidth: 0;
             readonly paddingInline: 2;
             readonly paddingBlock: 4;
+            readonly gap: 8;
             readonly fontSize: 11.5;
             readonly fontWeight: 500;
             readonly lineHeight: 1;
