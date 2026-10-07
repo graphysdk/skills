@@ -475,7 +475,7 @@ A root `style.geom({ stroke })` also reaches points and replaces their white bor
 
 `Stylesheet` is a type from `@graphysdk/viz-engine`. Without the import, a plain object literal works as well since `styles()` and `extends` take the same shape.
 
-The storybook style presets (Braun, Financial Times, Mexico 68 and the rest) are built this way: a `styles()` block for chrome (`style.graph`, `style.panelBorder`, `style.tickLabel`, `style.legendItem`, `style.dataLabel`), per-graph `styles()` blocks for geom paint, and a `config()` block for what to show. See `recipes/themes/` for the full sheets. One file per theme.
+The storybook style presets (Braun, Financial, Mexico 68 and the rest) are built this way: a `styles()` block for chrome (`style.graph`, `style.panelBorder`, `style.tickLabel`, `style.legendItem`, `style.dataLabel`), per-graph `styles()` blocks for geom paint, and a `config()` block for what to show. See `recipes/themes/` for the full sheets. One file per theme.
 
 Cover the chrome a theme usually touches:
 
