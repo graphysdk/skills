@@ -1958,17 +1958,16 @@ interface SelectControlProps extends Omit<DiscreteControlProps<string | null>, '
  * committed on key up instead — the keyboard's equivalent of releasing the thumb. Blur commits too,
  * for focus leaving mid-hold with no key up ever arriving.
  */
-const Slider: ({ value, onChange, onCommit, min, max, step, suffix, formatValue, isDisabled, ariaLabel, ariaLabelledBy, }: SliderControlProps) => JSX.Element;
+const Slider: ({ value, onChange, onCommit, min, max, step, suffix, formatValue, showValue, isDisabled, ariaLabel, ariaLabelledBy, }: SliderControlProps) => JSX.Element;
 
 interface SliderControlProps extends ContinuousControlProps<number> {
     min: number;
     max: number;
     step?: number;
-    /**
-     * Unit for the readout beside the track — `px`, `%`, `°`. Shows the value when given and hides it
-     * when not, so a slider with nothing to say stays a bare track.
-     */
+    /** Unit for the readout beside the track — `px`, `%`, `°`. Without one the readout is the bare number. */
     suffix?: string;
+    /** Shows the readout beside the track. Off leaves a bare track, whatever {@link suffix} or {@link formatValue} say. */
+    showValue?: boolean;
     /**
      * Formats the readout outright, for a value a unit cannot describe on its own — a thousands
      * separator, a ratio, a named step. Wins over {@link suffix} when both are given.
@@ -2015,7 +2014,7 @@ interface TextFieldControlProps extends ContinuousControlProps<string> {
  * transient run committed on key up. Only the layout differs — a row of words here, a grid of pictures
  * there — which is the whole of why they are two controls.
  */
-const ToggleGroup: ({ options, value, onChange, onCommit, itemLayout, isDisabled, ariaLabel, ariaLabelledBy, id, }: ToggleGroupControlProps) => JSX.Element;
+const ToggleGroup: ({ options, value, onChange, onCommit, itemLayout, hasEqualWidths, isDisabled, ariaLabel, ariaLabelledBy, id, }: ToggleGroupControlProps) => JSX.Element;
 
 /**
  * Single-select segmented control.
@@ -2031,6 +2030,11 @@ interface ToggleGroupControlProps extends ContinuousControlProps<string> {
      * as pictures with a caption.
      */
     itemLayout?: 'inline' | 'stacked';
+    /**
+     * Gives every option the same width however long its label, which then ellipsises instead of
+     * widening its cell. Off, options size to their content.
+     */
+    hasEqualWidths?: boolean;
 }
 
 /**
