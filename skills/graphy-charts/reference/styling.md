@@ -113,7 +113,7 @@ style.geom.bar({ fill: { pattern: 'diagonal', color: '#1d2129', background: '#ff
 style.geom.tile({ fill: { image: 'data:image/png;base64,iVBORw0KGgo=', fit: 'tile', size: 24, alpha: 0.8, fallback: '#cccccc' } });
 ```
 
-A gradient angle follows CSS: `180` runs top to bottom. Patterns are `diagonal`, `dots` or `crosshatch`. An image is a `data:image/` URI; `fit` is `tile` (default) or `stretch`; `fallback` paints until the image decodes.
+A gradient angle follows CSS: `180` runs top to bottom. Patterns are `diagonal`, `dots` or `crosshatch`. An image is a `data:image/` URI; `fit` is `tile` (default) or `stretch`. `fallback` always paints behind the image; `alpha` affects only the image. Use `fallback: 'transparent'` to keep the chart's colours visible beneath an image overlay.
 
 Notes on a few properties:
 

@@ -173,6 +173,8 @@ release — to remap a variable, rebuild the `Spec`; see "When no command exists
 `SetNumberFormatDecimalsCommand`, `SetNumberFormatAbbreviationCommand`,
 `SetAppearanceTextScaleCommand`.
 
+**Sequence** — `SequenceCommand({ commands })` applies several commands as one undo step, in order. It takes its first command's target and description. It does nothing when the commands leave the spec unchanged.
+
 **Styles** — `SetStyleRuleCommand({ list, rule, index? })`: the one command for everything the
 stylesheet paints. An entry is identified by its `select` + `when` (never by id) — the command
 writes the entry that paints those elements under those conditions, whoever authored it.

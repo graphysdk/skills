@@ -455,6 +455,8 @@ type StyleProperty = (typeof STYLE_PROPERTY_NAMES)[number];
  *   every layer, or every annotation, with the shared vocabulary.
  * - `layer` — restrict a geom entry, including a rule label, to the layer with that authored id.
  * - `annotation` — restrict an annotation entry to the annotation with that id.
+ * - `coord` — restrict any entry to graphs drawn in that coordinate system. Absent, the entry applies
+ *   in both.
  * - `edge` / `axis` / `role` / `position` / `part` — restrict an entry to one partition of its
  *   target: a panel-border, legend, axis-label or tick-label edge; the axis a grid line, tick line,
  *   axis label or tick label belongs to; a data label's role and where it sits; a tooltip part;
@@ -621,6 +623,12 @@ interface GraphProviderProps {
      * stay reactive.
      */
     plugins?: readonly Plugin_2[];
+    /**
+     * The graph's theme. Spec settings and plugin renderers override its defaults.
+     * Fixed at mount; change the React `key` to switch themes.
+     * The theme's `colorScheme`, when set, overrides the `colorScheme` prop.
+     */
+    theme?: Theme;
     formattingLocale?: Locale;
     /**
      * Filled with this graph's {@link GraphHandle}, for callers mounted outside the provider where the
@@ -1109,23 +1117,20 @@ interface GeomRendererDefinition extends ResolvedGeomRenderer {
 }
 
 /**
- * Ergonomic entry point for a React app: pass `plugins` once and get back a {@link GraphyKit} — the
- * full typed builder plus a `GraphProvider` that already carries them. Pure sugar over the primitives
- * (`createSpecBuilder`, `<GraphProvider plugins>`); use those directly for headless or advanced
- * wiring. The `const` type parameter captures the `plugins` tuple literally, so `kit.geom.<customName>`
- * is typed.
+ * Builds a {@link GraphyKit} from `plugins` and a `theme`, passed once. For a headless compile, use
+ * `createSpecBuilder` and `<GraphProvider plugins theme>` directly. The `const` type parameter keeps
+ * the `plugins` tuple, so `kit.geom.<customName>` is typed.
  */
-function createGraphyKit<const P extends readonly Plugin_2[] = []>(options?: CreateSpecBuilderOptions<P>): GraphyKit<P>;
+function createGraphyKit<const P extends readonly Plugin_2[] = []>({ theme, ...options }?: CreateGraphyKitOptions<P>): GraphyKit<P>;
 
 /**
- * A plugin-bound authoring kit: the whole typed {@link SpecBuilder} surface — every spec-item factory
- * plus `createSpec`/`pipe` — and a `GraphProvider` pre-bound to the same `plugins`, so what can be
- * written and what can render derive from one array and cannot diverge. Generic over the `plugins`
- * tuple so the typed per-plugin builder methods (`geom.<name>`, …) flow through to the React entry
- * point.
+ * The typed spec builders and a `GraphProvider` bound to the same `plugins` and the supplied `theme`.
+ * What can be written and what can render come from one `plugins` array, so they cannot diverge.
+ * Generic over the `plugins` tuple so the typed per-plugin builder methods (`geom.<name>`, …) flow
+ * through to the React entry point.
  */
 interface GraphyKit<P extends readonly Plugin_2[] = readonly Plugin_2[]> extends SpecBuilder<P> {
-    GraphProvider: (props: Omit<GraphProviderProps, 'plugins'>) => ReactElement;
+    GraphProvider: (props: Omit<GraphProviderProps, 'plugins' | 'theme'>) => ReactElement;
 }
 ```
 
@@ -1458,10 +1463,18 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     color: StyleColorValue;
     paint: AuthoredStylePaint;
+    overlay: AuthoredStyleOverlay;
     shadow: StyleShadowValue<StyleColorValue>;
     padding: StylePaddingValue;
     margin: StylePaddingValue;
 }
+
+/**
+ * What is drawn over a target's own fill: `'none'`, one paint or several with the first on top. A
+ * geom's overlay is drawn as strongly as the layer under it, so it fades with a fill that is faint.
+ * The graph's overlay is drawn at full strength over the frame, whatever the graph's fill or alpha.
+ */
+type AuthoredStyleOverlay = 'none' | AuthoredStylePaint | readonly AuthoredStylePaint[];
 
 /** A paint as authored, compiled (tokens inlined) and resolved (every colour one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
@@ -2282,11 +2295,12 @@ type Edge = 'top' | 'right' | 'bottom' | 'left';
 /** Measured sizes (in pixels) for each edge of the layout. */
 type EdgeSizes = Record<Edge, number>;
 
-/** Extra fields an entry on this node may carry. */
+/** Extra fields an entry on this node may carry. Every entry may also carry a `coord`. */
 type EntryOption = 'where' | 'state' | 'layer' | 'annotation';
 
 type EntryOptionsFor<Options> = {
     id?: string;
+    coord?: StyleCoord;
 } & (NonNullable<Options> extends readonly EntryOption[] ? ('where' extends NonNullable<Options>[number] ? {
     where?: Predicate;
 } : unknown) & ('state' extends NonNullable<Options>[number] ? {
@@ -2469,6 +2483,7 @@ interface GeomStyleRule {
 type GeomStyleSelect = {
     target: 'geom';
     layer?: string;
+    coord?: StyleCoord;
 } & ({
     kind: string;
     part?: string;
@@ -4003,6 +4018,7 @@ const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma"
 /** The paint every geom speaks, a plugin geom's observations included. */
 const SHARED_GEOM_VOCABULARY: {
     readonly fill: "paint";
+    readonly overlay: "overlay";
     readonly stroke: "color";
     readonly alpha: "unitInterval";
     readonly fillAlpha: "unitInterval";
@@ -4018,6 +4034,8 @@ const SHARED_GEOM_VOCABULARY: {
 /** Every {@link StyleBlendMode}. */
 const STYLE_BLEND_MODES: readonly ["normal", "multiply", "screen", "overlay", "darken", "lighten"];
 
+const STYLE_COORDS: readonly ["cartesian", "polar"];
+
 /** Every {@link StyleFontStyle}, {@link StyleTextTransform} and {@link StyleTextDecoration}. */
 const STYLE_FONT_STYLES: readonly ["normal", "italic", "oblique"];
 
@@ -4028,7 +4046,7 @@ const STYLE_LINE_CAPS: readonly ["butt", "round", "square"];
 
 const STYLE_LINE_JOINS: readonly ["miter", "round", "bevel"];
 
-const STYLE_PATTERN_PRESETS: readonly ["diagonal", "dots", "crosshatch"];
+const STYLE_PATTERN_PRESETS: readonly ["diagonal", "dots", "crosshatch", "lines"];
 
 /** Every {@link StylePointSymbol}. */
 const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", "cross", "star", "wye"];
@@ -4038,7 +4056,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -4379,6 +4397,9 @@ type StyleBuilders<P extends readonly Plugin[]> = Omit<typeof baseStyle, 'geom'>
  */
 type StyleColorValue = string | LightDarkColor | StyleTokenRef;
 
+/** The coordinate system a graph is drawn in, as a style entry names it. */
+type StyleCoord = (typeof STYLE_COORDS)[number];
+
 /** A box's rounding: one radius for every corner or one per corner. */
 type StyleCornerRadius = number | StyleCornerRadiusSides;
 
@@ -4463,8 +4484,9 @@ interface StyleGradientStop<Color> {
 }
 
 /**
- * An image fill: a data URI, its fit (`tile` by default), its opacity, a tile's width in screen pixels
- * (the height keeps the image's proportions), and the colour behind it until it decodes.
+ * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
+ * The fallback always paints behind the image; `alpha` affects only the image.
+ * Use `fallback: 'transparent'` for overlays that should preserve the underlying colours.
  */
 interface StyleImage<Color> {
     image: string;
@@ -4826,7 +4848,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * Constant mapping - a literal value applied to every observation.
@@ -5072,6 +5094,18 @@ type CoordKind = CoordSystem['type'];
 /** Maps a coord-kind discriminator to the corresponding `CoordSystem` member. */
 type CoordSystemFor<C extends CoordKind> = C extends 'cartesian' ? CartesianCoordSystem : C extends 'polar' ? PolarCoordSystem : never;
 
+/** Options for {@link createGraphyKit}. */
+interface CreateGraphyKitOptions<P extends readonly Plugin_2[] = readonly Plugin_2[]> extends CreateSpecBuilderOptions<P> {
+    /**
+     * The theme applied to every graph of the kit. It only repaints, so it changes nothing about what
+     * the kit's builders offer.
+     *
+     * @example
+     *   const kit = createGraphyKit({ theme: watercolor, plugins: [dumbbell] });
+     */
+    theme?: Theme;
+}
+
 /** Round marks of one size, which the outline grows from their rim. */
 interface EditOutlineDots {
     kind: 'dots';
@@ -5128,6 +5162,38 @@ const GRAPH_MODES: {
     readonly pointAndEdit: "point-and-edit";
 };
 
+interface GeomCircleProps {
+    cx: ShapePosition;
+    cy: ShapePosition;
+    /** Radius in pixels. */
+    r: number;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    /** Whether a change of centre or radius springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    /** A geom's own test hook, since the primitive owns the painted element. */
+    'data-testid'?: string;
+}
+
+interface GeomLineProps {
+    x1: ShapePosition;
+    y1: ShapePosition;
+    x2: ShapePosition;
+    y2: ShapePosition;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+    strokeLinecap?: 'butt' | 'round' | 'square';
+    /** Whether a change of either endpoint springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
+}
+
 /** An overlay-hosted geom's paint function — receives the guaranteed overlay wiring on `input.overlay`. */
 type GeomOverlayRenderFn<G extends GeomName | string = string, C extends CoordKind = CoordKind> = (input: GeomOverlayRenderInput<G, C>) => ReactNode;
 
@@ -5138,6 +5204,42 @@ type GeomOverlayRenderFn<G extends GeomName | string = string, C extends CoordKi
  */
 interface GeomOverlayRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInput<G, C> {
     overlay: InteractiveOverlayApi;
+}
+
+interface GeomPathProps {
+    /** The path in the panel's local pixels, `0…width` by `0…height`: a path has no percentage units. */
+    d: string;
+    /**
+     * The layer the path is drawn from. A new path from the same layer (at another panel size) lands at once, as the
+     * marks placed in panel percentages do; only a new layer, from a recompile, morphs.
+     */
+    source: SceneLayer;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+    /** Whether a change of shape morphs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
+}
+
+interface GeomRectProps {
+    x: ShapePosition;
+    y: ShapePosition;
+    width: ShapePosition;
+    height: ShapePosition;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    /** Whether a change of origin or size springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
 }
 
 /**
@@ -5254,6 +5356,17 @@ interface GeomRenderOptions {
     overlay: true;
 }
 
+/**
+ * A theme's own shapes, each in place of the default one. A shape it leaves out is drawn by the
+ * default. Wrap `DefaultGeomCircle` and its siblings to keep their transitions.
+ */
+interface GeomShapes {
+    Circle?: ComponentType<GeomCircleProps>;
+    Line?: ComponentType<GeomLineProps>;
+    Rect?: ComponentType<GeomRectProps>;
+    Path?: ComponentType<GeomPathProps>;
+}
+
 /** The mode a chart runs in, which `GraphRenderer` takes as a prop and every row of `MODE_SURFACES` is keyed by. */
 type GraphMode = (typeof GRAPH_MODES)[keyof typeof GRAPH_MODES];
 
@@ -5361,6 +5474,12 @@ interface ResolvedGeomRenderer extends GeomRenderContract {
 }
 
 /**
+ * A position in the space the geom paints in: a panel percentage (`'42.5%'`) or a user coordinate
+ * inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
+ */
+type ShapePosition = string | number;
+
+/**
  * Passed as the second argument to a layout-coupled slot's `measure`, so it can size its band from
  * real text metrics — the same Canvas-backed measurer the built-in measurers use — rather than
  * constructing its own. A `measure` whose size is unrelated to text can ignore it.
@@ -5409,4 +5528,16 @@ type SwatchShape = 'square' | 'line' | 'circle' | 'area' | 'slice';
 
 /** The UI surface a swatch is painted on. Lets a Swatch slot restyle one surface and delegate the rest. */
 type SwatchSurface = 'legend' | 'tooltip' | 'headline' | 'callout' | 'rule-label';
+
+/**
+ * A theme as a host applies it: what the compiler reads, plus the shapes the renderer draws with.
+ */
+interface Theme extends Theme_2 {
+    /**
+     * The theme's own circle, line, rect and path. A geom built from `GeomCircle` and its siblings is
+     * drawn with them, which is how a geom from a package takes the theme. Built-in geoms are repainted
+     * through `plugins`.
+     */
+    shapes?: GeomShapes;
+}
 ```

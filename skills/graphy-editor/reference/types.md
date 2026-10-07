@@ -215,6 +215,12 @@ interface GraphProviderProps {
      * stay reactive.
      */
     plugins?: readonly Plugin_2[];
+    /**
+     * The graph's theme. Spec settings and plugin renderers override its defaults.
+     * Fixed at mount; change the React `key` to switch themes.
+     * The theme's `colorScheme`, when set, overrides the `colorScheme` prop.
+     */
+    theme?: Theme;
     formattingLocale?: Locale;
     /**
      * Filled with this graph's {@link GraphHandle}, for callers mounted outside the provider where the
@@ -767,7 +773,8 @@ class ToggleGoalLineCommand implements Command<ToggleGoalLineParams> {
 /**
  * Draws or removes the fill beneath a line. Line layers only: an area fills by definition.
  *
- * Switching off clears `fillAlpha` rather than writing a zero, since an undeclared alpha draws no fill.
+ * Switching off clears `fillAlpha`, or writes zero to suppress an inherited fill.
+ * Switching on uses the requested alpha, an inherited fill, or the default opacity.
  */
 class ToggleLineFillCommand implements Command<ToggleLineFillParams> {
     readonly type: "toggle-line-fill";
@@ -1240,8 +1247,9 @@ class SetNumberFormatAbbreviationCommand implements Command<SetNumberFormatAbbre
  * - Declarations at an address the list already holds replace that entry's, keeping its position in
  *   the cascade and its authored `id`.
  * - Declarations at a new address insert at `index` (clamped; appended when omitted).
- * - `declarations: null` removes every entry at the address, so nothing paints there afterwards;
- *   an address the list doesn't hold is a no-op.
+ * - `declarations: null` removes the entry that paints at the address and every copy of it; an
+ *   address the list doesn't hold is a no-op. Where that entry is kept to the graph's coord, the one
+ *   every graph shares stays and paints again.
  * - Writing declarations an entry already carries is a no-op, so a value already painted doesn't grow
  *   the spec or the history.
  *
@@ -2447,10 +2455,18 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     color: StyleColorValue;
     paint: AuthoredStylePaint;
+    overlay: AuthoredStyleOverlay;
     shadow: StyleShadowValue<StyleColorValue>;
     padding: StylePaddingValue;
     margin: StylePaddingValue;
 }
+
+/**
+ * What is drawn over a target's own fill: `'none'`, one paint or several with the first on top. A
+ * geom's overlay is drawn as strongly as the layer under it, so it fades with a fill that is faint.
+ * The graph's overlay is drawn at full strength over the frame, whatever the graph's fill or alpha.
+ */
+type AuthoredStyleOverlay = 'none' | AuthoredStylePaint | readonly AuthoredStylePaint[];
 
 /** A paint as authored, compiled (tokens inlined) and resolved (every colour one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
@@ -2865,10 +2881,14 @@ type CompiledStyleColorValue = string | LightDarkColor;
 interface CompiledStyleDomainValues extends ScalarStyleDomainValues {
     color: CompiledStyleColorValue;
     paint: CompiledStylePaint;
+    overlay: CompiledStyleOverlay;
     shadow: StyleShadowValue<CompiledStyleColorValue>;
     padding: Partial<StylePadding>;
     margin: Partial<StylePadding>;
 }
+
+/** An overlay once compiled and once resolved: its paints, the first on top; none when empty. */
+type CompiledStyleOverlay = readonly CompiledStylePaint[];
 
 type CompiledStylePaint = StylePaint<CompiledStyleColorValue>;
 
@@ -3326,7 +3346,7 @@ interface DiscreteScaleSpec {
 /** A diverging colormap: its canonical ColorBrewer code or a friendly alias. */
 type DivergingSchemeName = (typeof DIVERGING_SCHEME_NAMES)[number] | SchemeAlias;
 
-/** Extra fields an entry on this node may carry. */
+/** Extra fields an entry on this node may carry. Every entry may also carry a `coord`. */
 type EntryOption = 'where' | 'state' | 'layer' | 'annotation';
 
 /** A value format with no inner lookups. Lookup cases and fallbacks are constrained to this so a `lookup` cannot nest another `lookup` at the type level. */
@@ -5031,6 +5051,8 @@ interface ResolvedObservationPoint extends ResolvedPoint {
     observationIndex: number;
 }
 
+type ResolvedOverlay = readonly ResolvedPaint[];
+
 type ResolvedPaint = StylePaint<string>;
 
 /** Resolved palette overrides: group number (1-indexed) to a concrete hex color. */
@@ -5228,6 +5250,7 @@ type ResolvedStyleDeclarations = StyleDeclarationsFor<ResolvedStyleDomainValues>
 interface ResolvedStyleDomainValues extends ScalarStyleDomainValues {
     color: string;
     paint: ResolvedPaint;
+    overlay: ResolvedOverlay;
     shadow: StyleShadowValue<string>;
     padding: Partial<StylePadding>;
     margin: Partial<StylePadding>;
@@ -5387,6 +5410,7 @@ const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma"
 /** The paint every geom speaks, a plugin geom's observations included. */
 const SHARED_GEOM_VOCABULARY: {
     readonly fill: "paint";
+    readonly overlay: "overlay";
     readonly stroke: "color";
     readonly alpha: "unitInterval";
     readonly fillAlpha: "unitInterval";
@@ -5412,7 +5436,7 @@ const STYLE_LINE_CAPS: readonly ["butt", "round", "square"];
 
 const STYLE_LINE_JOINS: readonly ["miter", "round", "bevel"];
 
-const STYLE_PATTERN_PRESETS: readonly ["diagonal", "dots", "crosshatch"];
+const STYLE_PATTERN_PRESETS: readonly ["diagonal", "dots", "crosshatch", "lines"];
 
 /** Every {@link StylePointSymbol}. */
 const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", "cross", "star", "wye"];
@@ -5422,7 +5446,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -5439,6 +5463,7 @@ const STYLE_TARGETS: {
         };
         readonly vocabulary: {
             readonly fill: "paint";
+            readonly overlay: "overlay";
             readonly stroke: "color";
             readonly alpha: "unitInterval";
             readonly fillAlpha: "unitInterval";
@@ -6227,6 +6252,7 @@ const STYLE_TARGETS: {
         };
         readonly vocabulary: {
             readonly fill: "paint";
+            readonly overlay: "overlay";
             readonly stroke: "color";
             readonly strokeWidth: "pixels";
             readonly cornerRadius: "pixels";
@@ -8586,12 +8612,15 @@ type StyleDeclarationsFor<Tier extends Record<StyleDomain, unknown>> = {
 type StyleDomain = keyof AuthoredStyleDomainValues;
 
 /**
- * Where a compiled entry came from: the built-in stylesheet, or a position in one of the authored lists
- * plus the author's stable `id` when present. `explain()` reports it, and diagnostics use it to point at
- * the offending entry.
+ * Where a compiled entry came from: the built-in stylesheet, the theme's or the spec's, with its
+ * position and its `id` when it has one. `explain()` and warnings report it.
  */
 type StyleEntryOrigin = {
     list: 'builtin';
+} | {
+    list: 'theme';
+    index: number;
+    id?: string;
 } | {
     list: 'defaults' | 'overrides';
     index: number;
@@ -8630,8 +8659,9 @@ interface StyleGradientStop<Color> {
 }
 
 /**
- * An image fill: a data URI, its fit (`tile` by default), its opacity, a tile's width in screen pixels
- * (the height keeps the image's proportions), and the colour behind it until it decodes.
+ * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
+ * The fallback always paints behind the image; `alpha` affects only the image.
+ * Use `fallback: 'transparent'` for overlays that should preserve the underlying colours.
  */
 interface StyleImage<Color> {
     image: string;
@@ -8957,7 +8987,7 @@ type ToggleGoalLineParams = {
 type ToggleLineFillParams = {
     layerId: string;
     showFill: boolean;
-    /** Alpha to fill at; the wash the switch draws with, absent. Undo carries the alpha it took away. */
+    /** Optional opacity when enabling fill; otherwise uses the inherited fill or the default. */
     fillAlpha?: number;
 };
 
@@ -9042,7 +9072,7 @@ type UpdateAnnotationParams<TKind extends AnnotationKind = AnnotationKind> = {
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * One user-input problem authored once and used three ways: pushed onto the collector as a warning
@@ -9210,6 +9240,103 @@ const GRAPH_MODES: {
     readonly editable: "editable";
     readonly pointAndEdit: "point-and-edit";
 };
+
+interface GeomCircleProps {
+    cx: ShapePosition;
+    cy: ShapePosition;
+    /** Radius in pixels. */
+    r: number;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    /** Whether a change of centre or radius springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    /** A geom's own test hook, since the primitive owns the painted element. */
+    'data-testid'?: string;
+}
+
+interface GeomLineProps {
+    x1: ShapePosition;
+    y1: ShapePosition;
+    x2: ShapePosition;
+    y2: ShapePosition;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+    strokeLinecap?: 'butt' | 'round' | 'square';
+    /** Whether a change of either endpoint springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
+}
+
+interface GeomPathProps {
+    /** The path in the panel's local pixels, `0…width` by `0…height`: a path has no percentage units. */
+    d: string;
+    /**
+     * The layer the path is drawn from. A new path from the same layer (at another panel size) lands at once, as the
+     * marks placed in panel percentages do; only a new layer, from a recompile, morphs.
+     */
+    source: SceneLayer;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+    /** Whether a change of shape morphs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
+}
+
+interface GeomRectProps {
+    x: ShapePosition;
+    y: ShapePosition;
+    width: ShapePosition;
+    height: ShapePosition;
+    fill?: string;
+    opacity?: number;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+    /** Whether a change of origin or size springs to the new one. Snaps when false. */
+    shouldAnimateTransitions: boolean;
+    'data-testid'?: string;
+}
+
+/**
+ * A theme's own shapes, each in place of the default one. A shape it leaves out is drawn by the
+ * default. Wrap `DefaultGeomCircle` and its siblings to keep their transitions.
+ */
+interface GeomShapes {
+    Circle?: ComponentType<GeomCircleProps>;
+    Line?: ComponentType<GeomLineProps>;
+    Rect?: ComponentType<GeomRectProps>;
+    Path?: ComponentType<GeomPathProps>;
+}
+
+/**
+ * A position in the space the geom paints in: a panel percentage (`'42.5%'`) or a user coordinate
+ * inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
+ */
+type ShapePosition = string | number;
+
+/**
+ * A theme as a host applies it: what the compiler reads, plus the shapes the renderer draws with.
+ */
+interface Theme extends Theme_2 {
+    /**
+     * The theme's own circle, line, rect and path. A geom built from `GeomCircle` and its siblings is
+     * drawn with them, which is how a geom from a package takes the theme. Built-in geoms are repainted
+     * through `plugins`.
+     */
+    shapes?: GeomShapes;
+}
 ```
 
 ## Supporting types — @graphysdk/react-renderer/editable
