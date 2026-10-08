@@ -1880,6 +1880,36 @@ const Button: ({ label, icon, onClick, variant, isDisabled, ariaLabel, ariaLabel
  */
 type ButtonControlProps = ButtonBaseProps & ButtonContentProps;
 
+/** A grid of colour chips, for picking one colour from a fixed set such as the palette. */
+const ColorSwatches: ({ title, colors, value, onChange, isDisabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
+
+/**
+ * A grid of colour chips. A click reports the colour.
+ * `value` is `null` when no chip matches, as for a mixed selection.
+ */
+interface ColorSwatchesControlProps extends Omit<DiscreteControlProps<string | null>, 'onChange'> {
+    /** Heading above the grid. Omitted, the grid stands alone. */
+    title?: string;
+    colors: readonly string[];
+    onChange: (value: string) => void;
+}
+
+/** A hex picker behind a trigger, for a colour none of the swatches offer. */
+const CustomColor: ({ value, onChange, onCommit, popupAttributes }: CustomColorControlProps) => JSX.Element;
+
+/**
+ * A custom colour: a trigger that opens a hex picker. Each drag frame and typed change is reported,
+ * then `onCommit` once the picker closes. `null` when there is no single colour.
+ */
+interface CustomColorControlProps extends Omit<ContinuousControlProps<string | null>, 'onChange'> {
+    onChange: (value: string) => void;
+    /**
+     * Spread onto the picker popup. A host whose popup must stay inside a focus scope stamps it here.
+     * The popup portals on its own.
+     */
+    popupAttributes?: Record<string, string>;
+}
+
 /**
  * A number typed, scrubbed or stepped into a field.
  *
@@ -2064,6 +2094,8 @@ interface ControlRegistry {
     TextField?: ComponentType<TextFieldControlProps>;
     NumberField?: ComponentType<NumberFieldControlProps>;
     Select?: ComponentType<SelectControlProps>;
+    ColorSwatches?: ComponentType<ColorSwatchesControlProps>;
+    CustomColor?: ComponentType<CustomColorControlProps>;
 }
 
 /** A {@link ControlRegistry} with every member filled in, as sections consume it. */
@@ -8023,6 +8055,10 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
      * inputs via {@link SceneScaleBase.domain}.
      */
     map: (value: Input) => DataValue;
+    /**
+     * Colour scales only: the palette before its position-keyed `overrides`, which a colour picker offers.
+     */
+    paletteBeforeOverrides?: readonly string[];
 }
 
 /** A human-readable alias for a cryptic ColorBrewer diverging code (e.g. `'red-blue'` → `'RdBu'`). */
