@@ -1881,7 +1881,7 @@ const Button: ({ label, icon, onClick, variant, isDisabled, ariaLabel, ariaLabel
 type ButtonControlProps = ButtonBaseProps & ButtonContentProps;
 
 /** A grid of colour chips, for picking one colour from a fixed set such as the palette. */
-const ColorSwatches: ({ title, colors, value, onChange, isDisabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
+const ColorSwatches: ({ title, colors, value, onChange, trailing, isClearable, isDisabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
 
 /**
  * A grid of colour chips. A click reports the colour.
@@ -1892,10 +1892,14 @@ interface ColorSwatchesControlProps extends Omit<DiscreteControlProps<string | n
     title?: string;
     colors: readonly string[];
     onChange: (value: string) => void;
+    /** Chips after the colours and a separator, such as a custom picker's trigger. They wrap with the colours. */
+    trailing?: ReactNode;
+    /** Ends the row in a chip for no colour at all, after `trailing`, reported as `TRANSPARENT_COLOR`. */
+    isClearable?: boolean;
 }
 
 /** A hex picker behind a trigger, for a colour none of the swatches offer. */
-const CustomColor: ({ value, onChange, onCommit, popupAttributes }: CustomColorControlProps) => JSX.Element;
+const CustomColor: ({ value, onChange, onCommit, popupAttributes, variant, }: CustomColorControlProps) => JSX.Element;
 
 /**
  * A custom colour: a trigger that opens a hex picker. Each drag frame and typed change is reported,
@@ -1908,6 +1912,8 @@ interface CustomColorControlProps extends Omit<ContinuousControlProps<string | n
      * The popup portals on its own.
      */
     popupAttributes?: Record<string, string>;
+    /** `default` is a titled row showing the hex. `chip` is one chip, for the `trailing` of `ColorSwatches`. */
+    variant?: 'default' | 'chip';
 }
 
 /**
