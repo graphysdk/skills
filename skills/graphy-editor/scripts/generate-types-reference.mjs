@@ -195,6 +195,7 @@ const GROUPS = [
       "SetGridLineWidthCommand",
       "SetLegendAlignCommand",
       "SetLegendDisplayCommand",
+      "SetLegendPlacementCommand",
       "SetLegendPositionCommand",
       "SetHeadlineShowCommand",
       "SetHeadlineSizeCommand",

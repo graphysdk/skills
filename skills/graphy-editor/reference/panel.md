@@ -162,7 +162,8 @@ from the registry. Eight controls, two contracts:
   `NumberField` (`number | null` — null is an empty field, **not** zero; `prefix`/`suffix`
   display-only), `TextField` (per-keystroke `onChange`, `onCommit` on blur), `ToggleGroup`
   (segmented row; `itemLayout: 'inline' | 'stacked'`) and `RadioGrid` (picture grid;
-  `columns`, `itemLayout: 'tile' | 'swatch'`) — both continuous *despite holding one string*,
+  `columns`, `itemLayout: 'tile' | 'swatch' | 'icon'`, options may pin `gridRow`/`gridColumn` so the
+  arrow keys walk them in their own order) — both continuous *despite holding one string*,
   because a held arrow key sweeps the selection and seals on key up.
 - `Button` is an action, not a value: `onClick`, `variant: 'default' | 'tile'`, and its content is
   either `{ label, icon? }` or `{ icon, ariaLabel }` — the types make "no label and no icon"

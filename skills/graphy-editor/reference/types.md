@@ -1144,6 +1144,19 @@ class SetLegendDisplayCommand implements Command<SetLegendDisplayParams> {
 }
 
 /**
+ * Sets the legend's side and its alignment along it as one edit. Its revert restores both, even where only one
+ * changed, so a held gesture folded into one undo step returns to where it began.
+ */
+class SetLegendPlacementCommand implements Command<SetLegendPlacementParams> {
+    readonly type: "set-legend-placement";
+    readonly metadata: CommandMetadata;
+    readonly params: SetLegendPlacementParams;
+    readonly target: EditTarget;
+    constructor(params: SetLegendPlacementParams, metadata?: Partial<CommandMetadata>);
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+
+/**
  * Sets the legend placement relative to the chart (e.g. auto, top, bottom, left, right, none).
  * 'auto' lets the renderer choose the best position; 'none' hides the legend entirely.
  */
@@ -1915,14 +1928,16 @@ const RadioGrid: ({ options, value, onChange, onCommit, columns, itemLayout, isD
  * across the options and fires a change for each. `onCommit` lands once, on key up.
  */
 interface RadioGridControlProps extends ContinuousControlProps<string> {
-    options: readonly ControlOption[];
+    /** In the order the arrow keys walk them: Right and Down forward, Left and Up back. */
+    options: readonly RadioGridOption[];
     /** Items per row. Defaults to the number of options, i.e. a single row. */
     columns?: number;
     /**
      * `tile` (default) captions each icon; `swatch` drops the caption for a dense grid of pure
-     * pictures — colour chips a name would only clutter — naming each through `aria-label` instead.
+     * pictures — colour chips a name would only clutter — naming each through `aria-label` instead;
+     * `icon` drops the tile too, names each in a tooltip and thickens the checked stroke for a 24-unit viewBox.
      */
-    itemLayout?: 'tile' | 'swatch';
+    itemLayout?: 'tile' | 'swatch' | 'icon';
 }
 
 /** A single-choice dropdown, for a set too long or too wordy for a segmented row. */
@@ -8228,6 +8243,11 @@ type SetLegendDisplayParams = {
     display: LegendDisplay;
 };
 
+type SetLegendPlacementParams = {
+    position: LegendPosition;
+    align: LegendAlign;
+};
+
 type SetLegendPositionParams = {
     position: LegendPosition;
 };
@@ -9501,6 +9521,14 @@ interface PanelProps extends Omit<PanelRootProps_2, 'children'> {
 
 /** One surface's phrases, per locale. */
 type PhraseSource = Partial<Record<I18nLocale, object>>;
+
+/** A choice in a `RadioGrid`, which can sit somewhere other than its turn in the arrow keys' order. */
+interface RadioGridOption extends ControlOption {
+    /** The grid row it sits on, counting from 1; without one it takes the next free place. */
+    gridRow?: number;
+    /** The grid column it sits in, counting from 1. */
+    gridColumn?: number;
+}
 
 /** Fires on each deduped size change — the shape of `GraphRenderer`'s `onResize` callback. */
 type ResizeObserverOnResize = (state: ResizeObserverState) => void;

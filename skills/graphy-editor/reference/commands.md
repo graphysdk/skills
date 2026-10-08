@@ -168,7 +168,7 @@ release — to remap a variable, rebuild the `Spec`; see "When no command exists
 `SetAxisPositionCommand`, `SetAxisTickModeCommand`, `SetAxisTicksVisibilityCommand`,
 `SetAxisVisibilityCommand`. Grid: `SetGridVisibilityCommand`, `SetGridLineStyleCommand`,
 `SetGridLineWidthCommand`. Legend: `SetLegendPositionCommand`, `SetLegendDisplayCommand`,
-`SetLegendAlignCommand`. Headline: `SetHeadlineShowCommand`, `SetHeadlineSizeCommand`,
+`SetLegendAlignCommand`, `SetLegendPlacementCommand` (side and alignment as one undo step). Headline: `SetHeadlineShowCommand`, `SetHeadlineSizeCommand`,
 `SetHeadlinePositionCommand`, `SetHeadlineCompareWithCommand`. Numbers & appearance:
 `SetNumberFormatDecimalsCommand`, `SetNumberFormatAbbreviationCommand`,
 `SetAppearanceTextScaleCommand`.
