@@ -4238,7 +4238,8 @@ interface NumberFormatConfig {
      */
     decimals: number | 'auto';
     /**
-     * Abbreviation style for large numbers.
+     * Abbreviation style for large numbers in tooltips, data labels, legends and headlines. Axis
+     * ticks always abbreviate by their own magnitude.
      * - 'none': No abbreviation (1234567 → "1,234,567")
      * - 'auto': Automatic based on magnitude (1234567 → "1.2M")
      * - 'k': Force thousands (1234567 → "1,234.6K")
@@ -4256,14 +4257,6 @@ interface NumberFormatConfig {
      * Default: '.' (US) or locale-aware if locale is set
      */
     decimalSeparator?: string;
-    /**
-     * Prefix to prepend (e.g., '$', '€').
-     */
-    prefix?: string;
-    /**
-     * Suffix to append (e.g., '%', ' units').
-     */
-    suffix?: string;
 }
 
 interface NumericValueFormat {
@@ -9547,12 +9540,35 @@ interface PanelExpansion {
     collapseAllSections: () => void;
 }
 
-interface PanelProps extends Omit<PanelRootProps_2, 'children'> {
+interface PanelProps extends Omit<PanelRootProps, 'children'> {
     /**
      * Replaces the sections entirely. A panel is a convenience over composing them by hand, so the
      * escape hatch is the composition it saves you writing rather than a set of flags on top of it.
      */
     children?: ReactNode;
+}
+
+/** What every ready-made panel forwards, so a panel is a section list over the same root. */
+interface PanelRootProps {
+    /**
+     * The graph this panel edits. Omit it to edit the `<GraphProvider>` the panel sits inside;
+     * retarget the panel by passing a different handle.
+     */
+    handle?: GraphHandle;
+    /**
+     * The sections to show, in order. Passing them rather than having the panel choose is what lets a
+     * host drop a section, reorder them, or slot one of its own between two of ours.
+     */
+    children: ReactNode;
+    /**
+     * Replacements for individual leaf controls, for this editor panel alone. Omitted members keep the ones
+     * above it, a `ControlRegistryProvider`'s or ours, so a host adopts its own design system one control at a
+     * time rather than all at once.
+     */
+    controls?: ControlRegistry;
+    /** Title of the section open on first render. Omit to start with all of them closed. */
+    defaultExpandedSection?: string;
+    className?: string;
 }
 
 /** One surface's phrases, per locale. */

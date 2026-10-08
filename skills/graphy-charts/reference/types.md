@@ -689,6 +689,41 @@ type GraphSizing = {
 };
 ```
 
+## Themes
+
+```ts
+/**
+ * A stylesheet, colours, config and geom repaints that a host applies to every graph it draws. A
+ * spec never names it and the spec's own styles, scales and config still decide. Frozen at mount
+ * with `plugins`; change it by remounting.
+ */
+interface Theme {
+    /** Names the theme in diagnostics and serves as a React `key`. */
+    name: string;
+    /** Sits above the built-in stylesheet and below the spec's own styles. */
+    styles: Stylesheet;
+    /**
+     * Colours groups take, in order: what the default palette resolves to, for touching geoms too, and
+     * what a discrete colour scale takes when it names no `range`.
+     */
+    palette?: readonly string[];
+    /** Stops a continuous colour scale takes when it names no `range` or `scheme`, low to high. */
+    colormap?: readonly string[];
+    /** Sits above the config defaults and below the spec's own config. */
+    config?: ThemeConfig;
+    /** The one scheme the theme is drawn for. Omitted when its colours are light and dark pairs. */
+    colorScheme?: ColorScheme;
+    /** Repaints of built-in geoms. The host's `plugins` are read after these, so the host's decide on a clash. */
+    plugins?: readonly RenderOnlyPlugin[];
+}
+
+/**
+ * The config a theme may set: all of it but `content`, which holds what one graph says (its title,
+ * its source) and the brand mark, none of them a theme's to decide.
+ */
+type ThemeConfig = Omit<ConfigSpec, 'content'>;
+```
+
 ## Theme tokens
 
 ```ts
@@ -3074,7 +3109,8 @@ interface NumberFormatConfig {
      */
     decimals: number | 'auto';
     /**
-     * Abbreviation style for large numbers.
+     * Abbreviation style for large numbers in tooltips, data labels, legends and headlines. Axis
+     * ticks always abbreviate by their own magnitude.
      * - 'none': No abbreviation (1234567 → "1,234,567")
      * - 'auto': Automatic based on magnitude (1234567 → "1.2M")
      * - 'k': Force thousands (1234567 → "1,234.6K")
@@ -3092,14 +3128,6 @@ interface NumberFormatConfig {
      * Default: '.' (US) or locale-aware if locale is set
      */
     decimalSeparator?: string;
-    /**
-     * Prefix to prepend (e.g., '$', '€').
-     */
-    prefix?: string;
-    /**
-     * Suffix to append (e.g., '%', ' units').
-     */
-    suffix?: string;
 }
 
 interface NumericValueFormat {
@@ -5528,16 +5556,4 @@ type SwatchShape = 'square' | 'line' | 'circle' | 'area' | 'slice';
 
 /** The UI surface a swatch is painted on. Lets a Swatch slot restyle one surface and delegate the rest. */
 type SwatchSurface = 'legend' | 'tooltip' | 'headline' | 'callout' | 'rule-label';
-
-/**
- * A theme as a host applies it: what the compiler reads, plus the shapes the renderer draws with.
- */
-interface Theme extends Theme_2 {
-    /**
-     * The theme's own circle, line, rect and path. A geom built from `GeomCircle` and its siblings is
-     * drawn with them, which is how a geom from a package takes the theme. Built-in geoms are repainted
-     * through `plugins`.
-     */
-    shapes?: GeomShapes;
-}
 ```

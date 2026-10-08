@@ -386,7 +386,11 @@ export const spec = kit.pipe(
 
 Core geom authoring, render types, value readers, SVG helpers, and interaction hooks are exported by `@graphysdk/react`. Import engine-only APIs such as `Stat`, `TransformStrategy`, `IdentityKey`, `PositionRole`, `SpatialKind`, `createSpecBuilder`, and `createCompiler` from `@graphysdk/viz-engine`. See [types.md](types.md) for full declarations.
 
-Read the recipes from small to large. [panel-rect](../recipes/plugins/panel-rect.md) and [unit-box](../recipes/plugins/unit-box.md) are the smallest. Then [lollipop](../recipes/plugins/lollipop.md), [dumbbell](../recipes/plugins/dumbbell.md), [candlestick](../recipes/plugins/candlestick.md), and [sketchy-bar](../recipes/plugins/sketchy-bar.md). Then [beeswarm](../recipes/plugins/beeswarm.md), [voronoi](../recipes/plugins/voronoi.md), [treemap](../recipes/plugins/treemap.md), [sankey](../recipes/plugins/sankey.md), [force-directed](../recipes/plugins/force-directed.md), and [Mexico 68](../recipes/plugins/mexico-68.md). The stylesheet for Mexico 68 lives in [the theme file](../recipes/themes/mexico-68.md).
+Choose a recipe by complexity:
+
+- Minimal examples: [panel-rect](../recipes/plugins/panel-rect.md), [unit-box](../recipes/plugins/unit-box.md).
+- Custom marks: [lollipop](../recipes/plugins/lollipop.md), [dumbbell](../recipes/plugins/dumbbell.md), [candlestick](../recipes/plugins/candlestick.md), [sketchy-bar](../recipes/plugins/sketchy-bar.md).
+- Custom layouts: [beeswarm](../recipes/plugins/beeswarm.md), [voronoi](../recipes/plugins/voronoi.md), [treemap](../recipes/plugins/treemap.md), [sankey](../recipes/plugins/sankey.md), [force-directed](../recipes/plugins/force-directed.md).
 
 ## Registration warnings
 

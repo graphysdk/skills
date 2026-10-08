@@ -192,6 +192,8 @@ export const DarkGraph = ({ data, spec }: { data: Data; spec: Spec }) => (
 );
 ```
 
+Pass a `Theme` through the provider's `theme` prop or `createGraphyKit({ theme })`. It supplies styles, colours, config defaults and optional geom renderers. Like `plugins`, it is read once at mount; remount the provider to change it. A theme's fixed `colorScheme` overrides the provider's `colorScheme`. See [themes](themes.md) for installation and custom themes.
+
 The renderer mounts its own `ThemeProvider`. `ThemeProvider`, `vars`, `lightTheme` and `darkTheme` are exported for UI you build beside the graph that wants the same tokens. `ThemeProvider` takes `colorScheme` and optional `textScale`, `graphBackground`, `graphFontFamily` and `headingFontFamily`. A graph never needs them. The token types are `ThemeValues`, `ThemeKey` for one token name, and `ThemeOverrides` for a partial set.
 
 ## Formatting locale

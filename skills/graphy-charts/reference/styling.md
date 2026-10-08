@@ -14,7 +14,7 @@ Contents
 - Tokens and colour schemes
 - The graph target
 - Palettes and colour scales
-- Themes and presets
+- Sharing a stylesheet between specs
 - Built-in stylesheet
 - Pitfalls
 
@@ -69,7 +69,7 @@ Targets nest two ways.
 
 A bare entry addresses the whole target. `style.tooltip` is the popover box, not its text parts. `style.heading` is a wildcard over `h1` and `h2`. `style.source` is the label only, not the link. `style.legend` is the pill row, `style.legendItem` the pill.
 
-Only geom entries take `where`, `state` and `layer`. A rule label takes `layer` only. Annotation entries take `annotation`. Chrome entries (axes, labels, tooltip, legend, graph) take only `id`. TypeScript rejects the rest.
+Geom entries take `where`, `state` and `layer`. Rule labels also take `layer`; annotation entries take `annotation`. Chrome entries (axes, labels, tooltip, legend, graph) take `id`. All entries accept `coord`; see [Conditions](#conditions-where-and-layer). TypeScript rejects unsupported options.
 
 ## Property values
 
@@ -87,6 +87,7 @@ Each property has one value shape. A property can mean a different domain on dif
 | multiplier | number, 1 is unchanged | `saturation`, `brightness`, `contrast`, `lineHeight`, `textScale` |
 | signed pixels | number, negative allowed | `letterSpacing` |
 | shadow | `'none'` or `{ offsetX, offsetY, blur, color }` | `shadow`, `textShadow` |
+| overlay | `'none'`, one paint, or a list of paints with the first on top | `overlay` on geoms and the graph |
 | sides | number for every side, or `{ top, right, bottom, left }` with any subset | `padding`, `margin` |
 | words | see below | `fontStyle`, `textTransform`, `textDecoration`, `lineCap`, `lineJoin`, `blendMode`, `symbol` |
 | font family | CSS family list | `fontFamily` |
@@ -113,7 +114,17 @@ style.geom.bar({ fill: { pattern: 'diagonal', color: '#1d2129', background: '#ff
 style.geom.tile({ fill: { image: 'data:image/png;base64,iVBORw0KGgo=', fit: 'tile', size: 24, alpha: 0.8, fallback: '#cccccc' } });
 ```
 
-A gradient angle follows CSS: `180` runs top to bottom. Patterns are `diagonal`, `dots` or `crosshatch`. An image is a `data:image/` URI; `fit` is `tile` (default) or `stretch`. `fallback` always paints behind the image; `alpha` affects only the image. Use `fallback: 'transparent'` to keep the chart's colours visible beneath an image overlay.
+A gradient angle follows CSS: `180` runs top to bottom. Patterns are `diagonal`, `dots`, `crosshatch` or `lines`. An image is a `data:image/` URI; `fit` is `tile` (default) or `stretch`. `fallback` always paints behind the image; `alpha` affects only the image. Use `fallback: 'transparent'` to keep the chart's colours visible beneath an image overlay.
+
+`overlay` draws paint over the target's fill. It accepts one paint, a list with the first on top, or `'none'` to disable it:
+
+```ts
+import { style } from '@graphysdk/react';
+
+style.geom({ overlay: { pattern: 'lines', color: 'rgba(0, 0, 0, 0.3)', size: 3 } });
+```
+
+Geom overlays follow the layer's opacity. Graph overlays cover the frame at full opacity, subject to the paint's own transparency.
 
 Notes on a few properties:
 
@@ -129,7 +140,7 @@ Notes on a few properties:
 
 Every target and the properties it accepts. Shorthands used in the table:
 
-- GEOM: `fill`, `stroke`, `alpha`, `fillAlpha`, `strokeAlpha`, `saturation`, `blur`, `brightness`, `contrast`, `shadow`, `blendMode`
+- GEOM: `fill`, `stroke`, `alpha`, `fillAlpha`, `strokeAlpha`, `saturation`, `blur`, `brightness`, `contrast`, `shadow`, `overlay`, `blendMode`
 - TEXT: `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`, `textTransform`, `textDecoration`, `textOutlineColor`, `textOutlineWidth`, `textShadow`, `lineHeight`, `textColor`
 - BOXED: TEXT plus `paddingInline`, `paddingBlock`, `fill`, `stroke`, `strokeWidth`, `cornerRadius`, `shadow`, `alpha`
 - BOX: `fill`, `stroke`, `strokeWidth`, `cornerRadius`, `paddingInline`, `paddingBlock`, `shadow`, `alpha`
@@ -155,7 +166,7 @@ Every target and the properties it accepts. Shorthands used in the table:
 | `dataLabel.observation`, `dataLabel.category` | BOXED | |
 | `dataLabel.observation.inside` `.outside`, `dataLabel.category.inside` `.outside` | BOXED | |
 | `dataLabel.aggregate` | BOXED | |
-| `graph` | `fill`, `stroke`, `strokeWidth`, `cornerRadius`, `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `textColor`, `textScale`, `padding`, `blendMode`, `shadow`, `alpha` | |
+| `graph` | `fill`, `stroke`, `strokeWidth`, `cornerRadius`, `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `textColor`, `textScale`, `padding`, `blendMode`, `shadow`, `overlay`, `alpha` | |
 | `heading`, `heading.h1`, `heading.h2` | TEXT | |
 | `caption` | TEXT | |
 | `source`, `source.link` | TEXT | |
@@ -268,6 +279,16 @@ const spec = pipe(
   scale.y(),
   styles({ defaults: [style.geom.line({ strokeWidth: 1.5, dashArray: [2, 3] }, { layer: 'trend' })] })
 );
+```
+
+Set `coord: 'cartesian'` or `'polar'` to restrict an entry to that coordinate system. Omitting `coord` applies it to both; flipped graphs count as cartesian. Entries for the other system are skipped without a warning.
+
+```ts
+import { style } from '@graphysdk/react';
+
+style.panelBorder.bottom({ strokeWidth: 0 }, { coord: 'polar' });
+style.gridLine.x({ strokeWidth: 1, dashArray: [] }, { coord: 'polar' });
+style.geom.bar({ stroke: '#ffffff', strokeWidth: 1 }, { coord: 'polar' });
 ```
 
 ## States: hovered and dimmed
@@ -431,15 +452,15 @@ scale.color.continuous({ range: ['#fff5eb', '#ff6719', '#3a0a00'], interpolate: 
 
 `sampleColorScheme(options?, count?)` from `@graphysdk/viz-engine` samples a scheme into `count` evenly spaced colours for a picker or legend preview. `options` takes `scheme`, `range`, `interpolate` and `reverse`.
 
-## Themes and presets
+## Sharing a stylesheet between specs
 
-A theme is a stylesheet you reuse. It is not a `GraphProvider` prop. Keep it as a constant and compose it under a spec's own styles with `extends`.
+Use `extends` to reuse a stylesheet across specs. For shared styles, palettes, config and geom renderers applied by the host, use a [theme](themes.md).
 
 ```ts
 import { createSpec, geom, pipe, scale, style, styles, token } from '@graphysdk/react';
 import type { Stylesheet } from '@graphysdk/viz-engine';
 
-export const newsletterTheme: Stylesheet = {
+export const newsletterPreset: Stylesheet = {
   tokens: {
     brand: '#ff6719',
     ruleLine: { light: '#1c1b1a', dark: '#f5f2ec' },
@@ -460,46 +481,22 @@ const spec = pipe(
   geom.bar(),
   scale.x(),
   scale.y(),
-  styles({ extends: [newsletterTheme], tokens: { brand: '#12b886' } })
+  styles({ extends: [newsletterPreset], tokens: { brand: '#12b886' } })
 );
 ```
 
 How `extends` composes:
 
-- Tokens merge by name, later wins. The spec's `brand` above replaces the theme's, and every theme default that reads `token('brand')` repaints.
+- Tokens merge by name, later wins. The spec's `brand` above replaces the preset's, and every preset default that reads `token('brand')` repaints.
 - `defaults` and `overrides` lists concatenate, extended sheets first. A later entry beats an earlier one for the same property.
-- A theme can itself extend other sheets. Composition is flat: one long list in order.
+- A sheet can itself extend other sheets. Composition is flat: one long list in order.
 - A sheet reachable twice counts once, at its later place. A cycle is cut.
 
 A root `style.geom({ stroke })` also reaches points and replaces their white border. Scope it with `style.geom.line` and `style.geom.rule` if points should keep theirs.
 
 `Stylesheet` is a type from `@graphysdk/viz-engine`. Without the import, a plain object literal works as well since `styles()` and `extends` take the same shape.
 
-The storybook style presets (Braun, Financial, Mexico 68 and the rest) are built this way: a `styles()` block for chrome (`style.graph`, `style.panelBorder`, `style.tickLabel`, `style.legendItem`, `style.dataLabel`), per-graph `styles()` blocks for geom paint, and a `config()` block for what to show. See `recipes/themes/` for the full sheets. One file per theme.
-
-Cover the chrome a theme usually touches:
-
-```ts
-import { style, styles } from '@graphysdk/react';
-
-const chrome = styles({
-  defaults: [
-    style.graph({ fill: '#efede8', fontFamily: "'Archivo', sans-serif", padding: 32 }),
-    style.panelBorder({ strokeWidth: 0 }),
-    style.panelBorder.bottom({ strokeWidth: 1.2, stroke: '#c9c6be', dashArray: [] }),
-    style.gridLine.y({ stroke: '#e1dac9', strokeWidth: 1, dashArray: [] }),
-    style.axisLabel({ fontSize: 12, fontWeight: 500, textColor: '#1d1d1b' }),
-    style.tickLabel({ fontSize: 12, textColor: '#87857f' }),
-    style.heading.h1({ fontSize: 20, fontWeight: 700 }),
-    style.heading.h2({ fontSize: 14, textColor: '#55534e' }),
-    style.dataLabel({ fontSize: 13, fontWeight: 600 }),
-    style.dataLabel.observation.outside({ fill: '#efede8' }),
-    style.legendItem({ fontSize: 12, textColor: '#87857f', fill: 'transparent', stroke: 'transparent' }),
-    style.tooltip({ fill: '#ffffff', stroke: '#c9c6be', cornerRadius: 0, shadow: 'none' }),
-    style.header({ margin: { bottom: 20 } }),
-  ],
-});
-```
+An extended stylesheet is stored with the spec and survives editing. A theme stays in the host application, so the same spec can render under different themes.
 
 ## Built-in stylesheet
 

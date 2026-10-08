@@ -455,9 +455,7 @@ config({
   },
   numberFormat: { // graph-wide; there is no per-axis or per-layer number format
     decimals: 1, // number or 'auto'
-    abbreviation: 'auto', // 'auto' | 'k' | 'm' | 'b' | 'none'
-    prefix: '$',
-    suffix: '',
+    abbreviation: 'auto', // 'auto' | 'k' | 'm' | 'b' | 'none'; tooltips, labels and headlines. Ticks always abbreviate
     thousandsSeparator: ',',
     decimalSeparator: '.',
   },

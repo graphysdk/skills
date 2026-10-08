@@ -26,11 +26,13 @@ Requires React 19 (`react` is a peer dependency). There is no stylesheet to impo
 
 `@graphysdk/react` depends on `@graphysdk/viz-engine` and `@graphysdk/react-renderer` and re-exports what an app needs from both. You do not install them separately unless you import from them directly.
 
+Built-in themes are separate `@graphysdk/theme-<name>` packages. See [themes](themes.md) for the supported list and setup.
+
 ## Which package to use
 
 - `@graphysdk/react`: the default choice. Spec builders, `GraphProvider`, `GraphRenderer`, hooks, slots, and plugin authoring from one import. The "Made with Graphy" mark is on by default.
 - `@graphysdk/react-renderer`: the same React components and hooks, but no spec builders and the mark off by default. Pair it with `@graphysdk/viz-engine` for the builders.
-- `@graphysdk/viz-engine`: the engine alone. Build a spec, compile it with `createCompiler`, and read the scene. No React, no DOM.
+- `@graphysdk/viz-engine`: the engine alone. Build a spec, compile it with `createCompiler`, and read the scene. No React, no DOM. In Node, prefer ES module imports. CommonJS requires Node 20.19+ or 22.12+.
 
 ```ts
 import { createCompiler, createSpec, geom, pipe, scale } from '@graphysdk/viz-engine';
@@ -161,6 +163,8 @@ There is no stable `@graphysdk/react@1` on npm. That URL 404s. Use `@latest` (to
 ```
 
 Pin the same React version in every import map entry. Never omit the React version. The editing surface has its own file, `dist/editable.browser.mjs`, which is a superset of the read-only one. A page imports one of the two, never both.
+
+To add a theme, extend the import map and load its fonts as shown in [themes: without a bundler](themes.md#without-a-bundler).
 
 ## When the CDN is blocked
 

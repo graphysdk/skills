@@ -1,6 +1,6 @@
 ---
 name: graphy-charts
-description: Build charts in React with the Graphy SDK (@graphysdk/react). Covers install, HTML artifacts via the jsDelivr CDN, data, specs, styling, annotations, slots, and custom geoms. Editing an existing chart is the graphy-editor skill.
+description: Build charts in React with the Graphy SDK (@graphysdk/react). Covers install, HTML artifacts via the jsDelivr CDN, data, specs, styling, themes, annotations, slots, and custom geoms. Editing an existing chart is the graphy-editor skill.
 ---
 
 # Graphy charts
@@ -47,7 +47,7 @@ Mappings name a column `key`, never its `label`. The six geoms are `point`, `lin
 ## Which tool
 
 1. `config()` sets structure: titles, legend, axes, number format.
-2. `styles()` paints the chart. A theme is a stylesheet you reuse, not a provider prop.
+2. `styles()` sets a chart's appearance. A theme supplies shared styles, colours and config defaults through the kit or provider.
 3. Slots replace a whole region, such as the tooltip or the header.
 4. A plugin draws a mark the six geoms cannot draw.
 5. Point-and-click edits belong to the `graphy-editor` skill.
@@ -71,6 +71,7 @@ Open one file, then use the contents list at the top of that file.
 | Mappings, geoms, scales, config | [spec](reference/spec.md) |
 | Provider, sizing, live data, dark mode | [React](reference/react.md) |
 | Colours, fonts, conditions | [styling](reference/styling.md) |
+| Install a theme, write your own | [themes](reference/themes.md) |
 | Highlights, labels, annotations | [storytelling](reference/storytelling.md) |
 | Replace the tooltip, legend, or axes | [slots](reference/slots.md) |
 | A new mark | [plugins](reference/plugins.md) |
@@ -99,14 +100,15 @@ Open one file, then use the contents list at the top of that file.
 | Radar | [radar](recipes/charts/radar.md) |
 | Polar bar | [polar-bar](recipes/charts/polar-bar.md) |
 
-Themes are one file each under [recipes/themes](recipes/themes). Each file is a stylesheet plus config. Plugins are one file each under [recipes/plugins](recipes/plugins), from small examples to full layouts.
+Plugins are one file each under [recipes/plugins](recipes/plugins), from small examples to full layouts.
 
 ## Pitfalls
 
 - A mapped `x` or `y` without `scale.x()` or `scale.y()` draws nothing.
 - Map the column `key`, never the label.
 - There is no pie geom. Pie and donut are a polar bar.
-- `plugins` is read once at mount. Remount the provider to change the set.
+- Pass a theme to `createGraphyKit({ theme })` or the provider's `theme` prop. Themes stay outside the spec.
+- `plugins` and `theme` are read once at mount. Remount the provider to change either.
 - Date strings are read day-first unless the column sets `dateFormat`.
 - Build the spec once, or memoize it. A new spec object recompiles the chart.
 - A responsive chart with no parent height is zero pixels tall.
