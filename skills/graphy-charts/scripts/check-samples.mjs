@@ -15,7 +15,7 @@
 // binds every export of both packages and of the editable entry, so fragments
 // still resolve their builders.
 // Only API-shape diagnostics are reported; fragment noise is filtered out.
-import { readFileSync, readdirSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { join, resolve, relative, dirname } from 'node:path';
@@ -40,6 +40,8 @@ function dts(pkg, file) {
 }
 function exportsOf(path, seen = new Set()) {
   if (seen.has(path)) return { values: new Set(), types: new Set() };
+  // A removed entry, such as the renderer graph-config build, has no declarations to read.
+  if (!existsSync(path)) return { values: new Set(), types: new Set() };
   seen.add(path);
   const sf = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
   const v = new Set(), t = new Set();
