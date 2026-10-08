@@ -1672,12 +1672,7 @@ const usePanelExpansion: () => PanelExpansion;
  */
 const GraphTypeSection: ({ title, layout, preview }: OverridableSectionProps) => JSX.Element | null;
 
-/**
- * What a chart writes on its own marks. The grid is chrome behind them, and has its own section.
- *
- * The section and the percentage row ask the graph's placement resolver, so a plugin geom gets them. Stack
- * totals and category labels only the bar draws, so those rows key on its name.
- */
+/** What a chart writes on its own marks. The grid is chrome behind them, and has its own section. */
 const GraphOptionsSection: ({ layerId, title, layout, preview }: GraphOptionsSectionProps) => JSX.Element | null;
 
 interface GraphOptionsSectionProps extends OverridableSectionProps {

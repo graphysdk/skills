@@ -84,7 +84,7 @@ complete list of what the panel can edit:
 | Section | Edits |
 |---|---|
 | `GraphTypeSection` | What the chart *is* — column/stacked/donut… — read from the spec, so the current type is always the one lit up |
-| `GraphOptionsSection` (`layerId?`) | Data labels on a layer's marks: visibility, absolute vs percent, category labels, stack totals |
+| `GraphOptionsSection` (`layerId?`) | Data labels on a layer's marks: visibility, absolute vs percent, stack totals, and category labels on a pie or donut |
 | `AxisSection` (`axis: 'x' \| 'y'`, required) | One axis and its scale: label, position, ticks, visibility, domain |
 | `PolarSection` | Inner radius and start angle of a round chart |
 | `BarSection` | Bar width and corner radius |
