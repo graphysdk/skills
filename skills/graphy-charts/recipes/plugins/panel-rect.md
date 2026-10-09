@@ -18,12 +18,7 @@ const data: Data = {
   ],
 };
 
-const spec = kit.pipe(
-  kit.createSpec({ x: 'band', y: 'value' }),
-  kit.geom.panelCircle(),
-  kit.scale.x(),
-  kit.scale.y()
-);
+const spec = kit.pipe(kit.createSpec({ x: 'band', y: 'value' }), kit.geom.panelCircle(), kit.scale.x(), kit.scale.y());
 
 export const InscribedCircle = () => (
   <kit.GraphProvider spec={spec} data={data}>
@@ -40,15 +35,18 @@ Save as `panel-circle-geom.tsx`.
 import type { GeomCompileResult, GeomCompilerInput } from '@graphysdk/react';
 import { createGraphyKit, defineGeomRenderer, Geom } from '@graphysdk/react';
 
-/** The paint reads `panelRect`, so the circle stays circular when the frame is resized. */
 class PanelCircleGeom extends Geom {
   readonly type = 'panelCircle' as const;
   override readonly defaultParams = {};
+  // Declared so the scales and axes compile. The paint does not read the observations.
   override readonly positionRoles = [
     { axis: 'x', role: 'point', valueKind: 'value' },
     { axis: 'y', role: 'point', valueKind: 'value' },
   ] as const;
   override readonly supportedCoordTypes = ['cartesian'] as const;
+  // Nothing is drawn at the observations, so hover has nothing to find. The default `'points'` would
+  // index each observation at its x and y and show a tooltip there.
+  override readonly spatialKind = 'noop';
 
   compile({ data }: GeomCompilerInput): GeomCompileResult {
     return { data, mapping: {} };
@@ -57,6 +55,7 @@ class PanelCircleGeom extends Geom {
 
 const panelCircle = defineGeomRenderer(new PanelCircleGeom(), {
   coord: 'cartesian',
+  // `panelRect` is in pixels and the panel SVG uses pixel units, so the circle stays round at any size.
   render: ({ panelRect }) => {
     const radius = Math.min(panelRect.width, panelRect.height) / 4;
     return <circle cx={panelRect.width / 2} cy={panelRect.height / 2} r={radius} fill="#4e79a7" />;
@@ -71,6 +70,6 @@ export const kit = createGraphyKit({ plugins: [panelCircle] });
 ## Notes
 
 - No third-party dependency. Everything imports from `@graphysdk/react`.
-- The render input's `panelRect` is in pixels. The panel `<svg>` uses pixel user units, so `cx`, `cy`, and `r` are pixels too.
-- The geom declares x and y point roles so the scales and axes compile, but the paint ignores the observations. Replace the `render` body to draw from `layer.data`.
-- No hover: `renderHover` returns null and no `hitTest` is given.
+- `panelRect.x` and `panelRect.y` are already applied by the panel SVG. Paint in local `0…width` and `0…height`; adding them offsets the paint twice.
+- The geom name becomes the builder method: `type = 'panelCircle'` gives `kit.geom.panelCircle()`.
+- To draw from the observations instead, read `layer.data` in `render`, and set `spatialKind` back to the shape drawn so hover works.

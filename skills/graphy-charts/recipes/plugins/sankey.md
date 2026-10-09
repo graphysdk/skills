@@ -1,6 +1,6 @@
 # Sankey
 
-Flows between nodes drawn as ribbons whose width is the flow's value. Nodes are coloured by the colour scale and each ribbon fades from its source node's colour to its target's. Use it for energy, budget, or funnel flows given as source, target, and value rows.
+Flows between nodes drawn as ribbons whose width is the flow's value. Nodes are colored by the color scale and each ribbon fades from its source node's color to its target's. Use it for energy, budget, or conversion flows given as source, target, and value rows. A stage-by-stage funnel is `@graphysdk/geom-funnel`.
 
 ## Usage
 
@@ -24,11 +24,21 @@ const energy: Data = {
   ],
 };
 
-// One colour family for every node and ribbon gradient.
-const COOL_PALETTE = ['#3F8EEB', '#5AA9E6', '#6C6CE0', '#8A5CD8', '#A64BC4', '#C13C9E', '#D6478A', '#2E3A8C', '#1F2A6B'];
+// One color family for every node and ribbon gradient.
+const COOL_PALETTE = [
+  '#3F8EEB',
+  '#5AA9E6',
+  '#6C6CE0',
+  '#8A5CD8',
+  '#A64BC4',
+  '#C13C9E',
+  '#D6478A',
+  '#2E3A8C',
+  '#1F2A6B',
+];
 
-// `color` maps the geom's derived `node` identity, so the colour scale colours each node from the range.
-// Drop `color` and nodes render neutral. Nodes carry their names, so the legend is hidden.
+// `color` maps the geom's derived `node` column, so the color scale colors each node from the range.
+// Without `color`, nodes and ribbons paint the fallback gray. Nodes carry their names, so the legend is hidden.
 const spec = kit.pipe(
   kit.createSpec({}),
   kit.geom.sankey({ aes: { source: 'source', target: 'target', value: 'value', color: 'node' } }),
@@ -92,9 +102,9 @@ const resolveEndpoint = (
 ): SankeyNode<LayoutNode, LayoutLink> => endpoint as SankeyNode<LayoutNode, LayoutLink>;
 
 /**
- * Lays the sankey out in unit [0, 1] space (top-left origin) with d3-sankey. The [0, 1] extent makes d3
- * emit coordinates directly in the frame the geom paints and hit-tests in. Only scalars are read out of
- * d3's mutated, circular node and link objects, so the scene stays serialisable.
+ * Lays the sankey out in unit [0, 1] space (top-left origin) with d3-sankey. With a [0, 1] extent, d3
+ * emits coordinates in the frame the geom paints and hit-tests in. Only scalars are copied out of d3's
+ * circular node and link objects, so the scene stays serializable.
  */
 export function computeSankeyLayout(links: readonly SankeyLink[]): { nodes: LaidOutNode[]; flows: LaidOutFlow[] } {
   const nodeNames = [...new Set(links.flatMap((link) => [link.source, link.target]))];
@@ -122,7 +132,7 @@ export function computeSankeyLayout(links: readonly SankeyLink[]): { nodes: Laid
     y1: node.y1 ?? 0,
   }));
 
-  // Each laid-out link already points at its endpoint nodes, so geometry is read straight off them.
+  // Each laid-out link points at its endpoint nodes, so geometry is read straight off them.
   const flows: LaidOutFlow[] = graph.links.map((link, index) => {
     const source = resolveEndpoint(link.source);
     const target = resolveEndpoint(link.target);
@@ -180,10 +190,10 @@ const SANKEY_COLUMNS = {
   markId: 'markId',
   label: 'label',
   value: 'value',
-  // The geom's derived node identity (a node's own id, a flow's source id): the field an author maps
-  // `color` to and the colour scale keys on.
+  // The geom's derived node identity (a node's own id, a flow's source id): the column an author maps
+  // `color` to and the color scale keys on.
   node: 'node',
-  // A flow's target node id, its gradient end, read off the same colour scale render-side.
+  // A flow's target node id, its gradient end, read off the same color scale render-side.
   targetKey: 'targetKey',
   // Node rect (unit space, top-left origin).
   x0: 'x0',
@@ -211,8 +221,8 @@ class SankeyGeom extends Geom<Record<string, never>> {
   override readonly identityKey: IdentityKey = { variable: SANKEY_COLUMNS.markId };
   override readonly supportedCoordTypes = ['cartesian'] as const;
   override readonly highlightStrategy = null;
-  // `source`, `target`, and `value` are relational inputs the layout consumes, read straight from the
-  // mapped columns, not scaled. `color` is author-mapped and usually targets the derived `node`.
+  // `source`, `target`, and `value` are layout inputs read straight from the mapped columns, not scaled.
+  // `color` usually maps the derived `node` column.
   override readonly aesthetics = [
     { kind: 'data', name: 'source', required: true },
     { kind: 'data', name: 'target', required: true },
@@ -282,8 +292,9 @@ class SankeyGeom extends Geom<Record<string, never>> {
       SANKEY_COLUMNS.kind
     );
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label` and `value`. Colour is
-    // not forced: the author maps `color` to the derived `node` field and the categorical scale resolves it.
+    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label` and `value`. The color
+    // scale trains on this dataset, so `color` maps the derived `node` column; the renderer reads a flow's
+    // target end off the same scale.
     return {
       data: table,
       mapping: {
@@ -298,7 +309,7 @@ interface RenderNode {
   markId: string;
   label: string;
   value: number;
-  /** The node's resolved fill, from the engine's colour scale. */
+  /** The node's resolved fill, from the engine's color scale. */
   color: string;
   x0: number;
   y0: number;
@@ -309,9 +320,9 @@ interface RenderNode {
 interface RenderFlow {
   markId: string;
   value: number;
-  /** The flow's source-end fill (its own resolved colour); the target end is read off the colour scale. */
+  /** The flow's source-end fill (its own resolved color); the target end is read off the color scale. */
   sourceColor: string;
-  /** The target node's identity, mapped to its colour through the compiled scale at paint time. */
+  /** The target node's identity, mapped to its color through the compiled scale at paint time. */
   targetKey: string;
   sx: number;
   sy0: number;
@@ -324,8 +335,8 @@ interface RenderFlow {
 const smoothstep = (t: number): number => t * t * (3 - 2 * t);
 
 /**
- * The ribbon's top and bottom edge at a given easing factor. The hit-test, the painted path, and the
- * value label all derive their geometry from this one function, so paint and hit-test stay identical.
+ * The ribbon's top and bottom edge at an easing factor. The hit-test, the painted path, and the value
+ * label all derive from it, so paint and hit-test agree.
  */
 function ribbonEdges(flow: RenderFlow, ease: number): { yTop: number; yBottom: number } {
   return {
@@ -373,8 +384,8 @@ function readSankey(data: Dataset): { nodes: RenderNode[]; flows: RenderFlow[] }
 }
 
 /**
- * The cursor query: a node rect containment first, then a flow ribbon containment sampled with the same
- * smoothstep the ribbon is painted with. The renderer memoizes this on `layer.data`.
+ * The cursor query: node rects first, then flow ribbons sampled with the same smoothstep they are
+ * painted with. The renderer memoizes the factory on `layer.data` and the panel size.
  */
 function buildSankeyTester({ nodes, flows }: { nodes: RenderNode[]; flows: RenderFlow[] }): RenderHitTester {
   return (cursor) => {
@@ -414,7 +425,7 @@ function buildRibbonPath(flow: RenderFlow): string {
 
 const LABEL_DARK = '#1f2933';
 const LABEL_LIGHT = '#ffffff';
-/** Fill used only if the colour scale is absent. */
+/** Fill used only if the color scale is absent. */
 const FALLBACK_COLOR = '#888888';
 /** Left padding (px) of the in-node label from the block's left edge. */
 const NODE_LABEL_PAD = 10;
@@ -450,7 +461,7 @@ const NodeLabel = ({ node, fill }: { node: RenderNode; fill: string }) => (
   </text>
 );
 
-/** Flow value, centred on the ribbon a fraction in from the source; hidden when the ribbon is thin. */
+/** Flow value, centered on the ribbon a fraction in from the source; hidden when the ribbon is thin. */
 const FlowLabel = ({ flow }: { flow: RenderFlow }) => {
   if (flow.sy1 - flow.sy0 < FLOW_LABEL_MIN_BAND) return null;
   const x = flow.sx + (flow.tx - flow.sx) * FLOW_LABEL_T;
@@ -471,8 +482,8 @@ const FlowLabel = ({ flow }: { flow: RenderFlow }) => {
 };
 
 /**
- * A node block plus its in-block label, both placed in the node's own viewport so the label never spills
- * into the flows or a neighbour and stays undistorted. Used for both base and hover paint.
+ * A node block plus its label, in the node's own viewport so the label is clipped to the block and not
+ * stretched. Used for base and hover paint.
  */
 const SankeyNode = ({ node, fill }: { node: RenderNode; fill: string }) => (
   <UnitBoxSvg box={node}>
@@ -482,8 +493,8 @@ const SankeyNode = ({ node, fill }: { node: RenderNode; fill: string }) => (
 );
 
 /**
- * A flow ribbon (path, unit space) plus its value label (pixel space). The ribbon fades from its source
- * node's colour to its target node's colour. Used for both base and hover paint.
+ * A flow ribbon (path, unit space) plus its value label (pixel space). The ribbon fades from the source
+ * node's color to the target node's. Used for base and hover paint.
  */
 const SankeyFlow = ({
   flow,
@@ -513,7 +524,7 @@ const SankeyFlow = ({
   );
 };
 
-/** Reads a node identity's colour off the compiled categorical colour scale (a flow's target end). */
+/** Reads a node identity's color off the compiled color scale, for a flow's target end. */
 function useColorFor(): (key: string) => string {
   const colorScale = useSceneSelector((scene) => scene.scales.color);
   return useCallback((key: string) => (colorScale ? String(colorScale.map(key)) : FALLBACK_COLOR), [colorScale]);
@@ -568,6 +579,12 @@ export const kit = createGraphyKit({
 ## Notes
 
 - Install `d3-sankey` (`npm install d3-sankey`, plus `@types/d3-sankey` for TypeScript).
+- Install `@graphysdk/viz-engine` too (`npm install @graphysdk/viz-engine`). The dataset and reader helpers this recipe imports from it are not re-exported by `@graphysdk/react`.
 - From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
-- The geom declares `source`, `target`, and `value` as required data aesthetics and derives a `node` variable. Map `color` to `node` to colour by node; `kit.scale.color.discrete({ range })` sets the palette.
-- The layout is computed once in the compile half, so the geometry is part of the compiled scene and hover uses the `hitTest` factory. No positional scales are involved, so no `scale.x` or `scale.y` is needed.
+- `source`, `target`, and `value` are required data aesthetics. The geom derives `node`: a node's own id, a flow's source id.
+- The color scale trains on the dataset `compile` returns, not on the input. `color` must name a column of that dataset: the derived `node`, listed in `derivedVariables` so the unknown-variable check accepts it. `color: 'source'` compiles with no diagnostic and paints everything the fallback gray. `kit.scale.color.discrete({ range })` sets the palette.
+- The layout runs once in the compile half, so the geometry is part of the compiled scene and hover uses the `hitTest` factory. No positional scales are involved, so no `scale.x` or `scale.y` is needed.
+- `spatialKind: 'render-hit-test'` needs an identity the geom owns (`identityKey: { variable: 'markId' }`). On the default `'x-group'` every hit resolves to nothing and the engine reports `RENDER_HIT_TEST_IDENTITY`.
+- `hitTest` is a factory: it runs once per data or panel-size change and returns the per-cursor tester. The cursor is panel-local `[0, 1]` with a top-left origin, the frame the layout wrote. Return `{ key: markId }` or `null`.
+- A flow's target color is not on its observation, so the renderer reads it off `scene.scales.color` with `useSceneSelector`; `map(key)` returns the color for a domain value.
+- `getColor` reads the data tier only, so `style.geom({ fill })` overrides do not reach the nodes. To honor them, read `toPaintColor(styleReaders.get('fill', observation))` from the render input instead.

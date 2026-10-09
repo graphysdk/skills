@@ -1,6 +1,6 @@
 # Beeswarm
 
-Every observation is a dot at its value on one axis, nudged off the centre line just far enough to clear its neighbours. Use it to show a distribution of many observations, optionally coloured by group. The dodge is a pixel-radius collision computed in the browser, so it lives in the render half and registers its own hit-test.
+Every observation is a dot at its value on one axis, pushed off the center line just far enough to clear its neighbors. Use it to show a distribution of many observations, optionally colored by group. The dodge is a pixel-radius collision, so it runs in the render half from `panelRect`, and the render half answers the hover query.
 
 ## Usage
 
@@ -27,9 +27,8 @@ const bodyMass: Data = {
   ],
 };
 
-// x is the value axis the engine trains. The off-axis spread is a render-side pixel dodge, not a scaled
-// dimension, so the graph has no y axis. `color` maps a group, so the colour scale colours each dot and
-// the legend lists the groups.
+// x is the only scaled position, so the graph has an x axis and no y axis. `color` maps a group column,
+// so each dot takes its group's color and the legend lists the groups.
 const spec = kit.pipe(
   kit.createSpec({ x: 'mass' }),
   kit.geom.beeswarm({ aes: { name: 'name', color: 'species' } }),
@@ -49,17 +48,15 @@ export const BeeswarmGraph = () => (
 Save as `beeswarm-layout.ts`.
 
 ```ts
-/** One observation to place: its index into the layer data, its scaled x in [0, 1], and its resolved fill. */
+/** One observation to place: its row index in the layer data and its scaled x in [0, 1]. */
 export interface SwarmPoint {
-  /** Row index into the compiled layer data, the `'index'` identity key the hit-test returns. */
+  /** Row index into the layer data. The hit-test returns it as the `'index'` identity key. */
   index: number;
-  /** The engine-scaled x position in [0, 1]. */
+  /** The scaled x position in [0, 1]. */
   x01: number;
-  /** The point's resolved fill, from the engine's colour scale. */
-  color: string;
 }
 
-/** A placed point in panel pixel space: a true circle the renderer paints and the tester queries. */
+/** A placed point in panel pixels. */
 export interface PlacedPoint extends SwarmPoint {
   cx: number;
   cy: number;
@@ -68,14 +65,12 @@ export interface PlacedPoint extends SwarmPoint {
 const EPSILON = 1e-6;
 
 /**
- * The beeswarm dodge: every point sits at its scaled x and is nudged off the centre line just far enough
- * to clear each already-placed neighbour by one collision diameter. The radius is a fixed pixel count,
- * so the clearance depends on the panel's pixel size. That is why this runs render-side, not in the
- * DOM-free compiler that owns the scaled x.
+ * Places every point at its scaled x and moves it off the center line just far enough to clear each
+ * already-placed neighbor by one diameter. The radius is in pixels, so the result depends on the panel size.
  *
- * Points are placed left to right, so each only has to clear the neighbours already laid down within one
- * diameter on x. The candidate ys are the centre line plus the two tangent ys of every near neighbour; the
- * nearest-to-centre candidate that clears them all is taken.
+ * Points are placed left to right, so each one only has to clear the neighbors within one diameter on x.
+ * The candidates are the center line and the two tangent ys of each near neighbor; the candidate nearest
+ * the center line that clears them all is taken.
  */
 export function computeSwarm(points: SwarmPoint[], width: number, height: number, radius: number): PlacedPoint[] {
   const baseline = height / 2;
@@ -87,38 +82,38 @@ export function computeSwarm(points: SwarmPoint[], width: number, height: number
 
   const placed: PlacedPoint[] = [];
   for (const point of ordered) {
-    const neighbours = placed.filter((other) => Math.abs(other.cx - point.cx) < diameter);
-    const cy = resolveCy(point.cx, baseline, height, radius, diameterSq, neighbours);
+    const neighbors = placed.filter((other) => Math.abs(other.cx - point.cx) < diameter);
+    const cy = resolveCy(point.cx, baseline, height, radius, diameterSq, neighbors);
     placed.push({ ...point, cy });
   }
   return placed;
 }
 
-/** Finds the y nearest the centre line where a circle at `cx` clears every near neighbour. */
+/** The y nearest the center line where a circle at `cx` clears every near neighbor. */
 function resolveCy(
   cx: number,
   baseline: number,
   height: number,
   radius: number,
   diameterSq: number,
-  neighbours: PlacedPoint[]
+  neighbors: PlacedPoint[]
 ): number {
-  if (neighbours.length === 0) return baseline;
+  if (neighbors.length === 0) return baseline;
 
   const candidates = [baseline];
-  for (const neighbour of neighbours) {
-    const dx = cx - neighbour.cx;
+  for (const neighbor of neighbors) {
+    const dx = cx - neighbor.cx;
     const span = Math.sqrt(diameterSq - dx * dx);
-    candidates.push(neighbour.cy + span, neighbour.cy - span);
+    candidates.push(neighbor.cy + span, neighbor.cy - span);
   }
 
   let best = baseline;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const cy of candidates) {
     if (cy < radius || cy > height - radius) continue;
-    const clears = neighbours.every((neighbour) => {
-      const dx = cx - neighbour.cx;
-      const dy = cy - neighbour.cy;
+    const clears = neighbors.every((neighbor) => {
+      const dx = cx - neighbor.cx;
+      const dy = cy - neighbor.cy;
       return dx * dx + dy * dy >= diameterSq - EPSILON;
     });
     if (!clears) continue;
@@ -137,43 +132,35 @@ Save as `beeswarm-geom.tsx`.
 ```tsx
 import { useMemo } from 'react';
 
-import {
-  createGraphyKit,
-  defineGeomRenderer,
-  Geom,
-  getColor,
-  getX,
-  type RenderHitTester,
-  useElementScreenRect,
-  useGeomHitTest,
-  useHoverState,
+import { createGraphyKit, defineGeomRenderer, Geom, getX, toPaintColor } from '@graphysdk/react';
+import type {
+  Dataset,
+  GeomCompileResult,
+  GeomCompilerInput,
+  GeomHoverRendererInput,
+  GeomRendererInput,
+  RenderHitTester,
 } from '@graphysdk/react';
-import type { Dataset, GeomCompileResult, GeomCompilerInput, SceneLayer } from '@graphysdk/react';
-import type { IdentityKey } from '@graphysdk/viz-engine';
 
 import { computeSwarm, type PlacedPoint, type SwarmPoint } from './beeswarm-layout';
 
-/** Circle radius in pixels, the collision diameter the dodge clears. Small enough for a dense swarm. */
+/** Dot radius in pixels. The dodge clears one diameter between neighbors. */
 const POINT_RADIUS = 3.5;
-/** Hover hit radius, a touch larger than the drawn dot so dense points stay easy to target. */
+/** Hit radius, a little larger than the dot so dense points stay easy to target. */
 const POINT_HIT_RADIUS = POINT_RADIUS + 2;
-/** Fill used only if the colour scale is absent. */
+/** Fill when no color is mapped and no stylesheet entry answers. */
 const FALLBACK_COLOR = '#888888';
 
-/**
- * Only x is a position the engine scales onto an axis. y is owned by the render-side dodge, so the geom
- * declares a single x role and no y mapping (the graph gets no y axis). `name` is a free data input
- * carried for the tooltip; `color` is author-mapped, so the engine's categorical scale assigns the hues.
- * The geom registers its spatial query through `useGeomHitTest` rather than the `hitTest` factory,
- * because the placed geometry only exists once the panel has been measured.
- */
 class BeeswarmGeom extends Geom {
-  readonly type = 'beeswarm';
+  readonly type = 'beeswarm' as const;
   override readonly defaultParams = {};
-  override readonly identityKey: IdentityKey = 'index';
+  // The hit-test returns a row index, so the identity is the row. The default `'x-group'` would leave
+  // the hover lookup empty.
+  override readonly identityKey = 'index' as const;
   override readonly supportedCoordTypes = ['cartesian'] as const;
-  override readonly highlightStrategy = null;
+  // Only x is scaled. The dodge owns y, so there is no y role and the graph has no y axis.
   override readonly positionRoles = [{ axis: 'x', role: 'point', valueKind: 'value' }] as const;
+  // `name` is read for the tooltip. `color` goes through the color scale.
   override readonly aesthetics = [
     { kind: 'data', name: 'name' },
     { kind: 'visual', name: 'color' },
@@ -182,32 +169,35 @@ class BeeswarmGeom extends Geom {
     { key: 'Name', aes: 'name' },
     { key: 'Group', aes: 'color' },
   ] as const;
-
+  // The geometry exists only in the render half, so the render half answers the hover query.
   override readonly spatialKind = 'render-hit-test';
 
-  // Passing the data through keeps row order, so the `'index'` identity the hit-test returns lines up.
+  // Row order is the identity, so the data passes through unchanged.
   compile({ data }: GeomCompilerInput): GeomCompileResult {
     return { data, mapping: {} };
   }
 }
 
-/** Reads each row's scaled x and resolved colour, preserving the row index as the identity key. */
+/** Each row's scaled x, keyed by row index. Rows without an x are skipped. */
 function readPoints(data: Dataset): SwarmPoint[] {
   const points: SwarmPoint[] = [];
   let index = 0;
   for (const observation of data) {
     const x01 = getX(observation);
-    if (x01 !== null) {
-      points.push({ index, x01, color: getColor(observation) ?? FALLBACK_COLOR });
-    }
+    if (x01 !== null) points.push({ index, x01 });
     index += 1;
   }
   return points;
 }
 
-/** The cursor query over the placed circles, nearest-first from the top so the drawn-last point is found. */
-function buildSwarmTester(placed: PlacedPoint[], width: number, height: number, radius: number): RenderHitTester {
-  const radiusSq = radius * radius;
+/** The swarm in panel pixels. Paint, hit-test and hover all call this with the same inputs, so they agree. */
+function layoutSwarm(data: Dataset, width: number, height: number): PlacedPoint[] {
+  return computeSwarm(readPoints(data), width, height, POINT_RADIUS);
+}
+
+/** The cursor query. Later points paint on top, so they are tested first. */
+function buildSwarmTester(placed: PlacedPoint[], width: number, height: number): RenderHitTester {
+  const radiusSq = POINT_HIT_RADIUS * POINT_HIT_RADIUS;
   return (cursor) => {
     const px = cursor.x * width;
     const py = cursor.y * height;
@@ -222,55 +212,57 @@ function buildSwarmTester(placed: PlacedPoint[], width: number, height: number, 
   };
 }
 
-/**
- * Paints the swarm and owns its hover. The dodge needs the panel's pixel size, so the layer measures
- * the panel with `useElementScreenRect`, lays the circles out in pixel space, and registers the spatial
- * query with `useGeomHitTest`. The hovered point is read from the shared hover store and repainted on
- * top, so the geom gets the central tooltip and needs no `renderHover` overlay.
- */
-const BeeswarmLayer = ({ layer }: { layer: SceneLayer }) => {
-  const { measureRef, screenRect } = useElementScreenRect();
-  const points = useMemo(() => readPoints(layer.data), [layer.data]);
-  const placed = useMemo(
-    () => (screenRect ? computeSwarm(points, screenRect.width, screenRect.height, POINT_RADIUS) : []),
-    [points, screenRect]
-  );
-  const tester = useMemo<RenderHitTester>(
-    () => (screenRect ? buildSwarmTester(placed, screenRect.width, screenRect.height, POINT_HIT_RADIUS) : () => null),
-    [placed, screenRect]
-  );
-  useGeomHitTest(layer.id, tester);
+type BeeswarmLayerProps = Pick<GeomRendererInput, 'layer' | 'panelRect' | 'styleReaders'>;
 
-  const hoveredIndex = useHoverState((state) =>
-    state.hover.primary && state.hover.primary.layerId === layer.id ? state.hover.primary.pointIndex : null
+/** Paints the swarm. The panel SVG uses pixel units, so the placed circles are drawn as they are. */
+const BeeswarmLayer = ({ layer, panelRect, styleReaders }: BeeswarmLayerProps) => {
+  const observations = useMemo(() => [...layer.data], [layer.data]);
+  const placed = useMemo(
+    () => layoutSwarm(layer.data, panelRect.width, panelRect.height),
+    [layer.data, panelRect.width, panelRect.height]
   );
-  const hovered = hoveredIndex === null ? null : (placed.find((point) => point.index === hoveredIndex) ?? null);
 
   return (
     <>
-      <rect ref={measureRef} width="100%" height="100%" fill="transparent" pointerEvents="none" />
-      {placed.map((point) => (
-        <circle
-          key={point.index}
-          cx={point.cx}
-          cy={point.cy}
-          r={POINT_RADIUS}
-          fill={point.color}
-          stroke="#fff"
-          strokeWidth={0.5}
-        />
-      ))}
-      {hovered && (
-        <circle
-          cx={hovered.cx}
-          cy={hovered.cy}
-          r={POINT_RADIUS + 2}
-          fill={hovered.color}
-          stroke="#1f2937"
-          strokeWidth={1.5}
-        />
-      )}
+      {placed.map((point) => {
+        const observation = observations[point.index];
+        if (!observation) return null;
+        return (
+          <circle
+            key={point.index}
+            cx={point.cx}
+            cy={point.cy}
+            r={POINT_RADIUS}
+            fill={toPaintColor(styleReaders.get('fill', observation) ?? FALLBACK_COLOR)}
+            stroke="#fff"
+            strokeWidth={0.5}
+          />
+        );
+      })}
     </>
+  );
+};
+
+type BeeswarmHoverProps = Pick<GeomHoverRendererInput, 'layer' | 'primary' | 'panelRect' | 'styleReaders'>;
+
+/** The hovered dot repainted larger on top. `primary.pointIndex` is the row index the tester returned. */
+const BeeswarmHover = ({ layer, primary, panelRect, styleReaders }: BeeswarmHoverProps) => {
+  const placed = useMemo(
+    () => layoutSwarm(layer.data, panelRect.width, panelRect.height),
+    [layer.data, panelRect.width, panelRect.height]
+  );
+  const hovered = placed.find((point) => point.index === primary.pointIndex);
+  if (!hovered) return null;
+
+  return (
+    <circle
+      cx={hovered.cx}
+      cy={hovered.cy}
+      r={POINT_RADIUS + 2}
+      fill={toPaintColor(styleReaders.get('fill', primary.observation, 'hovered') ?? FALLBACK_COLOR)}
+      stroke="#1f2937"
+      strokeWidth={1.5}
+    />
   );
 };
 
@@ -279,10 +271,16 @@ export const kit = createGraphyKit({
     defineGeomRenderer(new BeeswarmGeom(), {
       coord: 'cartesian',
       swatchShape: 'circle',
-      // No `hitTest` factory: the tester is registered through `useGeomHitTest` inside the layer.
-      // Hover paint is inline, so `renderHover` contributes nothing.
-      render: ({ layer }) => <BeeswarmLayer layer={layer} />,
-      renderHover: () => null,
+      render: ({ layer, panelRect, styleReaders }) => (
+        <BeeswarmLayer layer={layer} panelRect={panelRect} styleReaders={styleReaders} />
+      ),
+      // The factory runs once per data change or panel resize. The cursor arrives in panel-local
+      // [0, 1] with a top-left origin, the same frame the paint uses.
+      hitTest: ({ layer, panelRect }) =>
+        buildSwarmTester(layoutSwarm(layer.data, panelRect.width, panelRect.height), panelRect.width, panelRect.height),
+      renderHover: ({ layer, primary, panelRect, styleReaders }) => (
+        <BeeswarmHover layer={layer} primary={primary} panelRect={panelRect} styleReaders={styleReaders} />
+      ),
       renderHoverCompanions: () => null,
     }),
   ],
@@ -291,7 +289,8 @@ export const kit = createGraphyKit({
 
 ## Notes
 
-- No third-party dependency. The `IdentityKey` type comes from `@graphysdk/viz-engine`; everything else from `@graphysdk/react`.
-- The geom declares one x position role and no y, so only `kit.scale.x` is needed. Map `color` to a group column for per-group hues and a legend.
-- The dodge uses a fixed pixel radius, so the layout changes with panel size. Very large datasets pay a quadratic cost in the neighbour search.
-- Hover and tooltip work through the hit-test registered inside the layer. There is no `renderHover` overlay.
+- No third-party dependency. Everything imports from `@graphysdk/react`.
+- The geom declares one x position role and no y, so only `kit.scale.x` is needed. Map `color` to a group column for per-group colors and a legend.
+- `spatialKind: 'render-hit-test'` requires either a `hitTest` factory or an overlay render on the contract. Registering a tester with `useGeomHitTest` inside the layer instead reports `MISSING_RENDER_HIT_TEST`.
+- The dodge uses a fixed pixel radius, so the layout changes with panel size. The neighbor search is quadratic in the number of points per column of x.
+- Paint reads `styleReaders.get('fill', observation)`, so `style.geom({ fill })` overrides apply. On hover the base layer dims through the stylesheet's `dimmed` state and the hover dot is drawn above it at full strength.

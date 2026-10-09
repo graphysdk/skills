@@ -4,7 +4,7 @@ Use an area graph to show a total over time and how groups make it up.
 
 ## Data
 
-One row per point. Wide data with one column per group works with a reshape.
+One row per observation. Wide data with one column per group works after a reshape.
 
 ```ts
 import type { Data } from '@graphysdk/react';
@@ -72,7 +72,7 @@ const spec = pipe(
 );
 ```
 
-The point layer needs `position: 'stack'` too, so the markers sit on the stacked edges.
+The point layer needs `position: 'stack'` too. Without it the markers sit at raw values, off the stacked edges.
 
 ### Overlapping areas
 
@@ -109,41 +109,12 @@ const layer = geom.area({ params: { curve: 'smooth' } });
 
 ### Missing values
 
-Rows with `null` on y drop to zero by default. Use `'connect'` to bridge them instead. An area cannot show a gap, so `'gap'` is treated as `'zero'`.
+Rows with `null` on y drop to zero by default. Use `'connect'` to bridge them. An area cannot show a gap, so `'gap'` is treated as `'zero'`.
 
 ```ts
 import { geom } from '@graphysdk/react';
 
 const connect = geom.area({ params: { missingValues: 'connect' } });
-```
-
-### Month names without a year
-
-Short month names are read as dates. On the continuous time axis of an area, a group that starts in `Dec` and runs into `Jan` moves on to the next year, so groups covering different months do not stack on top of each other.
-
-```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
-const productData: Data = {
-  columns: [{ key: 'month' }, { key: 'revenue' }, { key: 'product' }],
-  rows: [
-    { month: 'Dec', revenue: 100, product: 'Alpha' },
-    { month: 'Jan', revenue: 120, product: 'Alpha' },
-    { month: 'Feb', revenue: 280, product: 'Alpha' },
-    { month: 'Jan', revenue: 90, product: 'Beta' },
-    { month: 'Feb', revenue: 150, product: 'Beta' },
-  ],
-};
-
-const spec = pipe(
-  createSpec({ x: 'month', y: 'revenue', color: 'product' }),
-  geom.area(),
-  geom.point({ position: 'stack', interactive: false }),
-  scale.x(),
-  scale.y(),
-  scale.color.palette()
-);
 ```
 
 ### Horizontal areas
@@ -157,5 +128,6 @@ const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x
 ## Pitfalls
 
 - Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
-- Area paint is `fill` and `fillAlpha` in `style.geom.area`. The outline uses `stroke`, `strokeWidth` and `strokeAlpha`.
+- Area paint is `fill` and `fillAlpha` in `style.geom.area`. The built-in `fillAlpha` is 0.3. The outline uses `stroke`, `strokeWidth` and `strokeAlpha`.
 - Stacking needs a `color` mapping. A single group with `position: 'stack'` is the same as a plain area.
+- Short month names are read as dates and get a synthetic year, one sequence per group, counted from each group's first row. A group that starts in `Dec` puts its `Jan` in the next year; a group that starts in `Jan` stays in the first year. Their `Jan` values then sit a year apart and never stack. Give every group the same first month, or use full dates such as `'2025-12-01'`.

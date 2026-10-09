@@ -2,11 +2,11 @@
 
 Use a combo graph when two measures share an x but need different geoms, or different units on two y axes.
 
-Each layer picks its own y with a layer-local `aes`, and a layer can run its own transforms before it reads the data.
+Each layer maps its own y in `aes` and can run its own transforms before it reads the data.
 
 ## Data
 
-Wide data with one column per measure. Currency and percent strings are read as numbers with a format.
+Wide data with one column per measure. Currency and percent strings are read as numbers and keep their format.
 
 ```ts
 import type { Data } from '@graphysdk/react';
@@ -70,13 +70,13 @@ export function RevenueAndGrowth() {
 }
 ```
 
-The constant transforms add a label column to each layer so each geom gets its own legend entry and colour. `yScaleType: 'secondary'` sends the line to the right axis, and `scale.ySecondary()` declares that axis.
+The constant transforms add a label column to each layer, so each geom gets its own legend entry and color. `yScaleType: 'secondary'` sends the line to the right axis; `scale.ySecondary()` declares that axis.
 
 ## Variants
 
 ### Stacked bars with a total line
 
-The bar layer reshapes the region columns to long form. The line reads the total on its own axis on the right.
+The bar layer reshapes the region columns to long form. The line reads the total on the right axis.
 
 ```ts
 import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
@@ -96,7 +96,12 @@ const spec = pipe(
   createSpec({ x: 'month' }),
   geom.bar({
     transforms: [
-      transform.reshape({ keep: ['month'], reshape: ['North', 'South', 'West'], keyName: 'region', valueName: 'sales' }),
+      transform.reshape({
+        keep: ['month'],
+        reshape: ['North', 'South', 'West'],
+        keyName: 'region',
+        valueName: 'sales',
+      }),
     ],
     aes: { y: 'sales', color: 'region' },
     position: 'stack',
@@ -135,7 +140,12 @@ const spec = pipe(
   createSpec({ x: 'quarter' }),
   geom.bar({
     transforms: [
-      transform.reshape({ keep: ['quarter'], reshape: ['North', 'South', 'West'], keyName: 'region', valueName: 'sales' }),
+      transform.reshape({
+        keep: ['quarter'],
+        reshape: ['North', 'South', 'West'],
+        keyName: 'region',
+        valueName: 'sales',
+      }),
     ],
     aes: { y: 'sales', color: 'region' },
     position: 'dodge',
@@ -186,7 +196,7 @@ const spec = pipe(
 
 ### Two currencies in one bar layer
 
-Reshaping columns with different formats keeps each observation's own format, so tooltips show `$12,000` for USD bars and `€10,500` for EUR bars. A share line on the right axis keeps this a combo.
+Reshaping columns with different formats keeps each observation's own format, so tooltips show `$12,000` for USD bars and `€10,500` for EUR bars. The share line on the right axis makes this a combo.
 
 ```ts
 import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
@@ -205,7 +215,9 @@ const multiCurrencyData: Data = {
 const spec = pipe(
   createSpec({ x: 'quarter' }),
   geom.bar({
-    transforms: [transform.reshape({ keep: ['quarter'], reshape: ['USD', 'EUR'], keyName: 'currency', valueName: 'revenue' })],
+    transforms: [
+      transform.reshape({ keep: ['quarter'], reshape: ['USD', 'EUR'], keyName: 'currency', valueName: 'revenue' }),
+    ],
     aes: { y: 'revenue', color: 'currency' },
     position: 'dodge',
   }),
@@ -224,6 +236,7 @@ const spec = pipe(
 ## Pitfalls
 
 - Only x goes in `createSpec`. Each layer maps its own y in `aes`.
-- `yScaleType: 'secondary'` on a layer is enough to get a right axis; an inferred `ySecondary` scale is added for you. Declare `scale.ySecondary()` yourself when you want to set its options.
+- `yScaleType: 'secondary'` on a layer is enough to get a right axis; an inferred `ySecondary` scale is added for you. Declare `scale.ySecondary()` yourself to set its options.
+- Title the axes with `config({ axes: { y: { label: 'Revenue' }, ySecondary: { label: 'Growth' } } })`. The secondary axis inherits every setting it does not override from `y`.
 - A layer with a single measure has no color mapping, so it gets no legend entry. The constant transform gives it one.
 - Layer transforms run for that layer only. A spec-level transform runs for every layer.

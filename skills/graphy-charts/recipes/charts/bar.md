@@ -63,7 +63,7 @@ const spec = pipe(createSpec({ x: 'product', y: 'revenue' }), geom.bar(), scale.
 
 ### Grouped bars
 
-Wide data (one column per group) needs a reshape first. Then map the new key column to color and set the position to dodge.
+Wide data (one column per group) needs a reshape first. Map the new key column to color and set the position to dodge.
 
 ```ts
 import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
@@ -97,7 +97,7 @@ const spec = pipe(
 );
 ```
 
-If the data is already long (one row per quarter and region), skip the reshape and map the group column to color directly.
+If the data is already long (one row per quarter and region), skip the reshape and map the group column to color.
 
 ### Stacked bars
 
@@ -121,7 +121,7 @@ const layer = geom.bar({ position: 'fill' });
 
 ### Bar width and corner radius
 
-Width is a fraction of the band. Corner rounding and borders are style declarations, not geom params.
+Width is a fraction of the band, default 0.7. Corner rounding and borders are style declarations, not geom params.
 
 ```ts
 import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
@@ -135,7 +135,7 @@ const spec = pipe(
 );
 ```
 
-Corner radius tokens run from `'none'` through `'xl'`, plus `'full'` for pills. A pixel number also works.
+Corner radius tokens run from `'none'` through `'xl'`, plus `'full'` for pills. A pixel number also works. The default is `'sm'`.
 
 ### Data labels
 
@@ -198,7 +198,7 @@ Nothing special. Bars grow down from zero.
 
 ### Single bar
 
-One observation draws one bar. `position: 'identity'` skips the dodge layout, which has nothing to lay out here anyway.
+One observation draws one bar.
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -209,19 +209,19 @@ const singleBarData: Data = {
   rows: [{ item: 'Revenue', amount: 42000 }],
 };
 
-const spec = pipe(createSpec({ x: 'item', y: 'amount' }), geom.bar({ position: 'identity' }), scale.x(), scale.y());
+const spec = pipe(createSpec({ x: 'item', y: 'amount' }), geom.bar(), scale.x(), scale.y());
 ```
 
 ### Month names without a year
 
-Short month names are read as dates, but a bar keeps them as bands. Two groups whose `Jan` rows fall in different years still share one `Jan` band and stack there.
+Short month names are read as dates. A bar keeps x as a band, but each color group gets its own synthetic year, counted from the group's first row. A group that starts in `Dec` puts its `Jan` in the next year and gets a separate `Jan` band from a group that starts in `Jan`. Pin the column as text to keep the labels as plain bands in row order.
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const productData: Data = {
-  columns: [{ key: 'month' }, { key: 'revenue' }, { key: 'product' }],
+  columns: [{ key: 'month', valueFormat: { type: 'text' } }, { key: 'revenue' }, { key: 'product' }],
   rows: [
     { month: 'Dec', revenue: 100, product: 'Alpha' },
     { month: 'Jan', revenue: 120, product: 'Alpha' },

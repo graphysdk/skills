@@ -515,7 +515,7 @@ class RemoveLayerCommand implements Command<RemoveLayerParams> {
 
 /**
  * Command that sets how a layer arranges overlapping observations — stacked, grouped side by side,
- * raw, or normalised to 100%. Targets a specific layer by ID, or falls back to the first bar or
+ * raw, or normalized to 100%. Targets a specific layer by ID, or falls back to the first bar or
  * area layer in the spec, and applies to that layer alone — a combo chart stacks its bars without
  * dragging its line along.
  * Produces a revert command that restores the previous position for undo support, and returns
@@ -570,7 +570,7 @@ class SetLayerYScaleTypeCommand implements Command<SetLayerYScaleTypeParams> {
  * Command that sets how much of its category band a bar fills.
  *
  * Clamps rather than refusing, so a dragged control that overshoots still lands somewhere drawable;
- * `NaN` has no end to clamp towards, so it is rejected instead.
+ * `NaN` has no end to clamp toward, so it is rejected instead.
  */
 class SetBarWidthCommand implements Command<SetBarWidthParams> {
     readonly type: "set-bar-width";
@@ -1340,7 +1340,7 @@ class RemoveHighlightCommand implements Command<RemoveHighlightParams> {
  * Picks how a highlight de-emphasizes everything it did not match.
  *
  * Writes one chart-wide `state: 'dimmed'` entry. `'dim'` restates the built-in wash so the choice
- * stays visible in the spec; `'desaturate'` greys the marks out instead.
+ * stays visible in the spec; `'desaturate'` grays the marks out instead.
  */
 class SetHighlightDimStyleCommand implements Command<SetHighlightDimStyleParams> {
     readonly type: "set-highlight-dim-style";
@@ -1645,7 +1645,7 @@ type SectionLayout = 'fixed' | 'collapsible' | 'inline';
 const ToggledSection: ({ title, isChecked, onToggle, isDisabled, preview, children }: ToggledSectionProps) => JSX.Element;
 
 /**
- * One labelled setting, wiring its own control: the row publishes its ids and each control takes the
+ * One labeled setting, wiring its own control: the row publishes its ids and each control takes the
  * half it can carry. The label reaches it with `htmlFor` rather than wrapping it, because a wrapping
  * `<label>` makes Base UI rename every option of a group inside it to the row's text.
  */
@@ -1829,7 +1829,7 @@ interface ControlOption {
 /** Props every control shares. */
 interface ControlBaseProps {
     isDisabled?: boolean;
-    /** Required unless the control is labelled by a section row, which passes `ariaLabelledBy` instead. */
+    /** Required unless the control is labeled by a section row, which passes `ariaLabelledBy` instead. */
     ariaLabel?: string;
     ariaLabelledBy?: string;
     /**
@@ -1880,11 +1880,11 @@ const Button: ({ label, icon, onClick, variant, isDisabled, ariaLabel, ariaLabel
  */
 type ButtonControlProps = ButtonBaseProps & ButtonContentProps;
 
-/** A grid of colour chips, for picking one colour from a fixed set such as the palette. */
+/** A grid of color chips, for picking one color from a fixed set such as the palette. */
 const ColorSwatches: ({ title, colors, value, onChange, trailing, isClearable, isDisabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
 
 /**
- * A grid of colour chips. A click reports the colour.
+ * A grid of color chips. A click reports the color.
  * `value` is `null` when no chip matches, as for a mixed selection.
  */
 interface ColorSwatchesControlProps extends Omit<DiscreteControlProps<string | null>, 'onChange'> {
@@ -1892,18 +1892,18 @@ interface ColorSwatchesControlProps extends Omit<DiscreteControlProps<string | n
     title?: string;
     colors: readonly string[];
     onChange: (value: string) => void;
-    /** Chips after the colours and a separator, such as a custom picker's trigger. They wrap with the colours. */
+    /** Chips after the colors and a separator, such as a custom picker's trigger. They wrap with the colors. */
     trailing?: ReactNode;
-    /** Ends the row in a chip for no colour at all, after `trailing`, reported as `TRANSPARENT_COLOR`. */
+    /** Ends the row in a chip for no color at all, after `trailing`, reported as `TRANSPARENT_COLOR`. */
     isClearable?: boolean;
 }
 
-/** A hex picker behind a trigger, for a colour none of the swatches offer. */
+/** A hex picker behind a trigger, for a color none of the swatches offer. */
 const CustomColor: ({ value, onChange, onCommit, popupAttributes, variant, }: CustomColorControlProps) => JSX.Element;
 
 /**
- * A custom colour: a trigger that opens a hex picker. Each drag frame and typed change is reported,
- * then `onCommit` once the picker closes. `null` when there is no single colour.
+ * A custom color: a trigger that opens a hex picker. Each drag frame and typed change is reported,
+ * then `onCommit` once the picker closes. `null` when there is no single color.
  */
 interface CustomColorControlProps extends Omit<ContinuousControlProps<string | null>, 'onChange'> {
     onChange: (value: string) => void;
@@ -1945,7 +1945,7 @@ interface NumberFieldControlProps extends ContinuousControlProps<number | null> 
 
 /**
  * A grid of picture-led choices, for settings that read faster as shapes than as words — chart
- * type, text size, a row of colour chips.
+ * type, text size, a row of color chips.
  *
  * A click is a whole gesture and commits immediately. A held arrow key is not: it sweeps the
  * selection across the options, firing a change for each one it passes through, so the run is
@@ -1970,7 +1970,7 @@ interface RadioGridControlProps extends ContinuousControlProps<string> {
     columns?: number;
     /**
      * `tile` (default) captions each icon; `swatch` drops the caption for a dense grid of pure
-     * pictures — colour chips a name would only clutter — naming each through `aria-label` instead;
+     * pictures — color chips a name would only clutter — naming each through `aria-label` instead;
      * `icon` drops the tile too, names each in a tooltip and thickens the checked stroke for a 24-unit viewBox.
      */
     itemLayout?: 'tile' | 'swatch' | 'icon';
@@ -2054,7 +2054,7 @@ interface TextFieldControlProps extends ContinuousControlProps<string> {
  * Built on the radio primitive rather than the toggle one, which it resembles more closely by
  * name. Picking one of a fixed set is what a radio group is for, and the primitive is what makes
  * arrow keys move the selection instead of only the focus. Toggle buttons would have given the
- * behaviour of a radio group while announcing itself as something else.
+ * behavior of a radio group while announcing itself as something else.
  *
  * That makes this the picture grid in different clothes: same primitive, same contract, same
  * transient run committed on key up. Only the layout differs — a row of words here, a grid of pictures
@@ -2208,7 +2208,7 @@ type AggregationFunction = 'count' | 'sum' | 'mean' | 'median' | 'mode' | 'min' 
 
 /**
  * Which point of a target's box an anchor resolves to. Compass directions name the
- * eight edge/corner points; `center` is the box centre. Omitted means the geom-natural
+ * eight edge/corner points; `center` is the box center. Omitted means the geom-natural
  * point (e.g. a bar's top-edge midpoint).
  */
 type AnchorAlign = 'center' | 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -2247,7 +2247,7 @@ interface AnchorOffset {
 }
 
 /**
- * A per-observation anchor position in a normalised `[0, 1]²` frame (annotation anchoring). Which
+ * A per-observation anchor position in a normalized `[0, 1]²` frame (annotation anchoring). Which
  * `AnchorSpace` follows from the coord system, so a position carries none itself: callers that turn
  * one into a resolved point stamp it via `resolveGeomAnchorSpace`.
  */
@@ -2260,7 +2260,7 @@ interface AnchorPosition {
  * What an anchor is taken for, which decides where on an observation with extent it lands.
  *
  * - `'pin'` — something sits on the observation (a number, a comment, a sticker) and only has to read
- *   as its own, so it moves off an edge shared with a neighbouring segment.
+ *   as its own, so it moves off an edge shared with a neighboring segment.
  * - `'value'` — something reads the value off the axis (a difference arrow), so it stays on the outer
  *   edge, seam or not; anywhere else and the span measures neither end.
  *
@@ -2269,7 +2269,7 @@ interface AnchorPosition {
 type AnchorPurpose = 'pin' | 'value';
 
 /**
- * Bounds of the segment a stack total anchors to, in normalised `[0,1]` panel space (origin
+ * Bounds of the segment a stack total anchors to, in normalized `[0,1]` panel space (origin
  * bottom-left, y grows up). `direction` records which side of the stack the anchor came from.
  */
 interface AnchorSegment {
@@ -2456,7 +2456,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
      * without changing which point stands for the observation.
      */
     readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
-    /** Areas can't render gaps mid-stack, so `missingValues: 'gap'` is normalised to `'zero'`. */
+    /** Areas can't render gaps mid-stack, so `missingValues: 'gap'` is normalized to `'zero'`. */
     resolveParams(options: {
         params: Record<string, unknown> | undefined;
         diagnostics?: DiagnosticsSink;
@@ -2479,7 +2479,7 @@ interface AreaGeomParams {
      * How to handle missing (null/undefined) values:
      * - `'zero'`: nulls arrive already substituted with zero by the compiler.
      * - `'connect'`: drop nulls before pathing so the band spans the gap.
-     * - `'gap'`: normalised to `'zero'` — an area can't render a gap mid-stack.
+     * - `'gap'`: normalized to `'zero'` — an area can't render a gap mid-stack.
      * @default 'zero'
      */
     missingValues: MissingValues;
@@ -2520,7 +2520,7 @@ interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
  */
 type AuthoredStyleOverlay = 'none' | AuthoredStylePaint | readonly AuthoredStylePaint[];
 
-/** A paint as authored, compiled (tokens inlined) and resolved (every colour one string). */
+/** A paint as authored, compiled (tokens inlined) and resolved (every color one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
 
 /**
@@ -2700,7 +2700,7 @@ class BarGeom extends Geom<BarGeomParams> {
     readonly highlightStrategy: "observation-rerender";
     readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
     readonly spatialKind: SpatialKind;
-    /** Stacked/filled segments read best with centred labels, matching the auto placement for stacks. */
+    /** Stacked/filled segments read best with centered labels, matching the auto placement for stacks. */
     readonly resolveDataLabelDefaults: (position: PositionAdjustment) => Partial<ResolvedDataLabelsSpec>;
     /** A bar spans `width` of its band, leaving breathing room either side that nothing paints into. */
     readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordSystem: CoordSystem) => number;
@@ -2716,7 +2716,7 @@ class BarGeom extends Geom<BarGeomParams> {
      * Substitutes an undrawable `width` with a safe value and reports the substitution, so the same
      * spec can't diverge across the React, canvas, and node renderers. A `width` outside `(0, 1]` has
      * no renderable band — non-positive or non-finite values collapse or invert the band edges, and a
-     * value above `1` overlaps the neighbouring bands.
+     * value above `1` overlaps the neighboring bands.
      */
     resolveParams(options: {
         params: Record<string, unknown> | undefined;
@@ -2779,7 +2779,7 @@ type BrandMarkPlacement = 'footer' | 'header';
 type BrandMarkVariant = 'full' | 'mini';
 
 /**
- * Colour interpolation space for an explicit ramp's stops. `'lab'` (perceptually near-uniform) is the
+ * Color interpolation space for an explicit ramp's stops. `'lab'` (perceptually near-uniform) is the
  * engine default; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's. Named schemes
  * carry their own baked-in interpolation, so this never applies to them.
  */
@@ -2857,7 +2857,7 @@ type ChromeStyleSelect = Extract<StyleSelect, {
 type ChromeStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
 
 /**
- * One discrete colour group: its domain value, mapped colour, per-value swatch shape, and the
+ * One discrete color group: its domain value, mapped color, per-value swatch shape, and the
  * index of the first layer that contributed the value (its "owning" layer in legend/headline
  * terms). Consumers needing the owning layer (per-item formats, aggregations) can read
  * `layerIndex` directly instead of re-walking the layers.
@@ -2879,7 +2879,7 @@ type ColorInterpolationSpace = (typeof COLOR_INTERPOLATION_SPACES)[number];
 /** The light/dark axis a {@link LightDarkColor} resolves against. */
 type ColorScheme = 'light' | 'dark';
 
-/** Any named colour scheme accepted by a continuous colour scale. */
+/** Any named color scheme accepted by a continuous color scale. */
 type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
 
 /**
@@ -3008,7 +3008,7 @@ type ContinuousScaleOptions = {
      * aesthetics (x, y). A numeric `[min, max]`; aesthetic-specific defaults apply when omitted
      * (size `[4, 20]`, alpha `[0.1, 1]`, strokeWidth `[1, 4]`).
      *
-     * A continuous `color` scale takes a colour ramp instead — see {@link ColorContinuousScaleOptions}.
+     * A continuous `color` scale takes a color ramp instead — see {@link ColorContinuousScaleOptions}.
      * @example scale.size.continuous({ range: [2, 30] })
      */
     range?: [number, number];
@@ -3026,18 +3026,18 @@ type ContinuousScaleSpec = {
     domainMax?: number | null;
     /**
      * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a ramp of
-     * two-or-more colour strings for a continuous `color` scale, interpolated in the
+     * two-or-more color strings for a continuous `color` scale, interpolated in the
      * {@link ContinuousScaleSpec.interpolate} space.
      */
     range?: ReadonlyArray<number | string> | null;
     /**
      * Named colormap for a continuous `color` scale (e.g. `'viridis'`, `'RdBu'`). Superseded by an explicit
-     * `range`. Inert for non-colour aesthetics.
+     * `range`. Inert for non-color aesthetics.
      */
     scheme?: ColorSchemeName | null;
-    /** Interpolation space for a colour `range`'s stops. Ignored for `scheme`. Inert for non-colour aesthetics. */
+    /** Interpolation space for a color `range`'s stops. Ignored for `scheme`. Inert for non-color aesthetics. */
     interpolate?: ColorInterpolationSpace;
-    /** Diverging midpoint — pins a colour ramp's neutral stop to this value. Inert for non-colour aesthetics. */
+    /** Diverging midpoint — pins a color ramp's neutral stop to this value. Inert for non-color aesthetics. */
     domainMid?: number | null;
     /** Symmetrise the domain about `domainMid`. Defaults to `true` when `domainMid` is set; inert otherwise. */
     symmetric?: boolean;
@@ -3151,8 +3151,8 @@ const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
 const DIAGNOSTIC_CONTEXT_KEYS: readonly ["layerIndex", "layerId", "annotationId", "aesthetic", "variableName", "scaleType", "variableType", "expected", "actual", "requested", "available", "kind", "geom", "param", "styleEntryId", "ref", "annotationId"];
 
 /**
- * Diverging colormap names from `d3-scale-chromatic`, in Brewer's capitalisation. `RdBu`, `BrBG` and
- * `PuOr` are colour-vision-deficiency safe; `Spectral` is offered for its familiar rainbow look but is not
+ * Diverging colormap names from `d3-scale-chromatic`, in Brewer's capitalization. `RdBu`, `BrBG` and
+ * `PuOr` are color-vision-deficiency safe; `Spectral` is offered for its familiar rainbow look but is not
  * CVD-safe. Red-green ramps are deliberately excluded.
  */
 const DIVERGING_SCHEME_NAMES: readonly ["RdBu", "BrBG", "PuOr", "Spectral"];
@@ -3181,10 +3181,10 @@ type DataLabelJustify = DataLabelAlign | 'panel-start' | 'panel-end';
  * - `'auto'` — the engine chooses: fit inside, flip outside, drop or rotate as needed.
  *   `justify`/`align` are ignored.
  * - `'inside'` — within the geom's box, hugging the `(justify, align)` anchor. Never dropped,
- *   flipped or rotated. On line/point geoms the label centres on the data point/marker.
+ *   flipped or rotated. On line/point geoms the label centers on the data point/marker.
  * - `'outside'` — just past the value-axis edge selected by `justify`; `align` stays within the
  *   geom's width (line/point labels sit beside the geom). Never dropped. Stacked/filled cartesian
- *   bar segments coerce to `'inside'` — every segment edge borders a neighbour; use
+ *   bar segments coerce to `'inside'` — every segment edge borders a neighbor; use
  *   `showStackTotals` for stack-end totals. (Pie wedges keep `'outside'`.)
  *
  * Styling follows the label's effective position: over the geom → inside styling (white text,
@@ -3307,7 +3307,7 @@ type Definition = Geom<unknown> | StatDefinition | TransformStrategy;
  * Structured location + repair atoms carried by an error or diagnostic. Keys are constrained to the
  * {@link DIAGNOSTIC_CONTEXT_KEYS} vocabulary, so the contract codegen binds to is compiler-checked
  * at every emit site — a typo or an ad-hoc key is a type error here, not a silent drift that breaks
- * a downstream consumer. Values are {@link JsonValue} so a diagnostic stays serialisable end-to-end.
+ * a downstream consumer. Values are {@link JsonValue} so a diagnostic stays serializable end-to-end.
  */
 type DiagnosticContext = Partial<Record<DiagnosticContextKey, JsonValue>>;
 
@@ -3323,7 +3323,7 @@ type DiagnosticContextKey = (typeof DIAGNOSTIC_CONTEXT_KEYS)[number];
 interface DiagnosticDetails {
     /** Human-readable description of what went wrong. */
     message: string;
-    /** Serialisable location + repair atoms, drawn from the documented key vocabulary. */
+    /** Serializable location + repair atoms, drawn from the documented key vocabulary. */
     context?: DiagnosticContext;
     /** Repair hint for a human or an LLM. Advisory prose, not part of the stable contract. */
     suggestion?: string;
@@ -3612,7 +3612,7 @@ interface GridPolicy {
     hideBorder?: boolean;
 }
 
-/** Geometric shape an axis traces: a straight line, a full circle or a spoke from the centre. */
+/** Geometric shape an axis traces: a straight line, a full circle or a spoke from the center. */
 type GuideGeometry = 'linear' | 'circular' | 'radial';
 
 /**
@@ -3678,7 +3678,7 @@ interface HeadlineGroupSwatch {
     geom: string;
     /** Owning layer id, so the renderer can read that layer's stylesheet. */
     layerId?: string;
-    /** Colour-group domain value this swatch stands for — picks the group's first observation. */
+    /** Color-group domain value this swatch stands for — picks the group's first observation. */
     value?: DataValue;
 }
 
@@ -3906,7 +3906,7 @@ interface LayerSummary {
 
 /** How a chart author changes one of a layer's tooltip fields. */
 interface LayerTooltipFieldSpec {
-    /** Replaces the row's label. The default rows keep their colour group's label, so it names them only without one. */
+    /** Replaces the row's label. The default rows keep their color group's label, so it names them only without one. */
     title?: string;
     /** Formats the row's value in the chart's locale, in place of its variable's own format. */
     format?: ExplicitValueFormat;
@@ -3989,7 +3989,7 @@ interface LegendItemVisual {
 }
 
 /**
- * How a geom relates to the colour legend. Read by the legends guide to decide whether a redundant
+ * How a geom relates to the color legend. Read by the legends guide to decide whether a redundant
  * single-item legend is dropped, where an `'auto'` legend lands, and whether direct (inline) labels
  * can stand in for it.
  */
@@ -4005,7 +4005,7 @@ interface LegendPolicy {
 type LegendPosition = 'auto' | 'right' | 'left' | 'top' | 'bottom' | 'none';
 
 /**
- * When a geom's colour legend prefers the side (right) over the top, used to resolve an `'auto'`
+ * When a geom's color legend prefers the side (right) over the top, used to resolve an `'auto'`
  * legend position once the rendered item count is known:
  * - `'never'`: always top-placed (the default — point, rule, and any geom that doesn't opt in).
  * - `'whenCrowded'`: moves to the side once there are many items (line/area).
@@ -4387,7 +4387,7 @@ type PerAxisValue<T> = T | Readonly<Record<AxisKey, T>>;
  * once per (geom, position); the placement context owns the dispatch from kind → denominator.
  *
  * - `stack` — per-x stack total looked up on `summary.stackTotals` (sign-aware).
- * - `fill` — segment's own normalised height (`|yMax − yMin|`); fill positions are pre-normalised
+ * - `fill` — segment's own normalized height (`|yMax − yMin|`); fill positions are pre-normalized
  *   to 1 within each stack, so the segment height is its share by construction.
  * - `absoluteGrandTotal` — `summary.absoluteGrandTotal` (Σ|y| across observations).
  * - `none` — no share semantics; `format: 'percentage'` falls back to absolute regardless.
@@ -4428,7 +4428,7 @@ interface PlacedDataLabel {
     x: number;
     y: number;
     text: string;
-    /** Box width/height in pixels, as returned by `measureDataLabel` (text + renderer padding). (x, y) is the box centre. */
+    /** Box width/height in pixels, as returned by `measureDataLabel` (text + renderer padding). (x, y) is the box center. */
     width: number;
     height: number;
     /** When true, paint the label rotated -90° around `(x, y)`. */
@@ -4620,7 +4620,7 @@ interface PolarCoordParams extends BaseCoordParams {
  * Polar coordinate system - for pie charts, radar charts, etc.
  * Angular params (theta, startAngle) are consumed by the compiler during coordTransform.
  * `innerRadius` is also exposed here so the renderer can recover the donut hole geometry
- * (e.g. to place a centred headline) without reaching into per-observation radii.
+ * (e.g. to place a centered headline) without reaching into per-observation radii.
  *
  * Polar layers repurpose the position variables: x-variables carry angles, y-variables carry radii.
  * Angles are absolute radians (`startAngle` already applied, clockwise),
@@ -4698,7 +4698,7 @@ const RESOLVED_DATA_LABEL_POSITIONS: readonly ("inside" | "outside")[];
 
 /** The range between two aesthetics, each end formatted by its own variable (an error bar's `10.5 – 13.5`). */
 interface RangeTooltipField {
-    /** Row label. When omitted, the observation's colour group, else the `y` variable's label. */
+    /** Row label. When omitted, the observation's color group, else the `y` variable's label. */
     readonly key?: string;
     readonly range: readonly [from: string, to: string];
     /** Heads the tooltip with this range instead of a row. */
@@ -4947,7 +4947,7 @@ interface ResolvedDataLabelsSpec {
     /**
      * Where the cartesian-bar category label sits relative to its bar. No `'auto'`: category labels
      * have no fit heuristics and render exactly as asked. Stacked/filled segments coerce
-     * `'outside'` to `'inside'` — every segment edge borders a neighbour.
+     * `'outside'` to `'inside'` — every segment edge borders a neighbor.
      * @default 'inside'
      */
     categoryPosition: Exclude<DataLabelPosition, 'auto'>;
@@ -5456,8 +5456,8 @@ const SCHEME_ALIASES: {
 
 /**
  * Sequential colormap names from `d3-scale-chromatic`. Matplotlib schemes are lowercase (`viridis`),
- * ColorBrewer schemes keep Brewer's capitalisation (`Blues`) — lookup is case-insensitive, so casing only
- * drives autocomplete. `viridis`/`cividis` are perceptually uniform and colour-vision-deficiency safe.
+ * ColorBrewer schemes keep Brewer's capitalization (`Blues`) — lookup is case-insensitive, so casing only
+ * drives autocomplete. `viridis`/`cividis` are perceptually uniform and color-vision-deficiency safe.
  */
 const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "Blues", "Greens", "Greys", "Oranges", "Purples", "Reds"];
 
@@ -7456,15 +7456,15 @@ interface ScaleConstraints {
     /** Force this geom's cross (y) scale to be discrete (e.g. a tile's categorical rows). */
     discreteCrossAxis?: boolean;
     /**
-     * Default band padding for this geom's discrete position scales; `0` makes neighbouring cells abut.
+     * Default band padding for this geom's discrete position scales; `0` makes neighboring cells abut.
      * Explicit user padding always wins.
      */
     bandPadding?: number;
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
     zeroBaseline?: boolean;
     /**
-     * Infer this geom's colour scale from the column behind it — a ramp for a measure — instead of the
-     * default palette. What a geom drawing its value as colour (a tile) asks for.
+     * Infer this geom's color scale from the column behind it — a ramp for a measure — instead of the
+     * default palette. What a geom drawing its value as color (a tile) asks for.
      */
     inferredColor?: boolean;
 }
@@ -7727,9 +7727,9 @@ interface SceneLayer {
     data: Dataset;
     /**
      * The geom this layer paints. A plain `string` (not {@link GeomName}): the scene is
-     * serialisable and reaches a renderer with no knowledge of the registered plugins, so a custom
+     * serializable and reaches a renderer with no knowledge of the registered plugins, so a custom
      * geom's identity survives as its name and downstream resolution is a registry lookup. Narrow back
-     * to a built-in flavour with {@link isLayerOf} / {@link SceneLayerFor}.
+     * to a built-in flavor with {@link isLayerOf} / {@link SceneLayerFor}.
      */
     geom: string;
     /**
@@ -8022,7 +8022,7 @@ interface SceneTextAnnotation {
  * - `aes`: the value of an aesthetic, read through the layer mapping.
  * - `variable`: the value of a variable the geom derives, read from the observation.
  * - `range`: two aesthetics joined by an en dash.
- * - `group`: the layer's default rows, one per listed observation, labelled by colour group or the `y` variable.
+ * - `group`: the layer's default rows, one per listed observation, labeled by color group or the `y` variable.
  */
 type SceneTooltipField = (SceneTooltipFieldBase & {
     kind: 'aes';
@@ -8064,7 +8064,7 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
      */
     map: (value: Input) => DataValue;
     /**
-     * Colour scales only: the palette before its position-keyed `overrides`, which a colour picker offers.
+     * Color scales only: the palette before its position-keyed `overrides`, which a color picker offers.
      */
     paletteBeforeOverrides?: readonly string[];
 }
@@ -8492,7 +8492,7 @@ type SpatialKind = 'buckets' | 'filled-buckets' | 'spanned-buckets' | 'rects' | 
 
 /** A stack's total at one x position, with where its label should be anchored. Drives stack-total labels. */
 interface StackTotalEntry {
-    /** Serialised x value for stable join keys across observations. */
+    /** Serialized x value for stable join keys across observations. */
     xKey: string;
     /**
      * Net signed sum of segment values at this x (positive segments add, negative subtract).
@@ -8570,7 +8570,7 @@ type StatDefinition = Stat;
 type StatLine = 'none' | 'trend' | 'average';
 
 /**
- * A group an average can be narrowed to. Narrower than a `DataValue`, which a command travelling as
+ * A group an average can be narrowed to. Narrower than a `DataValue`, which a command traveling as
  * JSON cannot carry: a group standing for a date is named by its timestamp.
  */
 type StatLineGroup = string | number | null;
@@ -8609,7 +8609,7 @@ interface StickerAnnotationSpec {
     sticker: StickerId;
 }
 
-/** Identifier of a built-in sticker image, resolved by the renderer's sticker catalogue. */
+/** Identifier of a built-in sticker image, resolved by the renderer's sticker catalog. */
 type StickerId = string;
 
 /** How a geom's paint composites with what lies under it; the set both SVG and Canvas draw. */
@@ -8641,7 +8641,7 @@ interface StyleCornerRadiusSides {
  *
  * - `color` — fill color.
  * - `alpha` — fill opacity, `0..1`.
- * - `saturation` — saturation multiplier, `0..1`; `0` is grey.
+ * - `saturation` — saturation multiplier, `0..1`; `0` is gray.
  * - `fill` — the fill of a box: the graph frame, a tooltip, a data label, a legend pill, a text
  *   annotation, a callout label; or the hover guide's band.
  * - `stroke` — the border color of a box, a shape annotation, a callout marker, a bar, a point or a
@@ -8716,7 +8716,7 @@ interface StyleExplanation<Property extends StyleProperty = StyleProperty> {
 /** The slant of a face. */
 type StyleFontStyle = (typeof STYLE_FONT_STYLES)[number];
 
-/** A gradient fill: linear along an angle in degrees (CSS convention, `180` top to bottom), or radial from the centre. */
+/** A gradient fill: linear along an angle in degrees (CSS convention, `180` top to bottom), or radial from the center. */
 type StyleGradient<Color> = {
     gradient: 'linear';
     angle?: number;
@@ -8726,7 +8726,7 @@ type StyleGradient<Color> = {
     stops: ReadonlyArray<StyleGradientStop<Color>>;
 };
 
-/** One stop of a gradient: where along it, in `[0, 1]`, and the colour there. */
+/** One stop of a gradient: where along it, in `[0, 1]`, and the color there. */
 interface StyleGradientStop<Color> {
     offset: number;
     color: Color;
@@ -8735,7 +8735,7 @@ interface StyleGradientStop<Color> {
 /**
  * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
  * The fallback always paints behind the image; `alpha` affects only the image.
- * Use `fallback: 'transparent'` for overlays that should preserve the underlying colours.
+ * Use `fallback: 'transparent'` for overlays that should preserve the underlying colors.
  */
 interface StyleImage<Color> {
     image: string;
@@ -8764,7 +8764,7 @@ interface StylePadding {
 /** A number applies to every side; an object sets named sides. */
 type StylePaddingValue = number | Partial<StylePadding>;
 
-/** What fills an area: a colour, a gradient, a pattern or an image. */
+/** What fills an area: a color, a gradient, a pattern or an image. */
 type StylePaint<Color> = Color | StyleGradient<Color> | StylePattern<Color> | StyleImage<Color>;
 
 /** A pattern fill: a preset drawn in `color` over an optional `background`, repeating every `size` pixels. */
@@ -8998,7 +8998,7 @@ class TileGeom extends Geom<Record<string, never>> {
     /** No padding: cells abut, and the renderer's inset separates them visually. */
     readonly scaleConstraints: ScaleConstraints;
     readonly grid: Partial<Record<CoordType, GridPolicy>>;
-    /** The gradient colour bar is the only place the value scale shows — never suppress it. */
+    /** The gradient color bar is the only place the value scale shows — never suppress it. */
     readonly legend: LegendPolicy;
     /** A heatmap reads cell-by-cell, so the value labels every cell by default. */
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
@@ -9012,12 +9012,12 @@ class TileGeom extends Geom<Record<string, never>> {
      */
     readonly tooltip: TooltipContract;
     readonly resolveValueSource: (mapping: AesMapping) => AestheticValue | null;
-    /** The cell centre, so annotations land mid-tile. */
+    /** The cell center, so annotations land mid-tile. */
     readonly resolveAnchorPosition: (observation: Observation) => AnchorPosition | null;
     readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
     /**
      * Writes symmetric band offsets on both axes, which the extent mappers turn into scaled bounds
-     * relative to each band centre.
+     * relative to each band center.
      */
     compile({ data }: GeomCompilerInput): GeomCompileResult;
 }
@@ -9326,7 +9326,7 @@ interface GeomCircleProps {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
-    /** Whether a change of centre or radius springs to the new one. Snaps when false. */
+    /** Whether a change of center or radius springs to the new one. Snaps when false. */
     shouldAnimateTransitions: boolean;
     /** A geom's own test hook, since the primitive owns the painted element. */
     'data-testid'?: string;

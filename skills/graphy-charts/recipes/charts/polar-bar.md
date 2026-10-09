@@ -83,7 +83,7 @@ const layer = geom.bar({ position: 'stack' });
 
 ### Radial bar (race track)
 
-Swap theta to y. Each band becomes a concentric track and the value sweeps the angle. An inner radius clears the centre.
+Swap theta to y. Each band becomes a concentric track and the value sweeps the angle. An inner radius clears the center.
 
 ```ts
 import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -101,7 +101,7 @@ const spec = pipe(
 ### Wedge width and corner rounding
 
 ```ts
-import { createSpec, geom, pipe, scale, style, styles, coord } from '@graphysdk/react';
+import { coord, createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
 
 const spec = pipe(
   createSpec({ x: 'day', y: 'signups', color: 'channel' }),
@@ -114,7 +114,7 @@ const spec = pipe(
 );
 ```
 
-Width is a fraction of the band: angular for a rose, radial for a track.
+Width is a fraction of the band: angular for a rose, radial for a track. Under polar it defaults to 1, so neighbors touch. `cornerRadius: 'full'` gives a track capsule ends.
 
 ### Hide the axes
 
@@ -127,5 +127,5 @@ const noAxes = config({ axes: { x: { isVisible: false }, y: { isVisible: false }
 ## Pitfalls
 
 - `theta: 'x'` gives a rose, `theta: 'y'` gives radial tracks. Both keep x as the band.
-- Use `scale.x.discrete()` so every band gets an equal wedge or track.
+- The x axis under a bar is always a band, so `scale.x()` infers one. `scale.x.discrete()` says so explicitly.
 - A pie is the special case with `x: ''`, `position: 'fill'` and `theta: 'y'`. See pie.md.

@@ -183,10 +183,14 @@ const THEME_NAMES = [
   'watercolor',
 ];
 const THEME_PACKAGES = THEME_NAMES.map((name) => `@graphysdk/theme-${name}`);
+// The geom packages the skill documents. Each ships `@graphysdk/geom-<name>` with one plugin export.
+const GEOM_NAMES = ['boxplot', 'candlestick', 'dumbbell', 'funnel', 'lollipop', 'waterfall'];
+const GEOM_PACKAGES = GEOM_NAMES.map((name) => `@graphysdk/geom-${name}`);
 const VALID = new Set([
   ...DATA_IMPORT,
   ...THEME_PACKAGES,
   ...THEME_PACKAGES.map((pkg) => `${pkg}/fonts.css`),
+  ...GEOM_PACKAGES,
   '@graphysdk/viz-engine',
   '@graphysdk/viz-engine/graph-config',
   '@graphysdk/react-renderer',
@@ -204,8 +208,10 @@ const NAMES = {
   '@graphysdk/react': new Set([...GR.values, ...GR.types]),
   '@graphysdk/react/editable': new Set([...GRE.values, ...GRE.types]),
 };
-// A theme package's exports are checked when the anchor resolves it; otherwise only the specifier is.
-for (const pkg of THEME_PACKAGES) {
+// A theme or geom package's exports are checked when the anchor resolves it (in the monorepo, through the
+// anchor's node_modules link to packages/themes/<name>/dist or packages/geoms/<name>/dist); otherwise only
+// the specifier is.
+for (const pkg of [...THEME_PACKAGES, ...GEOM_PACKAGES]) {
   try {
     const theme = exportsOf(dts(pkg, 'index.d.ts'));
     NAMES[pkg] = new Set([...theme.values, ...theme.types]);

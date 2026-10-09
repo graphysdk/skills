@@ -4,7 +4,7 @@ Use a line graph to show how a value changes over an ordered x, usually time.
 
 ## Data
 
-One row per point on the line. Short month names, dates and ISO strings are all read as dates, so x becomes a time axis. Plain labels such as `'Q1'` become bands.
+One row per observation. Short month names, dates and ISO strings are read as dates, so x becomes a time axis. Plain labels such as `'Q1'` become bands.
 
 ```ts
 import type { Data } from '@graphysdk/react';
@@ -119,7 +119,7 @@ const layer = geom.line({ params: { curve: 'smooth' } });
 
 ### Fill under the line
 
-The wash is a style declaration on the line geom.
+The wash is a style declaration on the line geom. It fades from the line color to transparent at the baseline.
 
 ```ts
 import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
@@ -147,7 +147,7 @@ const zero = geom.line({ params: { missingValues: 'zero' } });
 
 ### Datetime x
 
-Date values or ISO strings give a real time axis. Then `scale.x()` becomes datetime and ticks follow the calendar.
+Date values and ISO strings give a time axis, and ticks follow the calendar. `scale.x()` infers datetime; `scale.x.datetime()` says so explicitly.
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -188,3 +188,4 @@ const yScale = scale.y({ domainMin: 0 });
 - Several groups need a `color` mapping. Without it every row joins one line, which zigzags.
 - Wide data must be reshaped before the mapping reads it. Put the reshape inside `createSpec(...)` or before `mapping(...)`.
 - Line paint is `stroke` and `strokeWidth` in `style.geom.line`. `strokeAlpha` is the stroke opacity, `fillAlpha` the wash beneath, and `alpha` fades the whole geom.
+- Month names without a year get a synthetic year, one sequence per group, counted from each group's first row. Groups that start in different months land in different years. Give every group the same first month, or use full dates.

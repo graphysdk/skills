@@ -1,6 +1,6 @@
 # Voronoi
 
-Each observation is a seed point and its cell is the territory of points closer to it than to any other seed. Use it for nearest-facility maps or to make the hover regions of a scatter visible. An optional Delaunay overlay draws one edge per adjacent pair of cells.
+Each observation is a seed point. Its cell is the territory closer to it than to any other seed. Use it for nearest-facility maps or to make the hover regions of a scatter visible. An optional Delaunay overlay draws one edge per pair of adjacent cells.
 
 ## Usage
 
@@ -10,7 +10,7 @@ import type { Data } from '@graphysdk/react';
 
 import { kit } from './voronoi-geom';
 
-// Coffee shops across a city grid, coloured by brand. Each cell is a shop's catchment area.
+// Coffee shops on a city grid, colored by brand. Each cell is a shop's catchment area.
 const coffeeShops: Data = {
   columns: [{ key: 'x' }, { key: 'y' }, { key: 'label' }, { key: 'brand' }],
   rows: [
@@ -26,7 +26,7 @@ const coffeeShops: Data = {
   ],
 };
 
-// `color` maps the brand column, so the colour scale colours each cell.
+// `color` maps the brand column, so the color scale colors each cell.
 const aes = { x: 'x', y: 'y', label: 'label', category: 'brand', color: 'brand' };
 
 const catchmentsSpec = kit.pipe(
@@ -54,11 +54,9 @@ Save as `voronoi-layout.ts`.
 
 ```ts
 /**
- * The Voronoi layout: a tessellation computed over the whole point set, not derived from positional
- * scales. It runs in unit [0, 1] space inside the geom's compile half, so the compiled geometry rides in
- * the scene as plain data. The tessellation comes from d3-delaunay, clipped to the [0, 1] box. Each
- * site's cell is the locus of points whose nearest site is this one, which is why the render half can
- * hit-test by nearest site alone. `voronoi.neighbors(i)` reads the Delaunay adjacency off the diagram.
+ * The Voronoi layout runs in the compile half, in [0, 1] unit space with a top-left origin, so the cells
+ * ride in the scene as plain data. d3-delaunay computes the tessellation, clipped to the unit box.
+ * `voronoi.neighbors(i)` gives the Delaunay adjacency.
  */
 import { Delaunay } from 'd3-delaunay';
 
@@ -68,12 +66,12 @@ export interface VoronoiPoint {
 }
 
 export interface VoronoiCell {
-  /** Seed-site position, normalised into the padded [0, 1] box. */
+  /** Seed position in the padded [0, 1] box, top-left origin. */
   siteX: number;
   siteY: number;
-  /** The cell outline in [0, 1] unit space (no closing duplicate vertex). */
+  /** The cell outline in unit space, without the closing duplicate vertex. */
   polygon: Array<[number, number]>;
-  /** Indices of the Delaunay-adjacent sites (cells that share an edge with this one). */
+  /** Indices of the sites whose cells share an edge with this one. */
   neighbors: number[];
 }
 
@@ -86,7 +84,7 @@ export function computeVoronoiLayout(points: VoronoiPoint[], options: { padding:
   const voronoi = Delaunay.from(sites).voronoi([0, 0, 1, 1]);
 
   return sites.map((site, index) => {
-    // d3 types cellPolygon as non-null, but it returns null for a degenerate (coincident) site.
+    // d3 types cellPolygon as non-null, but it returns null for a site that coincides with another.
     const outline = voronoi.cellPolygon(index) as Delaunay.Polygon | null;
     return {
       siteX: site[0],
@@ -97,7 +95,10 @@ export function computeVoronoiLayout(points: VoronoiPoint[], options: { padding:
   });
 }
 
-/** Min-max normalises the raw points into a [padding, 1 - padding] box so cells fill the panel. */
+/**
+ * Min-max normalizes the points into a [padding, 1 - padding] box so the cells fill the panel. Larger y
+ * is higher on screen, as on the other geoms, so y is flipped into the top-left frame.
+ */
 function normalizeSites(points: VoronoiPoint[], padding: number): Vertex[] {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
@@ -105,14 +106,13 @@ function normalizeSites(points: VoronoiPoint[], padding: number): Vertex[] {
   const project = (value: number, min: number, max: number): number =>
     max - min < EPSILON ? 0.5 : padding + ((value - min) / (max - min)) * span;
 
-  // A single pass, not a spread into `Math.min`: a large point cloud would overflow the call-argument limit.
   const [minX, maxX] = extent(xs);
   const [minY, maxY] = extent(ys);
 
-  return points.map((point) => [project(point.x, minX, maxX), project(point.y, minY, maxY)]);
+  return points.map((point) => [project(point.x, minX, maxX), 1 - project(point.y, minY, maxY)]);
 }
 
-/** Min and max of a list in a single pass. Empty yields [Infinity, -Infinity], which `project` treats as degenerate. */
+/** Min and max in one pass. A spread into `Math.min` would overflow the argument limit for a large cloud. */
 function extent(values: number[]): [number, number] {
   let min = Infinity;
   let max = -Infinity;
@@ -134,43 +134,52 @@ import {
   Dataset,
   defineGeomRenderer,
   Geom,
-  getColor,
-  type RenderHitTester,
+  readVariableName,
+  toPaintColor,
   toPercent,
   UnitSpaceSvg,
 } from '@graphysdk/react';
-import type { GeomCompileResult, GeomCompilerInput, Observation, SceneLayer } from '@graphysdk/react';
-import { type IdentityKey, readAuthoredNumber, readAuthoredString, readVariableName } from '@graphysdk/viz-engine';
+import type {
+  DataValue,
+  GeomCompileResult,
+  GeomCompilerInput,
+  GeomHoverRendererInput,
+  GeomRendererInput,
+  Observation,
+  RenderHitTester,
+} from '@graphysdk/react';
 
 import { computeVoronoiLayout, type VoronoiPoint } from './voronoi-layout';
 
-/** The column vocabulary shared by the compile half and the render half. */
+/** The columns the compile half writes and the render half reads. */
 const VORONOI_COLUMNS = {
   markId: 'markId',
   siteX: 'siteX',
   siteY: 'siteY',
-  /** Cell outline and neighbour indices ride as JSON strings; a columnar dataset stores scalars only. */
+  /** The outline and the neighbor indices ride as JSON strings; a dataset column holds scalars only. */
   cell: 'cell',
   neighbors: 'neighbors',
   label: 'label',
   category: 'category',
 } as const;
 
-/** Fill used only if the colour scale is absent. */
+/** Fill when no color is mapped and no stylesheet entry answers. */
 const FALLBACK_COLOR = '#888888';
 
 interface VoronoiParams {
-  /** Inset of the seed points from the panel edge, as a fraction of the box. */
+  /** Inset of the seed points from the panel edge, as a fraction of the panel. */
   padding: number;
-  /** Whether to overlay the Delaunay triangulation (an edge per adjacent pair of cells). */
+  /** Whether to draw the Delaunay triangulation, one edge per pair of adjacent cells. */
   showDelaunay: boolean;
-  /** Whether to draw each point's label next to its seed (off for dense clouds). */
+  /** Whether to draw each label next to its seed. Off for dense clouds. */
   showLabels: boolean;
-  /** Cell fill opacity; cell borders and seed dots paint at full strength over it. */
+  /** Cell fill opacity. Cell borders and seed dots paint at full strength. */
   fillOpacity: number;
 }
 
 interface VoronoiRecord {
+  /** The input row this record came from. */
+  row: number;
   x: number;
   y: number;
   label: string;
@@ -178,7 +187,7 @@ interface VoronoiRecord {
 }
 
 class VoronoiGeom extends Geom<VoronoiParams> {
-  readonly type = 'voronoi';
+  readonly type = 'voronoi' as const;
 
   override readonly defaultParams: VoronoiParams = {
     padding: 0.04,
@@ -187,15 +196,16 @@ class VoronoiGeom extends Geom<VoronoiParams> {
     fillOpacity: 0.35,
   };
 
-  override readonly identityKey: IdentityKey = { variable: VORONOI_COLUMNS.markId };
+  // The hit-test returns a cell's `markId`, so the identity is that column. The default `'x-group'`
+  // would leave the hover lookup empty.
+  override readonly identityKey = { variable: VORONOI_COLUMNS.markId } as const;
 
   override readonly supportedCoordTypes = ['cartesian'] as const;
 
   override readonly highlightStrategy = null;
 
-  // `x`, `y`, `label`, and `category` are the point-cloud inputs the layout consumes, read straight from
-  // the mapped columns, not scaled. `color` is author-mapped: a site is one input row, so map it to a
-  // real input column and the categorical scale resolves it per cell.
+  // `x`, `y`, `label` and `category` are read straight from their columns, not scaled. `color` goes
+  // through the color scale. One site is one input row, so map `color` to an input column.
   override readonly aesthetics = [
     { kind: 'data', name: 'x', required: true },
     { kind: 'data', name: 'y', required: true },
@@ -209,6 +219,7 @@ class VoronoiGeom extends Geom<VoronoiParams> {
     { key: 'Group', aes: 'category' },
   ];
 
+  // The cells are computed here, not from position scales, so the render half answers the hover query.
   override readonly spatialKind = 'render-hit-test';
 
   compile({ data, params, mapping }: GeomCompilerInput): GeomCompileResult {
@@ -219,6 +230,11 @@ class VoronoiGeom extends Geom<VoronoiParams> {
       { padding: resolved.padding }
     );
 
+    // The output table replaces the input, so a mapped color column must be carried through under its own
+    // name and type. The scale stage skips a variable the layer data lacks, and every cell would fall back.
+    const colorVar = readVariableName(mapping.color);
+    const colorSource = colorVar && data.hasVariable(colorVar) ? data.getValues(colorVar) : null;
+
     const markId: string[] = [];
     const siteX: number[] = [];
     const siteY: number[] = [];
@@ -226,6 +242,7 @@ class VoronoiGeom extends Geom<VoronoiParams> {
     const neighbors: string[] = [];
     const label: string[] = [];
     const category: string[] = [];
+    const color: DataValue[] = [];
 
     records.forEach((record, index) => {
       const computed = cells[index];
@@ -237,6 +254,7 @@ class VoronoiGeom extends Geom<VoronoiParams> {
       neighbors.push(JSON.stringify(computed.neighbors));
       label.push(record.label);
       category.push(record.category);
+      color.push(colorSource?.[record.row] ?? null);
     });
 
     const table = new Dataset({
@@ -247,10 +265,10 @@ class VoronoiGeom extends Geom<VoronoiParams> {
       [VORONOI_COLUMNS.neighbors]: { type: 'categorical', values: neighbors },
       [VORONOI_COLUMNS.label]: { type: 'categorical', values: label },
       [VORONOI_COLUMNS.category]: { type: 'categorical', values: category },
+      ...(colorVar && colorSource ? { [colorVar]: { type: data.getType(colorVar), values: color } } : {}),
     });
 
-    // Geometry stays in the geom's own columns, unscaled. The tooltip reads `label` and `category`. Colour
-    // is not forced: the author maps `color` to a column carried through here and the scale resolves it.
+    // The tooltip aesthetics are pointed at the output columns. `color` keeps its author mapping.
     return {
       data: table,
       mapping: { label: { variable: VORONOI_COLUMNS.label }, category: { variable: VORONOI_COLUMNS.category } },
@@ -259,16 +277,16 @@ class VoronoiGeom extends Geom<VoronoiParams> {
 }
 
 /**
- * Zips the coordinate, label, and category columns into records, dropping rows with a missing coordinate.
- * Label falls back to a 1-based index; category to the empty string when its column is unmapped.
+ * Zips the coordinate, label and category columns into records. Rows with a missing coordinate are dropped.
+ * A label falls back to a 1-based index, a category to the empty string.
  */
 function readRecords(data: Dataset, mapping: GeomCompilerInput['mapping']): VoronoiRecord[] {
   const xVar = readVariableName(mapping.x);
   const yVar = readVariableName(mapping.y);
   const labelVar = readVariableName(mapping.label);
   const categoryVar = readVariableName(mapping.category);
-  // Read untyped and filter by `typeof` below, so a mapping pointed at a wrong-typed column degrades to
-  // an empty graph instead of throwing.
+  // Read untyped and filter by `typeof`, so a mapping pointed at a wrong-typed column gives an empty
+  // graph instead of throwing.
   const xs = xVar && data.hasVariable(xVar) ? data.getValues(xVar) : [];
   const ys = yVar && data.hasVariable(yVar) ? data.getValues(yVar) : [];
   const labels = labelVar && data.hasVariable(labelVar) ? data.getValues(labelVar) : null;
@@ -283,6 +301,7 @@ function readRecords(data: Dataset, mapping: GeomCompilerInput['mapping']): Voro
     const rawCategory = categories?.[row];
     const rawLabel = labels?.[row];
     records.push({
+      row,
       x,
       y,
       label: typeof rawLabel === 'string' ? rawLabel : String(records.length + 1),
@@ -299,30 +318,49 @@ interface RenderSite {
   siteY: number;
   polygon: Array<[number, number]>;
   neighbors: number[];
-  /** The cell's resolved fill, from the engine's colour scale. */
-  color: string;
+  /** The row itself, so the paint can read its fill from the style cascade. */
+  observation: Observation;
 }
 
 function readSites(data: Dataset): RenderSite[] {
   const sites: RenderSite[] = [];
   for (const observation of data) {
     sites.push({
-      markId: readAuthoredString(observation, VORONOI_COLUMNS.markId),
-      label: readAuthoredString(observation, VORONOI_COLUMNS.label),
-      siteX: readAuthoredNumber(observation, VORONOI_COLUMNS.siteX),
-      siteY: readAuthoredNumber(observation, VORONOI_COLUMNS.siteY),
+      markId: readString(observation, VORONOI_COLUMNS.markId),
+      label: readString(observation, VORONOI_COLUMNS.label),
+      siteX: readNumber(observation, VORONOI_COLUMNS.siteX),
+      siteY: readNumber(observation, VORONOI_COLUMNS.siteY),
       polygon: parseGeometry<Array<[number, number]>>(observation, VORONOI_COLUMNS.cell, []),
       neighbors: parseGeometry<number[]>(observation, VORONOI_COLUMNS.neighbors, []),
-      color: getColor(observation) ?? FALLBACK_COLOR,
+      observation,
     });
   }
   return sites;
 }
 
+function readString(observation: Observation, key: string): string {
+  const raw = observation[key];
+  return typeof raw === 'string' ? raw : '';
+}
+
+function readNumber(observation: Observation, key: string): number {
+  const raw = observation[key];
+  return typeof raw === 'number' ? raw : 0;
+}
+
+function parseGeometry<T>(observation: Observation, key: string, fallback: T): T {
+  const raw = observation[key];
+  if (typeof raw !== 'string') return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
- * The cursor query: the nearest site by squared distance is the cell under the cursor. The cursor
- * arrives in the cells' own top-left [0, 1] frame, so the rule that defines a cell also hit-tests it.
- * The renderer memoizes this on `layer.data`, so the JSON parse of every cell runs once per data change.
+ * The cursor query. The nearest site is the cell under the cursor, which is the rule that defines a cell.
+ * The cursor arrives in the same top-left [0, 1] frame the sites are stored in.
  */
 function buildVoronoiTester(sites: RenderSite[]): RenderHitTester {
   return (cursor) => {
@@ -346,16 +384,6 @@ function cellPath(polygon: Array<[number, number]>): string {
   return `M ${head[0]} ${head[1]} ${tail.map(([x, y]) => `L ${x} ${y}`).join(' ')} Z`;
 }
 
-function parseGeometry<T>(observation: Observation, key: string, fallback: T): T {
-  const raw = observation[key];
-  if (typeof raw !== 'string') return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 interface DelaunayEdge {
   key: string;
   x1: number;
@@ -364,7 +392,7 @@ interface DelaunayEdge {
   y2: number;
 }
 
-/** The Delaunay triangulation: one edge per adjacent pair, de-duplicated by index. */
+/** One edge per pair of adjacent cells, each pair once. */
 function delaunayEdges(sites: RenderSite[]): DelaunayEdge[] {
   const edges: DelaunayEdge[] = [];
   sites.forEach((site, index) => {
@@ -378,11 +406,11 @@ function delaunayEdges(sites: RenderSite[]): DelaunayEdge[] {
   return edges;
 }
 
-const VoronoiLayer = ({ layer }: { layer: SceneLayer }) => {
+type VoronoiLayerProps = Pick<GeomRendererInput, 'layer' | 'styleReaders'>;
+
+const VoronoiLayer = ({ layer, styleReaders }: VoronoiLayerProps) => {
   const params = layer.params as unknown as VoronoiParams;
   const sites = useMemo(() => readSites(layer.data), [layer.data]);
-
-  // Memoized on the already-memoized `sites` so the edge list is not re-derived on every render.
   const delaunayLines = useMemo(() => (params.showDelaunay ? delaunayEdges(sites) : []), [sites, params.showDelaunay]);
 
   return (
@@ -392,7 +420,7 @@ const VoronoiLayer = ({ layer }: { layer: SceneLayer }) => {
           <path
             key={site.markId}
             d={cellPath(site.polygon)}
-            fill={site.color}
+            fill={toPaintColor(styleReaders.get('fill', site.observation) ?? FALLBACK_COLOR)}
             fillOpacity={params.fillOpacity}
             stroke="#fff"
             strokeWidth={1}
@@ -413,6 +441,7 @@ const VoronoiLayer = ({ layer }: { layer: SceneLayer }) => {
           />
         ))}
       </UnitSpaceSvg>
+      {/* Circles and text stretch inside UnitSpaceSvg, so they sit in the panel SVG with percent positions. */}
       {sites.map((site) => (
         <circle key={`dot:${site.markId}`} cx={toPercent(site.siteX)} cy={toPercent(site.siteY)} r={3} fill="#1f2937" />
       ))}
@@ -435,15 +464,16 @@ const VoronoiLayer = ({ layer }: { layer: SceneLayer }) => {
   );
 };
 
-/** Repaints the hovered cell brighter with a bold border, above the dimmed base layer, in unit space. */
-const VoronoiHighlight = ({ observation }: { observation: Observation }) => {
-  const polygon = parseGeometry<Array<[number, number]>>(observation, VORONOI_COLUMNS.cell, []);
-  const fill = getColor(observation) ?? FALLBACK_COLOR;
+type VoronoiHoverProps = Pick<GeomHoverRendererInput, 'primary' | 'styleReaders'>;
+
+/** The hovered cell repainted stronger with a bold border, above the dimmed base layer. */
+const VoronoiHover = ({ primary, styleReaders }: VoronoiHoverProps) => {
+  const polygon = parseGeometry<Array<[number, number]>>(primary.observation, VORONOI_COLUMNS.cell, []);
   return (
     <UnitSpaceSvg>
       <path
         d={cellPath(polygon)}
-        fill={fill}
+        fill={toPaintColor(styleReaders.get('fill', primary.observation, 'hovered') ?? FALLBACK_COLOR)}
         fillOpacity={0.7}
         stroke="#1f2937"
         strokeWidth={2}
@@ -457,9 +487,10 @@ export const kit = createGraphyKit({
   plugins: [
     defineGeomRenderer(new VoronoiGeom(), {
       coord: 'cartesian',
-      render: ({ layer }) => <VoronoiLayer layer={layer} />,
+      render: ({ layer, styleReaders }) => <VoronoiLayer layer={layer} styleReaders={styleReaders} />,
+      // Runs once per data change or panel resize, so the JSON parse of every cell runs once, not per cursor move.
       hitTest: ({ layer }) => buildVoronoiTester(readSites(layer.data)),
-      renderHover: ({ primary }) => <VoronoiHighlight observation={primary.observation} />,
+      renderHover: ({ primary, styleReaders }) => <VoronoiHover primary={primary} styleReaders={styleReaders} />,
       renderHoverCompanions: () => null,
     }),
   ],
@@ -468,7 +499,9 @@ export const kit = createGraphyKit({
 
 ## Notes
 
-- Install `d3-delaunay` (`npm install d3-delaunay`, plus `@types/d3-delaunay` for TypeScript).
-- From `@graphysdk/viz-engine`: `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else, including the `Dataset` class, comes from `@graphysdk/react`.
-- The geom declares `x` and `y` as required data aesthetics (not scaled positions) plus optional `label` and `category`. Points are min-max normalised into the panel, so no `scale.x` or `scale.y` is needed.
+- Install `d3-delaunay` (`npm install d3-delaunay`, plus `@types/d3-delaunay` for TypeScript). Everything else imports from `@graphysdk/react`.
+- The geom declares `x` and `y` as required data aesthetics, not scaled positions, plus optional `label` and `category`. Points are min-max normalized into the panel, so no `scale.x` or `scale.y` is needed and no axes are drawn.
+- `compile` replaces the layer data with its own table. A mapped `color` column is copied into that table under its own name, because the color scale reads the layer data after `compile` and skips a column it cannot find.
+- Larger y is higher on screen. The layout flips y into the top-left frame that `UnitSpaceSvg` and the hit-test cursor use.
 - Params: `padding` (0.04), `showDelaunay` (true), `showLabels` (false), `fillOpacity` (0.35).
+- Paint reads `styleReaders.get('fill', observation)`, so `style.geom({ fill })` overrides apply. On hover the base layer dims through the stylesheet's `dimmed` state and the hovered cell is drawn above it.

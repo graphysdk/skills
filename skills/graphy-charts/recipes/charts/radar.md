@@ -72,7 +72,7 @@ export function SkillsRadar() {
 }
 ```
 
-`theta: 'x'` puts one spoke per band. `domainMin: 0` keeps the centre at zero so shapes compare fairly.
+`theta: 'x'` puts one spoke per band. `domainMin: 0` keeps the center at zero so shapes compare fairly. Without it the domain starts at the data minimum, which exaggerates differences.
 
 ## Variants
 
@@ -122,6 +122,6 @@ const yScale = scale.y({ domainMin: 0, domainMax: 10 });
 
 ## Pitfalls
 
-- Use `scale.x.discrete()` so the measures are evenly spaced spokes.
+- Declare `scale.x.discrete()` so every measure gets an equal spoke, even when the measure column is numeric.
 - An area in polar coordinates stacks by default. Use `position: 'identity'` for overlapping shapes.
 - Give every group a row for every measure. A row with `null` on y leaves a gap in that group's outline, since the line default for missing values is `'gap'`.

@@ -1,6 +1,6 @@
 # Themes
 
-A theme supplies shared styles, colours, config defaults and optional geom renderers. Apply it through `createGraphyKit({ theme })` or the provider's `theme` prop. It stays outside the spec, so the same spec can render under different themes.
+A theme supplies a stylesheet, colors, config defaults and optional geom repaints and shapes. Apply it through `createGraphyKit({ theme })` or the provider's `theme` prop. It stays outside the spec, so one spec renders under any theme.
 
 Contents
 
@@ -23,40 +23,42 @@ Contents
 
 Import `Theme` from `@graphysdk/react`. Only `name` and `styles` are required.
 
-| Field         | Purpose                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | Diagnostic name; also useful as the provider's React `key` when switching themes                                          |
-| `styles`      | A `Stylesheet` with tokens, defaults and overrides, layered above the built-in stylesheet and below the spec's stylesheet |
-| `palette`     | Default group colours, used by discrete colour scales without an explicit `range`                                         |
-| `colormap`    | Continuous colour stops, low to high, used when the scale has no `range` or `scheme`                                      |
-| `config`      | `ConfigSpec` defaults, excluding `content`; the spec's config takes precedence                                            |
-| `colorScheme` | Fixed `'light'` or `'dark'` scheme, overriding the provider's `colorScheme`                                               |
-| `plugins`     | Built-in geom repaints; the host's plugins take precedence for the same geom and coordinate system                        |
-| `shapes`      | Replacements for the shared circle, line, rect and path components used by custom geoms                                   |
+| Field         | Purpose                                                                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | Names the theme in diagnostics. Also a good React `key` when switching themes                                                          |
+| `styles`      | A `Stylesheet` with tokens, defaults and overrides. Sits above the built-in stylesheet and below the spec's `styles()`                 |
+| `palette`     | Group colors in order. Used as the default palette, for touching geoms, and by discrete color scales without a `range`                 |
+| `colormap`    | Continuous color stops, low to high. Used by continuous color scales without a `range` or `scheme`                                     |
+| `config`      | `ThemeConfig`: a `ConfigSpec` without `content`. Sits below the spec's `config()`                                                      |
+| `colorScheme` | `'light'` or `'dark'`. Overrides the provider's `colorScheme` prop. Omit it when the theme's colors are `{ light, dark }` pairs        |
+| `plugins`     | Repaints of built-in geoms. The host's `plugins` are read after them, so a host repaint of the same geom and coordinate system decides |
+| `shapes`      | Replacements for the shared `GeomCircle`, `GeomLine`, `GeomRect` and `GeomPath` that geoms from packages draw with                     |
 
 ## Built-in themes
 
-Each package exports one `Theme` and requires `@graphysdk/react` and React 19 as peer dependencies.
+Each package needs `@graphysdk/react` and React 19 as peer dependencies. Each exports one `Theme`.
 
-| Theme         | Package                          | Export         | Scheme               | Fonts                       | Look                                                        |
-| ------------- | -------------------------------- | -------------- | -------------------- | --------------------------- | ----------------------------------------------------------- |
-| Bauhaus       | `@graphysdk/theme-bauhaus`       | `bauhaus`      | light                | Jost                        | Primary colours, heavy black rules, geometric group symbols |
-| Blueprint     | `@graphysdk/theme-blueprint`     | `blueprint`    | dark                 | IBM Plex Mono               | White lines on dark blue, technical drawing style           |
-| Botanical     | `@graphysdk/theme-botanical`     | `botanical`    | light                | Cormorant Garamond, Kalam   | Ivory paper, leaf greens, botanical illustration            |
-| Chalkboard    | `@graphysdk/theme-chalkboard`    | `chalkboard`   | dark                 | Gochi Hand                  | Coloured chalk on a dark green-grey board                   |
-| Comic         | `@graphysdk/theme-comic`         | `comic`        | light                | Bangers, Comic Neue         | Black outlines, printed dots, hard shadows                  |
-| Financial     | `@graphysdk/theme-financial`     | `financial`    | light                | Source Sans 3               | Salmon paper, ruled baseline, right-side value axis         |
-| Graphite      | `@graphysdk/theme-graphite`      | `graphite`     | follows the provider | IBM Plex Sans               | Cool greys with groups distinguished by lightness           |
-| Halloween     | `@graphysdk/theme-halloween`     | `halloween`    | dark                 | Cinzel, Creepster, Nunito   | Animated pumpkins and glowing lines on a dark background    |
-| Neo Brutalist | `@graphysdk/theme-neo-brutalist` | `neoBrutalist` | light                | Space Grotesk               | Thick borders, offset shadows, bold colours                 |
-| Phosphor      | `@graphysdk/theme-phosphor`      | `phosphor`     | dark                 | VT323                       | Dark screen, green glow, scanlines                          |
-| Shiny         | `@graphysdk/theme-shiny`         | `shiny`        | dark                 | Inter Tight, JetBrains Mono | Dark background, holographic border, glowing lines          |
-| Solarized     | `@graphysdk/theme-solarized`     | `solarized`    | follows the provider | Source Code Pro             | Solarized colours on light or dark backgrounds              |
-| Spreadsheet   | `@graphysdk/theme-spreadsheet`   | `spreadsheet`  | light                | Arial (system font)         | White background, grey grid, flat colours                   |
-| Typewriter    | `@graphysdk/theme-typewriter`    | `typewriter`   | light                | Special Elite               | Manila paper with black and red type                        |
-| Watercolor    | `@graphysdk/theme-watercolor`    | `watercolor`   | light                | Caveat                      | Paint washes, pen lines, handwriting on white paper         |
+| Theme         | Package                          | Export         | Scheme               | Fonts                       | Look                                                                       |
+| ------------- | -------------------------------- | -------------- | -------------------- | --------------------------- | -------------------------------------------------------------------------- |
+| Bauhaus       | `@graphysdk/theme-bauhaus`       | `bauhaus`      | light                | Jost                        | Primary colors, heavy black rules, a square, circle or triangle per group  |
+| Blueprint     | `@graphysdk/theme-blueprint`     | `blueprint`    | dark                 | IBM Plex Mono               | White lines on dark blue, hatched shapes, drafting grid                    |
+| Botanical     | `@graphysdk/theme-botanical`     | `botanical`    | light                | Kalam, Cormorant Garamond   | Grained paper, sepia outlines, watercolour washes, leaf-shaped bars        |
+| Chalkboard    | `@graphysdk/theme-chalkboard`    | `chalkboard`   | dark                 | Gochi Hand                  | Colored chalk on a green-gray board in a wooden frame                      |
+| Comic         | `@graphysdk/theme-comic`         | `comic`        | light                | Bangers, Comic Neue         | Black outlines, printed dots, hard shadows, burst-shaped pies and points   |
+| Financial     | `@graphysdk/theme-financial`     | `financial`    | light                | Source Sans 3               | Salmon paper, ruled baseline, right-side value axis                        |
+| Graphite      | `@graphysdk/theme-graphite`      | `graphite`     | follows the provider | IBM Plex Sans               | One cool gray, groups told apart by lightness                              |
+| Halloween     | `@graphysdk/theme-halloween`     | `halloween`    | dark                 | Creepster, Cinzel, Nunito   | Moonlit churchyard: headstone bars, rose-window pies, a ghost on each line |
+| Neo Brutalist | `@graphysdk/theme-neo-brutalist` | `neoBrutalist` | light                | Space Grotesk               | Thick black borders, offset solid shadows, loud flat colors                |
+| Phosphor      | `@graphysdk/theme-phosphor`      | `phosphor`     | dark                 | VT323                       | Dark screen, green glow, scanlines                                         |
+| Shiny         | `@graphysdk/theme-shiny`         | `shiny`        | dark                 | Inter Tight, JetBrains Mono | Dark starred card, holographic foil border, flat shapes, glowing lines     |
+| Solarized     | `@graphysdk/theme-solarized`     | `solarized`    | follows the provider | Source Code Pro             | Solarized colors on a cream or deep teal background                        |
+| Spreadsheet   | `@graphysdk/theme-spreadsheet`   | `spreadsheet`  | light                | Arial (system font)         | White background, gray grid, flat colors                                   |
+| Typewriter    | `@graphysdk/theme-typewriter`    | `typewriter`   | light                | Special Elite               | Manila paper, black and red type, shapes typed from characters             |
+| Watercolor    | `@graphysdk/theme-watercolor`    | `watercolor`   | light                | Caveat                      | Paint washes, pen lines, handwriting on white paper                        |
 
-Graphite and Solarized follow the provider's `colorScheme`; the others use a fixed scheme. Halloween's animation respects `animation={false}` and reduced motion.
+- Graphite and Solarized follow the provider's `colorScheme`. The others fix one.
+- Several themes set config defaults: `axes.y.position` (`'left'` in Bauhaus, Chalkboard, Neo Brutalist, Spreadsheet and Typewriter; `'right'` in Financial) and `legend.position: 'top'` (Bauhaus, Blueprint, Chalkboard, Financial, Graphite, Neo Brutalist, Spreadsheet). The spec's `config()` overrides them.
+- Halloween animates only when the graph animates. With `animation={false}` or reduced motion it draws its final state at once.
 
 ## Install and apply
 
@@ -64,7 +66,7 @@ Graphite and Solarized follow the provider's `colorScheme`; the others use a fix
 npm install @graphysdk/theme-watercolor
 ```
 
-Pass the theme to `createGraphyKit` and import its fonts once. Every chart using `kit.GraphProvider` gets the theme.
+Pass the theme to `createGraphyKit` and import its fonts once. Every graph under `kit.GraphProvider` gets the theme.
 
 ```tsx
 import { createGraphyKit, GraphRenderer, type Data } from '@graphysdk/react';
@@ -91,7 +93,7 @@ export function Revenue({ data }: { data: Data }) {
 }
 ```
 
-To apply a theme without a kit, pass it directly to `GraphProvider`:
+Without a kit, pass the theme to `GraphProvider`:
 
 ```tsx
 import { GraphProvider, GraphRenderer, type Data, type Spec } from '@graphysdk/react';
@@ -105,13 +107,13 @@ export const Themed = ({ data, spec }: { data: Data; spec: Spec }) => (
 ```
 
 - `theme` is read once at mount, like `plugins`. To switch themes, remount the provider with a new `key`.
-- Combine a theme and plugins in one kit: `createGraphyKit({ theme: watercolor, plugins: [dumbbell] })`.
+- Combine a theme and plugins in one kit: `createGraphyKit({ theme: watercolor, plugins: [dumbbell] })`, with `dumbbell` from `@graphysdk/geom-dumbbell`.
 - `kit.GraphProvider` shows "Made with Graphy" by default. Disable it with `config({ content: { brandMark: { enabled: false } } })`.
-- Spreadsheet uses Arial and needs no CSS import. The other themes load Google Fonts through `fonts.css`. For self-hosted fonts, omit that import and load the same font families yourself; see [Fonts](#fonts).
+- Every theme package except Spreadsheet has a `fonts.css` that loads its Google Fonts. Import it once per app. Spreadsheet uses Arial and has no `fonts.css`. To self-host, skip the import and load the same families yourself; see [Fonts](#fonts).
 
 ## Changing one themed graph
 
-Use the spec's `styles()`, scales and `config()` to customise one chart. This example changes the colours, text size and legend position while keeping Watercolor's rendering.
+The spec's `styles()`, scales and `config()` sit above the theme. This example changes the colors, text size and legend position and keeps Watercolor's rendering.
 
 ```ts
 import { createGraphyKit } from '@graphysdk/react';
@@ -130,11 +132,11 @@ const spec = kit.pipe(
 );
 ```
 
-The built-in themes target charts about 600 pixels wide. Adjust `textScale` for other sizes.
+The built-in themes are drawn for graphs about 600 pixels wide. Set `textScale` for other sizes.
 
 ## Without a bundler
 
-Start with the HTML page in [setup](setup.md). Merge this entry into its existing import map's `imports` object:
+Start with the HTML page in [setup](setup.md). Add the theme to the import map's `imports` object. Use the `dist/index.mjs` path, not `/+esm`. `@latest` resolves to the beta on the `latest` dist-tag, as for `@graphysdk/react`.
 
 ```json
 {
@@ -142,13 +144,13 @@ Start with the HTML page in [setup](setup.md). Merge this entry into its existin
 }
 ```
 
-The theme's ESM bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime`, already covered by that map. Load its fonts in `<head>`:
+The theme bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime` through that map, so it shares the page's engine and React. Load its fonts in `<head>`. The file sits at the package root. Spreadsheet has none.
 
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@graphysdk/theme-watercolor@latest/fonts.css" />
 ```
 
-Then import the theme in the module script and add it to the provider's props:
+Import the theme in the module script and pass it to the provider:
 
 ```js
 import { watercolor } from '@graphysdk/theme-watercolor';
@@ -158,11 +160,11 @@ createRoot(document.getElementById('graph')).render(
 );
 ```
 
-Load `dist/index.mjs` directly. If jsDelivr is blocked, follow [setup's vendor instructions](setup.md#when-the-cdn-is-blocked), save the theme bundle alongside the other vendor files, and point its import-map entry there. Load the fonts separately through Google Fonts if allowed, or self-host them.
+If jsDelivr is blocked, follow [setup's vendor instructions](setup.md#when-the-cdn-is-blocked), save the theme bundle beside the other vendor files, and point its import-map entry there. Load the fonts from Google Fonts if allowed, or self-host them.
 
 ## Writing a custom theme
 
-Define a `Theme` object and pass it to the kit or provider. Start with tokens for shared colours and style entries for borders, spacing and typography. Add palette and config defaults as needed:
+Define a `Theme` object and pass it to the kit or provider. Start with tokens for shared colors and style entries for borders, spacing and typography. Add palette and config defaults as needed:
 
 ```ts
 import { createGraphyKit, style, token, type Theme } from '@graphysdk/react';
@@ -195,20 +197,19 @@ export const ledger: Theme = {
 const kit = createGraphyKit({ theme: ledger });
 ```
 
-The five tokens above recolour most of the chart. See [Built-in stylesheet](styling.md#built-in-stylesheet) for the full token list.
+The five tokens above recolour most of the graph. See [Built-in stylesheet](styling.md#built-in-stylesheet) for the full token list.
 
-- `palette` replaces the default palette, including the single-hue ramp used for touching geoms. List group colours in the desired order.
-- `colormap` supplies continuous colour stops from low to high.
-- `config` accepts `axes`, `legend`, `panel`, `headline`, `tooltip`, `numberFormat` and `parsingLocale`. Titles, sources and the brand mark belong in the spec's `content`.
-- `colorScheme: 'light'` fixes this theme's scheme. To support both schemes, use the approach below.
+- `palette` replaces the default palette, including the single-hue ramp used for touching geoms. List group colors in order.
+- `colormap` supplies continuous color stops from low to high.
+- `config` accepts `parsingLocale`, `legend`, `axes`, `panel`, `headline`, `tooltip` and `numberFormat`. It cannot set `content`: titles, sources and the brand mark belong to the spec.
+- `colorScheme: 'light'` fixes the scheme. To support both, see [Light and dark](#light-and-dark).
+- Keep page cards and other surrounding UI in the host application.
 
-Keep page cards and other surrounding UI in the host application.
-
-For a complete theme, cover the frame, axes, headings, data labels, legend and tooltip. The [styling target table](styling.md#style-targets) lists their builders. Include hover styles: `style.geom({ shadow: 'none' }, { state: 'hovered' })` removes the default hover shadow; a hovered `stroke` on bars, points or tiles replaces the white outline.
+For a complete theme, cover the frame, axes, headings, data labels, legend and tooltip. The [styling target table](styling.md#style-targets) lists their builders. Include hover styles: the built-in hovered state adds a soft shadow and a white outline. `style.geom({ shadow: 'none' }, { state: 'hovered' })` removes the shadow; a hovered `stroke` on bars, points or tiles replaces the outline.
 
 ## Light and dark
 
-Use `{ light, dark }` colour pairs and omit the theme's `colorScheme` to follow the provider's scheme.
+Use `{ light, dark }` color pairs and omit the theme's `colorScheme`. The theme then follows the provider's scheme.
 
 ```ts
 import { style, type Theme } from '@graphysdk/react';
@@ -231,16 +232,16 @@ export const graphiteLike: Theme = {
     },
     defaults: [style.geom.bar({ stroke: COLORS.background, strokeWidth: 1 })],
   },
-  // Palette colours must work on both backgrounds.
+  // Palette colors must work on both backgrounds.
   palette: ['#5E646B', '#878D95', '#3D434A', '#ABB2BA'],
 };
 ```
 
-Colour pairs work in stylesheet tokens and declarations. `palette` and `colormap` accept plain strings, so choose colours that remain readable on both backgrounds.
+Color pairs work in stylesheet tokens and declarations. `palette` and `colormap` take plain strings only, so pick colors that read on both backgrounds.
 
 ## Polar graphs
 
-Use `coord: 'polar'` entries to adapt borders, grids and labels for pies, donuts, roses and radars. Entries without `coord` apply to both polar and cartesian charts.
+Add `{ coord: 'polar' }` entries to adapt borders, grids and labels for pies, donuts, roses and radars. Entries without `coord` apply to both coordinate systems. Flipped graphs are cartesian.
 
 ```ts
 import { style, type Stylesheet } from '@graphysdk/react';
@@ -249,12 +250,12 @@ const sheet: Stylesheet = {
   defaults: [
     style.gridLine.x({ strokeWidth: 0 }),
     style.panelBorder.bottom({ strokeWidth: 1, dashArray: [] }),
-    // Remove the baseline; add slice borders, spokes and rings.
+    // Remove the baseline; add slice borders, spokes and circles.
     style.panelBorder.bottom({ strokeWidth: 0 }, { coord: 'polar' }),
     style.geom.bar({ stroke: '#FFFFFF', strokeWidth: 1 }, { coord: 'polar' }),
     style.gridLine.x({ strokeWidth: 1, dashArray: [] }, { coord: 'polar' }),
     style.gridLine.y({ strokeWidth: 1, dashArray: [] }, { coord: 'polar' }),
-    // Outline labels so they remain readable over the shapes.
+    // Outline labels so they stay readable over the shapes.
     style.tickLabel({ fontWeight: 600, textOutlineColor: '#FFFFFF', textOutlineWidth: 3 }, { coord: 'polar' }),
     // Keep overlapping radar areas visible.
     style.geom.area({ fillAlpha: 0.35, strokeWidth: 3 }, { coord: 'polar' }),
@@ -262,11 +263,11 @@ const sheet: Stylesheet = {
 };
 ```
 
-Place these entries after the shared defaults. Flipped charts count as cartesian.
+Place these entries after the shared defaults: later entries decide.
 
 ## Fonts
 
-Set font families in the stylesheet and load the fonts in the host page.
+Set font families in the stylesheet and load the fonts on the page.
 
 ```ts
 import { style, type Theme } from '@graphysdk/react';
@@ -284,15 +285,17 @@ export const typed: Theme = {
 ```
 
 ```css
-/* In the app's own CSS, loaded before the first graph is measured. */
+/* In the app's own CSS. */
 @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Playfair+Display:wght@700&display=swap');
 ```
 
-A text target without `fontFamily` inherits the graph's font, then the host page's. Include a system fallback and load fonts before the chart is first measured: layout does not rerun when a font arrives later. A reusable theme package can export this CSS as `fonts.css`; an in-app theme can use the app's stylesheet.
+- A text target without `fontFamily` uses `style.graph({ fontFamily })`. Always include a system fallback.
+- The SDK references fonts and does not load them. Before the first layout the renderer waits for `document.fonts.ready`, up to three seconds, then measures and lays out again when more fonts finish loading. Fonts added later still land, but the graph repaints.
+- A reusable theme package exports this CSS as `fonts.css`. An in-app theme uses the app's stylesheet.
 
 ## Texture, glow and shadow
 
-Use style properties for textures, glow and shadows before writing a custom renderer. See [styling](styling.md#property-values) for paint options.
+Use style properties for textures, glow and shadows before writing a repaint. See [styling](styling.md#property-values) for paint values.
 
 ```ts
 import { style, type Stylesheet } from '@graphysdk/react';
@@ -317,7 +320,7 @@ const effects: Stylesheet = {
         ],
       },
     }),
-    // Overlays preserve the fill underneath. The first item in a list is on top.
+    // Overlays keep the fill underneath. The first item in a list is on top.
     style.geom({ overlay: { pattern: 'lines', color: 'rgba(0, 0, 0, 0.3)', size: 3 } }),
     style.graph({
       overlay: [
@@ -337,24 +340,24 @@ const effects: Stylesheet = {
 };
 ```
 
-`overlay` works on geoms and the graph. Geom overlays follow the layer's opacity; graph overlays cover the frame at full opacity, subject to the paint's own transparency.
+`overlay` works on geoms and the graph. A geom overlay is masked by the layer's shapes and follows their opacity. A graph overlay covers the whole frame; only the paint's own transparency thins it.
 
-Examples from the built-in themes:
+How the built-in themes use them:
 
-| Theme                        | Implementation                                                                                                        |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Phosphor                     | `shadow` and `textShadow` for glow; pattern and gradient overlays for scanlines and dark corners. No custom renderer. |
-| Comic                        | Dot-pattern overlays on geoms; lines set `overlay: 'none'`.                                                           |
-| Blueprint                    | Pattern overlays for hatching on bars and tiles.                                                                      |
-| Chalkboard, Botanical, Shiny | Graph image overlays for the wooden frame, page texture and foil border, respectively.                                |
+| Theme                        | Implementation                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Phosphor                     | `shadow` and `textShadow` for glow; pattern and gradient overlays for scanlines and dark corners. No repaint. |
+| Comic                        | Dot-pattern overlay on every geom; lines set `overlay: 'none'`.                                               |
+| Blueprint                    | Pattern overlays for hatching on bars and tiles.                                                              |
+| Chalkboard, Botanical, Shiny | Graph image overlays for the wooden frame, the taped page and the foil border.                                |
 
-Use a repaint for geometry or rendering that style properties cannot express.
+Use a repaint for geometry that style properties cannot express.
 
 ## Repainting built-in geoms
 
-Add `defineGeomRenderer(name, contract)` definitions to `Theme.plugins` to replace built-in geom rendering. Compilation, scales, hover indexing and data labels remain unchanged. See [Repaint a built-in geom](plugins.md#repaint-a-built-in-geom) for the contract.
+Add `defineGeomRenderer(name, contract)` definitions to `Theme.plugins` to replace a built-in geom's drawing. Compilation, scales, hover indexing and data labels are unchanged. See [Repaint a built-in geom](plugins.md#repaint-a-built-in-geom) for the contract.
 
-Share the drawing component between normal and hover rendering:
+Share one drawing component between `render` and `renderHover`:
 
 ```tsx
 import {
@@ -434,46 +437,46 @@ export const capsule: Theme = {
 };
 ```
 
-- Read paint through `useGeomStyleReader(layer)` or the render input's `styleReaders`, passing the current state. This preserves spec styles and mapped colours.
-- Implement `renderHover` using `primary.observation` and the `'hovered'` state. Returning nothing leaves the hovered bar dimmed with the base layer.
-- Use `createStableKeyGenerator`, or `createStableCellKeyGenerator` for tiles, to preserve shape identity across updates.
-- Register a separate `coord: 'polar'` contract to repaint pies and roses. Without one, built-in polar rendering remains active.
-- Host plugins override theme plugins for the same geom and coordinate system, without a warning.
+- Read paint through `useGeomStyleReader(layer)` or the render input's `styleReaders`, passing the current state. Spec styles and mapped colors then reach the repaint.
+- `renderHover` redraws `primary.observation` in the `'hovered'` state above the dimmed layer. Returning `null` leaves the hovered bar dimmed with the rest.
+- Key shapes with `createStableKeyGenerator`, or `createStableCellKeyGenerator` for tiles, so they keep their identity across updates.
+- A contract covers one coordinate system. Add a second with `coord: 'polar'` to repaint pies and roses. Without it the built-in polar drawing stays.
+- A host plugin for the same geom and coordinate system replaces the theme's, with no warning.
 
 ## Painting geoms from packages
 
-Custom geoms that use `GeomCircle`, `GeomLine`, `GeomRect` or `GeomPath` pick up the theme's `shapes` replacements. Wrap the corresponding `DefaultGeom*` component to preserve its transitions.
+A geom from a package draws with the shared `GeomCircle`, `GeomLine`, `GeomRect` and `GeomPath`. `Theme.shapes` replaces them. Wrap the matching `DefaultGeom*` component to keep its transitions.
 
 ```tsx
 import { DefaultGeomCircle, type GeomCircleProps, type GeomShapes, type Theme } from '@graphysdk/react';
 
-// Apply a translucent fill and dark outline to shared circles.
-const InkedCircle = ({ fill, fillOpacity, ...props }: GeomCircleProps) => (
+// A translucent fill and a dark outline on every shared circle.
+const OutlinedCircle = ({ fill, fillOpacity, ...props }: GeomCircleProps) => (
   <DefaultGeomCircle {...props} fill={fill} fillOpacity={0.6} stroke="#3B2F2F" strokeWidth={0.9} />
 );
 
-const shapes: GeomShapes = { Circle: InkedCircle };
+const shapes: GeomShapes = { Circle: OutlinedCircle };
 
-export const inked: Theme = {
-  name: 'inked',
+export const outlined: Theme = {
+  name: 'outlined',
   styles: { defaults: [] },
   shapes,
 };
 ```
 
-Omitted shapes use the default component. Botanical replaces `Circle`; Watercolor replaces `Circle` and `Line`.
+A shape left out keeps its default. Botanical and Chalkboard replace `Circle`; Watercolor replaces `Circle` and `Line`.
 
 ## Motion
 
-The render input's optional `intro` contains a `LayerIntroPlan`. Use it to coordinate entrance animations with the chart. When it is absent, including with `animation={false}` or reduced motion, render the final state immediately.
+The render input's optional `intro` is a `LayerIntroPlan`. Use it to time an entrance with the graph's own intro. It is absent when the graph does not animate, including with `animation={false}` and reduced motion: then draw the final state at once.
 
-Define the final geometry and paint in the component, then animate towards that state. Continuous effects should also respect disabled animation and reduced motion.
+Draw the final geometry and paint first, then animate toward it. A continuous effect must also stop when `intro` is absent.
 
-Halloween uses the chart's intro timing for rising bars and lighting lanterns. Its entrances end at the component's drawn state. When motion is enabled, candle flicker continues after the intro for as long as the chart is shown; with animation disabled or reduced motion, the chart stays in its final state.
+Halloween does this: headstones rise and candles light on the intro clock, and a candle's flicker continues after the intro only on a graph that played one.
 
 ## Pitfalls
 
 - `styles({ extends: [theme.styles] })` copies only the stylesheet into the spec. It does not apply the theme's palette, config, plugins or shapes.
-- Theme `defaults` yield to mapped aesthetics. Use `overrides` to force a fill even when `color` is mapped; that fill will hide the mapped colours.
-- Editing omits config values equal to the theme's defaults. Put only shared defaults in theme config.
-- Data labels on known surfaces, such as bars, may receive a different text colour when the theme's colour lacks contrast.
+- Theme `defaults` yield to mapped aesthetics. Use `overrides` to force a fill when `color` is mapped; that fill then hides the mapped colors.
+- A theme's `config` cannot set `content`. Titles, sources and the brand mark come from the spec.
+- A theme's data label `textColor` is replaced by a readable one where it lacks contrast with the bar or slice under the label. A color set in the spec's `styles()` is kept.

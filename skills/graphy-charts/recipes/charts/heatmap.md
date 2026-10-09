@@ -1,6 +1,6 @@
 # Heatmap
 
-Use a heatmap to show one value across two bands. Each cell is a tile, and the value rides the colour.
+Use a heatmap to show one value across two bands. Each cell is a tile, and the value sets its color.
 
 ## Data
 
@@ -69,7 +69,7 @@ Tiles show their value as a data label by default. Turn it off with `geom.tile({
 
 ## Variants
 
-### Named colour scheme
+### Named color scheme
 
 ```ts
 import { scale } from '@graphysdk/react';
@@ -77,7 +77,7 @@ import { scale } from '@graphysdk/react';
 const colorScale = scale.color.continuous({ scheme: 'viridis' });
 ```
 
-### Custom colour range
+### Custom color range
 
 Two or more stops. A range replaces the scheme.
 
@@ -89,12 +89,12 @@ const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
 
 ### Diverging values around zero
 
-Pin the neutral colour to zero and balance the domain so equal magnitudes get equal intensity.
+Pin the neutral color to zero. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-const colorScale = scale.color.continuous({ scheme: 'RdBu', domainMid: 0, symmetric: true });
+const colorScale = scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
 ```
 
 ### Wide matrix from a spreadsheet
@@ -117,7 +117,12 @@ const revenueData: Data = {
 
 const spec = pipe(
   createSpec(),
-  transform.reshape({ keep: ['product'], reshape: ['North', 'South', 'East', 'West'], keyName: 'region', valueName: 'revenue' }),
+  transform.reshape({
+    keep: ['product'],
+    reshape: ['North', 'South', 'East', 'West'],
+    keyName: 'region',
+    valueName: 'revenue',
+  }),
   mapping({ x: 'region', y: 'product', color: 'revenue' }),
   geom.tile(),
   scale.x(),
@@ -128,7 +133,7 @@ const spec = pipe(
 
 ### Percent strings
 
-Values like `'86%'` are read as percentages and the colour ramp and labels follow.
+Values like `'86%'` are read as percentages. The color ramp and labels follow.
 
 ### Sparse grid
 
@@ -136,7 +141,7 @@ Only rows that exist paint a tile. A missing cell stays empty, which keeps absen
 
 ### Waffle
 
-The same tile geom with the value on a discrete colour scale. Each cell is one percentage point, and the grid indices are hidden.
+The same tile geom with a band on the color scale. Each cell is one percentage point, and the grid indices are hidden.
 
 ```ts
 import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -181,5 +186,8 @@ const cellStyles = styles({ defaults: [style.geom.tile({ cornerRadius: 4, stroke
 ## Pitfalls
 
 - Both x and y are always bands under a tile, whatever the values. An explicit continuous scale is replaced by a band with a warning. Use `scale.x.discrete({ domain })` only to pin the order or the set of bands.
-- The colour scale is inferred from the value. Declare `scale.color.continuous(...)` to pick a scheme, a range or a diverging midpoint.
-- A diverging scheme only reads well when the data crosses zero. Use a sequential scheme otherwise.
+- The y band reads top-down: the first band is at the top. `scale.y.discrete({ reverse: false })` flips it.
+- A tile takes `position: 'identity'` only and draws in cartesian coordinates only. No stacking, no `coord.flip()`, no `coord.polar()`. Swap the two mappings to transpose the grid.
+- The color scale is inferred from the value. Declare `scale.color.continuous(...)` to pick a scheme, a range or a diverging midpoint.
+- A diverging scheme without `domainMid` puts the neutral color at the data midpoint and raises a warning. Use a sequential scheme when the data does not cross zero.
+- The legend for a continuous color scale is one pill per domain stop: the two ends, plus the midpoint of a diverging scale. There is no gradient bar.

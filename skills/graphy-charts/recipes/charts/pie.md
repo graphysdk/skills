@@ -83,17 +83,19 @@ import { style, styles } from '@graphysdk/react';
 const sliceBorders = styles({ defaults: [style.geom.bar({ stroke: '#ffffff', strokeWidth: 2 })] });
 ```
 
-### Percent labels on slices
+### Labels on slices
+
+Under polar the label format defaults to `'percentage'`. Set `format: 'absolute'` for raw values. `showCategoryLabels` prefixes the slice name, as in `Engineering · 42%`.
 
 ```ts
 import { geom } from '@graphysdk/react';
 
-const layer = geom.bar({ position: 'fill', dataLabels: { showDataLabels: true, format: 'percentage' } });
+const layer = geom.bar({ position: 'fill', dataLabels: { showDataLabels: true, showCategoryLabels: true } });
 ```
 
 ### Headline number in the donut hole
 
-Turn on the headline with the centre position. It sits in the hole only when the coordinate has an inner radius. The default position is above the graph.
+Turn on the headline with the center position. It sits in the hole only when the coordinate has an inner radius. The default position is above the graph.
 
 ```ts
 import { config, coord } from '@graphysdk/react';
@@ -145,4 +147,4 @@ const spec = pipe(
 - Keep `x: ''`. A real x mapping splits the data into several concentric tracks, one per band.
 - `position: 'fill'` is what closes the circle. With `'stack'` the value axis is rounded to a nice number, so the slices stop short of a full turn unless the total happens to be round.
 - Both `scale.x()` and `scale.y()` are still required in polar coordinates.
-- Slice paint lives in `style.geom.bar`, since a slice is a bar.
+- Slice paint lives in `style.geom.bar`, since a slice is a bar. `cornerRadius` defaults to `'sm'`; set `'none'` for square wedge corners.

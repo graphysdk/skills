@@ -56,7 +56,7 @@ export function HeightByWeight() {
 
 ## Variants
 
-### Colour by group
+### Color by group
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -72,7 +72,7 @@ const spec = pipe(
 
 ### Bubble: size by a third variable
 
-Size alone needs a size scale. `scale.size.continuous()` also adds a legend of sized symbols.
+A size mapping needs a size scale. `scale.size.continuous()` uses a square-root transform, so bubble area tracks the value. It adds a legend of two sized pills, the smallest and largest value.
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -98,7 +98,7 @@ const bubbleSpec = pipe(
 );
 ```
 
-### Bubble with colour
+### Bubble with color
 
 ```ts
 import { createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -127,7 +127,7 @@ const spec = pipe(
 );
 ```
 
-Every mapped visual aesthetic needs its scale: `scale.size.continuous()` here.
+Every mapped visual aesthetic needs its scale: `scale.size.continuous()` and `scale.color.palette()` here.
 
 ### Log scale
 
@@ -155,6 +155,8 @@ const spec = pipe(
   scale.y()
 );
 ```
+
+Symbols: `'circle'`, `'square'`, `'diamond'`, `'triangle'`, `'cross'`, `'star'`, `'wye'`.
 
 ### Trend line
 
@@ -188,6 +190,7 @@ Rows with `null` on x or y are skipped.
 
 - Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
 - A string x column becomes a band axis and the points line up in columns. Keep both axes numeric.
-- `size` on a point is the marker diameter in pixels when set as a style. Mapped sizes go through `scale.size`.
+- `size` in `style.geom.point` is the marker diameter in pixels, default 8. Mapped sizes go through `scale.size`.
+- On a bubble graph a `defaults` entry for `size` is ignored, because the mapping decides it. Put the entry in `overrides` to replace mapped sizes.
 - Two observations can share an x. Nothing is stacked or dodged for points.
-- Mapped `size` and `label` do not appear in the default tooltip. The heading is x; the row is color plus y. Use annotations or a custom Tooltip slot to show them.
+- Mapped `size` and `label` do not appear in the default tooltip. The heading is the x value; the rows are the color group and y. Add a row with `geom.point({ tooltip: { size: true } })`.

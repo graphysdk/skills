@@ -1,6 +1,6 @@
 # Slots
 
-Replace how one region of the graph paints while the engine keeps deciding what it shows.
+Replace how one region of the graph paints. The engine still decides what the region shows.
 
 Contents
 
@@ -16,13 +16,14 @@ Contents
 - AxisTicks and AxisLabel slots
 - Headline slot
 - Wrapping a default
+- Pressable guides
 - Pitfalls
 
 Exact props: types.md § Slots.
 
 ## What a slot is
 
-`GraphRenderer` paints each region with a default component. The `slots` prop swaps one or more of them. A slot receives the same render-ready props as the default. The spec still decides whether the region exists and what data it carries. A slot only paints.
+`GraphRenderer` paints each region with a default component. The `slots` prop swaps one or more of them. A slot receives the same render-ready props as the default. The spec decides whether the region exists and what data it carries. A slot only paints.
 
 ```tsx
 import { GraphRenderer } from '@graphysdk/react';
@@ -33,25 +34,25 @@ const PlainTooltip = ({ content }: TooltipSlotProps) => <div>{content.heading}</
 export const Renderer = () => <GraphRenderer slots={{ Tooltip: PlainTooltip }} />;
 ```
 
-There are two kinds:
+Two kinds:
 
 - Bare slots take a component: `Header`, `Footer`, `Tooltip`, `Grid`, `Swatch`, `EditorSurface`. The layout measures their DOM or hands them a box it already sized.
-- Measured slots take `{ render, measure }`: `Legend`, `Headline`, `AxisTicks`, `AxisLabel`. They sit on an edge and the layout must reserve space for them before painting, so they also say how much.
+- Measured slots take `{ render, measure }`: `Legend`, `Headline`, `AxisTicks`, `AxisLabel`. They sit on an edge, so the layout must reserve space before painting. `measure` says how much.
 
-Give `slots` a stable object. Define it at module scope or in `useMemo`.
+Give `slots` a stable object: module scope or `useMemo`.
 
-Exported types: `GraphSlots` for the prop, one `...SlotProps` type per slot (`HeaderSlotProps`, `FooterSlotProps`, `TooltipSlotProps`, `GridSlotProps`, `SwatchSlotProps`, `EditorSurfaceSlotProps`, `LegendSlotProps`, `HeadlineSlotProps`, `AxisTicksSlotProps`, `AxisLabelSlotProps`), `SlotOverride<Props, Measure>` for a measured pair and `SlotMeasureContext` for what `measure` receives.
+Exported types: `GraphSlots` for the prop; one `...SlotProps` type per slot (`HeaderSlotProps`, `FooterSlotProps`, `TooltipSlotProps`, `GridSlotProps`, `SwatchSlotProps`, `EditorSurfaceSlotProps`, `LegendSlotProps`, `HeadlineSlotProps`, `AxisTicksSlotProps`, `AxisLabelSlotProps`); `SlotOverride<Props, Measure>` for a measured pair; `SlotMeasureContext` for what `measure` receives.
 
 ## Bare slots
 
-| Slot | Receives | Default export |
-| --- | --- | --- |
-| `Tooltip` | `content` | `DefaultTooltip` |
-| `Header` | `title`, `subtitle`, styles, `brandMark`, `headerRect`, `mode`, `ref` | `DefaultHeader` |
-| `Footer` | `caption`, `source`, styles, `brandMark`, `footerRect`, `mode`, `ref` | `DefaultFooter` |
-| `Swatch` | `shape`, `color`, `paint`, `surface`, `label`, `lineType`, `width`, `height`, `strokeWidth`, `alpha`, `cornerRadius`, `symbol` | `DefaultSwatch` |
-| `Grid` | `axes`, `panelBorderSizes`, `panelFrameRect`, `panelRect` | `DefaultGrid` |
-| `EditorSurface` | `frameElement`, `panelRect`, `formattedAxes`, `shouldAnimateTransitions` | none |
+| Slot            | Receives                                                                                                                              | Default export   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `Tooltip`       | `content`                                                                                                                             | `DefaultTooltip` |
+| `Header`        | `ref`, `headerRect`, `mode`, `title`, `isTitleVisible`, `subtitle`, `isSubtitleVisible`, `headingStyle`, `subtitleStyle`, `brandMark` | `DefaultHeader`  |
+| `Footer`        | `ref`, `footerRect`, `mode`, `caption`, `isCaptionVisible`, `source`, `isSourceVisible`, `captionStyle`, `sourceStyle`, `brandMark`   | `DefaultFooter`  |
+| `Swatch`        | `shape`, `color`, `paint`, `surface`, `label`, `lineType`, `width`, `height`, `strokeWidth`, `alpha`, `cornerRadius`, `symbol`        | `DefaultSwatch`  |
+| `Grid`          | `axes`, `panelBorderSizes`, `panelFrameRect`, `panelRect`                                                                             | `DefaultGrid`    |
+| `EditorSurface` | `frameElement`, `panelRect`, `formattedAxes`, `shouldAnimateTransitions`                                                              | none             |
 
 `EditorSurface` is filled by `EditableGraphRenderer` from `@graphysdk/react/editable`. A read-only graph never sets it.
 
@@ -78,11 +79,11 @@ const DarkTooltip = ({ content }: TooltipSlotProps) => (
 export const Renderer = () => <GraphRenderer slots={{ Tooltip: DarkTooltip }} />;
 ```
 
-`content.heading` is the formatted x value. It is `null` on polar graphs and whenever `content.comment` is set, since the two share one slot. `content.rows` lists one row per group in legend order. Each row has `label`, `value` (already formatted), `swatchColor` (`null` when the graph has no colour scale), `geom`, `isPrimary` (the hovered row) and a stable `key`, plus the swatch details `swatchLineType`, `swatchFill`, `swatchAlpha`, `swatchCornerRadius` and `swatchSymbol`. `content.comment` is rich text when the pointer is over a comment bubble.
+`content.heading` is the formatted main-axis value. It is `null` on polar graphs and whenever `content.comment` is set. `content.rows` lists one row per group in legend order. A row has `label`, `value` (formatted), `swatchColor` (`null` when the graph has no color scale), `geom`, `isPrimary` (the hovered row) and a stable `key`, plus the optional swatch details `swatchLineType`, `swatchFill`, `swatchAlpha`, `swatchCornerRadius` and `swatchSymbol`. `content.comment` is rich text when the pointer is over a comment bubble, else `null`.
 
 ## Header slot
 
-The header holds the title and subtitle. The layout measures the rendered element to reserve its height, so forward `ref` to the outer element and place it at `headerRect`.
+The header holds the title and subtitle. The layout measures the rendered element to reserve its height. Forward `ref` to the outer element and place it at `headerRect`.
 
 ```tsx
 import { BrandMark, GraphRenderer } from '@graphysdk/react';
@@ -111,7 +112,9 @@ const BannerHeader = ({
       style={{ position: 'absolute', left: headerRect.x, top: headerRect.y, width: headerRect.width, padding: '8px 0' }}
     >
       {isTitleVisible && (
-        <h2 style={{ margin: 0, fontSize: headingStyle.fontSize, color: headingStyle.textColor }}>{toPlainText(title)}</h2>
+        <h2 style={{ margin: 0, fontSize: headingStyle.fontSize, color: headingStyle.textColor }}>
+          {toPlainText(title)}
+        </h2>
       )}
       {isSubtitleVisible && <p style={{ margin: 0, opacity: 0.7 }}>{toPlainText(subtitle)}</p>}
       {brandMark !== 'hidden' && <BrandMark visual={brandMark} placement="header" />}
@@ -122,7 +125,11 @@ const BannerHeader = ({
 export const Renderer = () => <GraphRenderer slots={{ Header: BannerHeader }} />;
 ```
 
-`title` and `subtitle` are a string, rich text, or `null`. Rich text is a tree of nodes with `type`, `text`, `content` and `marks`. `headingStyle` and `subtitleStyle` are resolved text styles with `fontFamily`, `fontSize`, `fontWeight`, `lineHeight` and `textColor`, plus optional `fontStyle`, `letterSpacing`, `textTransform`, `textDecoration` and `textOutlineColor`. The layout reads only the measured height of the header and footer. Their width is the graph's. `brandMark` says whether the badge sits in the header: `'hidden'`, `'mini'` or `'full'`, typed `BrandMarkVisual`. The exported `BrandMark` component paints it from `visual` and `placement`, so a custom header or footer keeps the badge. `resolveBrandMarkVisual(enabled, frameSize, variant)` gives the same value for a frame of your own. A custom header opts out of inline title editing.
+- `title` and `subtitle` are a string, rich text or `null`. Rich text is a tree of nodes with `type`, `text`, `content`, `marks` and `attrs`.
+- `headingStyle` and `subtitleStyle` are resolved `TextStyle` values: `fontSize`, `fontWeight`, `lineHeight`, `textColor`, plus optional `fontFamily`, `fontStyle`, `letterSpacing`, `textTransform`, `textDecoration`, `textOutlineColor`, `textOutlineWidth` and `textShadow`.
+- The layout reads only the measured height. The width is the graph's.
+- `brandMark` is `'hidden'`, `'mini'` or `'full'`, typed `BrandMarkVisual`. It is `'hidden'` when the mark is off, the frame is too small, or `config.content.brandMark.placement` puts the mark in the other region (`'footer'` is the default). The exported `BrandMark` paints it from `visual` and `placement`, so a custom header or footer keeps the badge. `resolveBrandMarkVisual(enabled, frameSize, variant)` gives the same value for a frame of your own.
+- A custom header opts out of inline title editing. `mode` tells it which graph mode it paints in.
 
 ## Footer slot
 
@@ -153,7 +160,7 @@ const SourceOnlyFooter = ({ ref, footerRect, source, isSourceVisible, sourceStyl
 export const Renderer = () => <GraphRenderer slots={{ Footer: SourceOnlyFooter }} />;
 ```
 
-`caption` is text or `null`. `source` is `{ label?, url? }` or `null`. `sourceStyle` has a `label` style and a `link` style.
+`caption` is text or `null`, styled by `captionStyle`. `source` is `{ label?, url? }` or `null`. `sourceStyle` has a `label` style and a `link` style. A custom footer opts out of inline caption editing.
 
 ## Swatch slot
 
@@ -186,7 +193,7 @@ const SharpSwatch = (props: SwatchSlotProps) => {
 export const Renderer = () => <GraphRenderer slots={{ Swatch: SharpSwatch }} />;
 ```
 
-`shape` is `'square'`, `'line'`, `'area'`, `'circle'` or `'slice'`, picked by the geom, typed `SwatchShape`. `surface` is `'legend'`, `'tooltip'`, `'headline'`, `'callout'` or `'rule-label'`, typed `SwatchSurface`. `label` is the item's text where the surface has one. `paint` carries a gradient, pattern or image fill when the geom has one. A swatch that reads only `color` drops those fills. Paint inside the `width` by `height` box you receive.
+`shape` is `'square'`, `'line'`, `'area'`, `'circle'`, `'slice'` or `'interval'`, picked by the geom, typed `SwatchShape`. An `interval` swatch is a stem capped at both ends; it stands upright, and lies on its side when `mainAxis` is `'y'`, the chart's category axis under `coord.flip()`. `surface` is `'legend'`, `'tooltip'`, `'headline'`, `'callout'` or `'rule-label'`, typed `SwatchSurface`. `label` is the item's text where the surface has one. `paint` carries a gradient, pattern or image fill when the geom has one; `DefaultSwatch` draws it for squares and slices only. A swatch that reads only `color` drops those fills. Paint inside the `width` by `height` box you receive.
 
 ## Grid slot
 
@@ -208,9 +215,25 @@ const DottedGrid = ({ axes, panelFrameRect, panelRect }: GridSlotProps) => {
           const x = offsetX + tick.position * panelRect.width;
           const y = offsetY + (1 - tick.position) * panelRect.height;
           return isHorizontalAxis ? (
-            <line key={String(tick.value)} x1={x} x2={x} y1={offsetY} y2={offsetY + panelRect.height} stroke="#ccc" strokeDasharray="2 4" />
+            <line
+              key={String(tick.value)}
+              x1={x}
+              x2={x}
+              y1={offsetY}
+              y2={offsetY + panelRect.height}
+              stroke="#ccc"
+              strokeDasharray="2 4"
+            />
           ) : (
-            <line key={String(tick.value)} x1={offsetX} x2={offsetX + panelRect.width} y1={y} y2={y} stroke="#ccc" strokeDasharray="2 4" />
+            <line
+              key={String(tick.value)}
+              x1={offsetX}
+              x2={offsetX + panelRect.width}
+              y1={y}
+              y2={y}
+              stroke="#ccc"
+              strokeDasharray="2 4"
+            />
           );
         });
       })}
@@ -221,7 +244,7 @@ const DottedGrid = ({ axes, panelFrameRect, panelRect }: GridSlotProps) => {
 export const Renderer = () => <GraphRenderer slots={{ Grid: DottedGrid }} />;
 ```
 
-`axes` holds one formatted axis per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `labelRotation` and `labelMaxWidthPx`. Circular and radial axes of a radar are drawn elsewhere and have `geometry` other than `'linear'`. `DefaultGrid` skips the line that would sit on a bordered panel edge, so a custom grid reads `panelBorderSizes` to match.
+`axes` holds one `FormattedAxis` per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `scaleAestheticKey`, `isVisible`, `gridVisible`, `ticksVisible`, `label`, `labelRotation` and `labelMaxWidthPx`. A radar's circular and radial axes are drawn elsewhere and have a `geometry` other than `'linear'`. `DefaultGrid` skips a line that would sit on a bordered panel edge; read `panelBorderSizes` to match.
 
 ## Measured slots
 
@@ -234,11 +257,13 @@ type LegendSlot = NonNullable<GraphSlots['Legend']>;
 // { render: ComponentType<LegendSlotProps>; measure: (legend, ctx) => number }
 ```
 
-For `Legend`, `AxisTicks` and `AxisLabel`, `measure` returns the band thickness in pixels: the height for a top or bottom region, the width for a left or right one. It is called once per legend or axis with that one `FormattedLegend` or `FormattedAxis`, not with the arrays and rects `render` receives, plus a `SlotMeasureContext` with `measureText(text, font)` and `textScale`. `measureText` takes a font with `family` and `size`, and optional `weight`, `style`, `letterSpacing` and `textTransform`, and returns `{ width, height, ascent, descent }`. Use it when the size depends on text, so the reserved band matches what you paint at any text scale. It is not called for a legend with no items, for an axis that is hidden, has no ticks or is not linear, and the `AxisLabel` measure runs only for an axis with a title.
+For `Legend`, `AxisTicks` and `AxisLabel`, `measure` returns the band thickness in pixels: the height for a top or bottom region, the width for a left or right one. It is called once per legend or axis with that one `FormattedLegend` or `FormattedAxis`, not with the arrays and rects `render` receives, plus a `SlotMeasureContext` with `measureText(text, font)` and `textScale`. `measureText` takes a font with `family` and `size`, and optional `weight`, `style`, `letterSpacing` and `textTransform`, and returns `{ width, height, ascent, descent }`. Use it when the size depends on text, so the reserved band matches the paint at any text scale.
 
-`Headline` is different. Its `measure` is an object with `measureHeadline(headline, size, isInDonutHole?)` returning `{ width, height }` and `measureHeadlineItemWidths(headline, size)` returning one width per item. Neither receives a `SlotMeasureContext`.
+`measure` is skipped where the band is empty: a legend with no items, an axis that is hidden, has no ticks or is not linear. `AxisLabel`'s measure runs only for an axis with a title.
 
-Give `measure` a stable reference. A new function each render takes effect on the next paint but does not retrigger layout. The pair is typed `SlotOverride<Props, Measure>`, and `GraphSlots['Legend']` and friends name each slot's instance of it.
+`Headline` is different. Its `measure` is an object with `measureHeadline(headline, size, isInDonutHole?)` returning `{ width, height }` and `measureHeadlineItemWidths(headline, size)` returning one width per strip item. Neither receives a `SlotMeasureContext`.
+
+Give `measure` a stable reference. A new function each render takes effect on the next paint but does not retrigger layout, so paint and reserved space drift apart. The pair is typed `SlotOverride<Props, Measure>`; `GraphSlots['Legend']` and the others name each slot's instance of it.
 
 ## Legend slot
 
@@ -301,11 +326,11 @@ export const Renderer = () => {
 };
 ```
 
-`formattedLegends` has one legend per visual scale, or one merged legend. Each has `position` (`'top'`, `'right'`, `'bottom'` or `'left'`), `display` (`'pill'` or `'direct'`), `align`, `aesthetics`, `title` and `items`. An item has `value`, `label`, `formattedLabel`, `visual.color`, `geom`, `valueFormat`, `normalizedY` and `layerId`. `rects` maps each edge to the box the layout reserved from your `measure`. The measure reads `legend.position` because the layout wants a width on the left or right and a height on the top or bottom. The example stacks items in a column on a vertical edge and lays them in a row on a horizontal one, so one item's width or height is the whole band.
+`formattedLegends` has one legend per visual scale, or one merged legend. Each has `position` (`'top'`, `'right'`, `'bottom'` or `'left'`), `display` (`'pill'` or `'direct'`), `align`, `aesthetics`, `title` and `items`. An item has `value`, `label` (`null` without a friendly name), `formattedLabel`, `visual` (`color`, `size`, `alpha`, `strokeWidth`, `lineType`, each optional), `geom`, `valueFormat`, `normalizedY` and `layerId`. `rects` maps each edge to the box the layout reserved from your `measure`. The example stacks items in a column on a vertical edge and lays them in a row on a horizontal one, so one item's width or height is the whole band.
 
 ## AxisTicks and AxisLabel slots
 
-The tick band and the axis title are separate slots, so overriding the ticks leaves the title on its default.
+The tick band and the axis title are separate slots. Overriding the ticks leaves the title on its default.
 
 ```tsx
 import { useMemo } from 'react';
@@ -323,7 +348,14 @@ const IconTicks = ({ formattedAxes, tickRects }: AxisTicksSlotProps) => {
   return (
     <svg x={rect.x} y={rect.y} width={rect.width} height={rect.height} style={{ overflow: 'visible' }}>
       {axis.ticks.map((tick) => (
-        <text key={String(tick.value)} x={`${tick.position * 100}%`} y={BAND_HEIGHT / 2} textAnchor="middle" dominantBaseline="central" fontSize={22}>
+        <text
+          key={String(tick.value)}
+          x={`${tick.position * 100}%`}
+          y={BAND_HEIGHT / 2}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={22}
+        >
           {ICON_BY_VALUE[String(tick.value)] ?? tick.formattedLabel}
         </text>
       ))}
@@ -337,11 +369,11 @@ export const Renderer = () => {
 };
 ```
 
-`tickRects` and `labelRects` are SVG-local, keyed by edge. Only the bottom axis is drawn above, so left-axis ticks disappear. An override replaces the default for every axis, and there is no default measure to fall back to, so draw and size every visible linear axis yourself. `AxisLabel` has the same shape with `labelRects` and paints the axis title.
+`tickRects` and `labelRects` are SVG-local, keyed by edge. The example draws only the bottom axis, so left-axis ticks disappear. An override replaces the default for every axis, with no default measure to fall back to: draw and size every visible linear axis yourself. `AxisLabel` has the same shape with `labelRects` and paints the axis title.
 
 ## Headline slot
 
-The headline is the row of big numbers above the panel, or the total in a donut hole. Its measure is an object with two functions, because the layout sizes the whole strip and then each item.
+The headline is the row of big numbers above the panel, or the total in a donut hole. Its measure is an object with two functions: the layout sizes the whole strip, then each item.
 
 ```tsx
 import { useMemo } from 'react';
@@ -354,7 +386,8 @@ const STRIP_HEIGHT = 48;
 
 const CompactHeadline = ({ headline, rect, visibleItemCount }: HeadlineSlotProps) => {
   const box = { position: 'absolute' as const, left: rect.x, top: rect.y, width: rect.width, height: rect.height };
-  if (headline.kind === 'grandTotal') return <div style={{ ...box, textAlign: 'center', fontSize: 24 }}>{headline.value}</div>;
+  if (headline.kind === 'grandTotal')
+    return <div style={{ ...box, textAlign: 'center', fontSize: 24 }}>{headline.value}</div>;
   return (
     <div style={{ ...box, display: 'flex', gap: 12 }}>
       {headline.items.slice(0, visibleItemCount).map((item) => (
@@ -384,7 +417,7 @@ export const Renderer = () => {
 };
 ```
 
-`headline.kind` is `'perGroup'` with `items` (each with `label`, `value`, `caption`, `comparison`, `swatch`) or `'grandTotal'` with one `value`. `resolvedSize` is `'small'`, `'medium'` or `'large'`. `visibleItemCount` says how many strip items fit. `isInDonutHole` says whether a total sits inside a donut. `measureHeadline` returns `{ width, height }` for a given size. `measureHeadlineItemWidths` returns one width per item.
+`headline.kind` is `'perGroup'` with `items` (each with `label`, `value`, `caption`, `comparison`, `swatch`) or `'grandTotal'` with one `value`. Every string is final: render it verbatim. `resolvedSize` is `'small'`, `'medium'` or `'large'`. `visibleItemCount` says how many strip items fit. `isInDonutHole` says whether a total sits inside a donut. `measureHeadline` returns `{ width, height }` for a given size. `measureHeadlineItemWidths` receives a per-group headline and returns one width per item.
 
 ## Wrapping a default
 
@@ -404,6 +437,49 @@ export const Renderer = () => <GraphRenderer slots={{ Tooltip: FramedTooltip }} 
 ```
 
 The defaults of the measured slots (`Legend`, `Headline`, `AxisTicks`, `AxisLabel`) are not exported. A measured override paints the whole region itself.
+
+## Pressable guides
+
+In `mode="point-and-edit"` a press on a tick label, an axis title, a legend pill, a direct label or a grid line selects that guide. The editor finds the guide through attributes on the node that paints it. A custom `Grid`, `AxisTicks`, `AxisLabel` or `Legend` joins by spreading the same attributes, only while `useGuidesTakePress()` is true.
+
+```tsx
+import { stampAxisEditTarget, useGuidesTakePress } from '@graphysdk/react';
+import type { AxisTicksSlotProps } from '@graphysdk/react';
+
+const PressableTicks = ({ formattedAxes, tickRects }: AxisTicksSlotProps) => {
+  const takesPress = useGuidesTakePress();
+  return (
+    <>
+      {formattedAxes.map((axis) => {
+        const rect = tickRects[axis.position];
+        if (axis.geometry !== 'linear' || !rect) return null;
+        return (
+          <svg key={axis.scaleAestheticKey} x={rect.x} y={rect.y} width={rect.width} height={rect.height}>
+            {axis.ticks.map((tick, tickIndex) => (
+              <g
+                key={String(tick.value)}
+                {...(takesPress ? stampAxisEditTarget(axis.scaleAestheticKey, tickIndex) : {})}
+                cursor={takesPress ? 'pointer' : undefined}
+              >
+                <text x={`${tick.position * 100}%`} y={rect.height / 2} textAnchor="middle" dominantBaseline="central">
+                  {tick.formattedLabel}
+                </text>
+              </g>
+            ))}
+          </svg>
+        );
+      })}
+    </>
+  );
+};
+```
+
+- Tick labels spread `stampAxisEditTarget(scaleAestheticKey, tickIndex)`. `tickIndex` counts that axis's `ticks`, so a double click on a band axis takes that band.
+- Axis titles spread `stampAxisEditTarget(scaleAestheticKey)` with no tick.
+- Legend pills and direct labels spread `stampLegendEditTarget({ legendIndex, itemIndex })`, counting `formattedLegends` and that legend's `items`.
+- Grid lines spread `stampGridEditTarget(scaleAestheticKey)` on a group holding the stroke and a hit area, such as a transparent copy of the line with `strokeWidth={7}` and `pointerEvents="stroke"`.
+
+The attributes go on the element that paints the guide and takes the press, and that element must take pointer events. A node without them takes no press: a click there selects the graph. A grid line your slot hides takes its hit area with it.
 
 ## Pitfalls
 

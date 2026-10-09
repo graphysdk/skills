@@ -9,7 +9,7 @@ description: Build charts in React with the Graphy SDK (@graphysdk/react). Cover
 
 Start from the closest recipe before opening a reference. Recipes are complete components.
 
-HTML artifacts and any page with no bundler must use the HTML page in [setup](reference/setup.md), not this React component. Those hosts cannot `npm install` `@graphysdk/react`. Start with the jsDelivr CDN. If the chart is blank or the console refuses `cdn.jsdelivr.net`, follow the offline vendor steps in that same file. Never esm.sh. Never `@graphysdk/react@1` (that tag 404s).
+HTML artifacts and any page with no bundler use the CDN page in [setup](reference/setup.md), not this React component. Those hosts cannot `npm install`. Start with jsDelivr. If the chart is blank or the console refuses `cdn.jsdelivr.net`, follow the offline vendor steps in that file. Never esm.sh. Never `@graphysdk/react@1` (that tag 404s).
 
 ## Minimal graph
 
@@ -42,65 +42,73 @@ export function RevenueGraph() {
 
 ## What goes in a spec
 
-Mappings name a column `key`, never its `label`. The six geoms are `point`, `line`, `area`, `bar`, `rule`, and `tile`. Declare `scale.x()` and `scale.y()` for every mapped position. Colour scales are inferred. Then add `coord`, `stat`, `transform`, `config`, `styles`, `highlight`, and `annotation` only when you need them.
+Mappings name a column `key`, never its `label`. The six built-in geoms are `point`, `line`, `area`, `bar`, `rule`, and `tile`. Six more ship as packages, wired through `createGraphyKit({ plugins })`: boxplot, candlestick, dumbbell, funnel, lollipop, and waterfall. Declare `scale.x()` and `scale.y()` for every mapped position. Color scales are inferred. Add `coord`, `stat`, `transform`, `config`, `styles`, `highlight`, and `annotation` only when needed.
 
 ## Which tool
 
 1. `config()` sets structure: titles, legend, axes, number format.
-2. `styles()` sets a chart's appearance. A theme supplies shared styles, colours and config defaults through the kit or provider.
+2. `styles()` sets a chart's appearance. A theme supplies shared styles, colors and config defaults through the kit or provider.
 3. Slots replace a whole region, such as the tooltip or the header.
-4. A plugin draws a mark the six geoms cannot draw.
+4. A geom package (`@graphysdk/geom-<name>`) draws a boxplot, candlestick, dumbbell, funnel, lollipop, or waterfall. A plugin draws a shape none of the geoms draw.
 5. Point-and-click edits belong to the `graphy-editor` skill.
 
 ## Packages
 
-| Package | Use it when | Brand mark |
-| --- | --- | --- |
-| `@graphysdk/react` | Building charts in React. This is the default. | on |
-| `@graphysdk/react-renderer` | The same components without the builders. | off |
-| `@graphysdk/viz-engine` | Compiling a spec without React. | none |
+| Package                     | Use it when                                                        | Brand mark |
+| --------------------------- | ------------------------------------------------------------------ | ---------- |
+| `@graphysdk/react`          | Building charts in React. This is the default.                     | on         |
+| `@graphysdk/react-renderer` | The same components without the builders.                          | off        |
+| `@graphysdk/viz-engine`     | Compiling a spec without React.                                    | none       |
+| `@graphysdk/geom-<name>`    | One extra geom each, wired through `createGraphyKit({ plugins })`. | off        |
 
 ## Where to look
 
 Open one file, then use the contents list at the top of that file.
 
-| Task | Read |
-| --- | --- |
-| Install, HTML artifacts, jsDelivr CDN, offline vendor, brand mark | [setup](reference/setup.md) |
-| Data, dates, CSV | [data](reference/data.md) |
-| Mappings, geoms, scales, config | [spec](reference/spec.md) |
-| Provider, sizing, live data, dark mode | [React](reference/react.md) |
-| Colours, fonts, conditions | [styling](reference/styling.md) |
-| Install a theme, write your own | [themes](reference/themes.md) |
-| Highlights, labels, annotations | [storytelling](reference/storytelling.md) |
-| Replace the tooltip, legend, or axes | [slots](reference/slots.md) |
-| A new mark | [plugins](reference/plugins.md) |
-| Exact option names | [types](reference/types.md) |
-| Edit an existing chart | the `graphy-editor` skill |
-| Human docs | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
+| Task                                                              | Read                                                                          |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Install, HTML artifacts, jsDelivr CDN, offline vendor, brand mark | [setup](reference/setup.md)                                                   |
+| Data, dates, CSV                                                  | [data](reference/data.md)                                                     |
+| Mappings, geoms, scales, config                                   | [spec](reference/spec.md)                                                     |
+| Provider, sizing, live data, dark mode                            | [React](reference/react.md)                                                   |
+| Colors, fonts, conditions                                         | [styling](reference/styling.md)                                               |
+| Install a theme, write your own                                   | [themes](reference/themes.md)                                                 |
+| Highlights, labels, annotations                                   | [storytelling](reference/storytelling.md)                                     |
+| Replace the tooltip, legend, or axes                              | [slots](reference/slots.md)                                                   |
+| Boxplot, candlestick, dumbbell, funnel, lollipop, waterfall       | [recipes/geoms](recipes/geoms)                                                |
+| A new geom                                                        | [plugins](reference/plugins.md)                                               |
+| Exact option names                                                | [types](reference/types.md)                                                   |
+| Edit an existing chart                                            | the `graphy-editor` skill                                                     |
+| Human docs                                                        | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
 
 - Dark mode is `colorScheme` on the provider plus stylesheet tokens.
-- Currency and percentages are a column format. `config({ numberFormat })` formats the whole chart.
+- Currency and percentages are a column `valueFormat`. `config({ numberFormat })` formats the whole chart.
 - CSV import generates keys such as `c1`. Map those keys.
-- Date parsing and the display locale are different settings.
+- Rows are parsed day-first. The display locale is `formattingLocale` on the provider.
 - A goal line is [storytelling](reference/storytelling.md). A second axis is [spec config](reference/spec.md).
-- Waterfall, funnel, mekko, and table are unsupported.
+- Mekko and table are unsupported.
 
 ## Recipes
 
-| Chart | File |
-| --- | --- |
-| Bar, grouped, stacked, percent, horizontal | [bar](recipes/charts/bar.md) |
-| Line, several series, smooth, gaps, dates | [line](recipes/charts/line.md) |
-| Area, stacked, percent | [area](recipes/charts/area.md) |
-| Pie, donut | [pie](recipes/charts/pie.md) |
-| Scatter, bubble | [scatter](recipes/charts/scatter.md) |
-| Heatmap | [heatmap](recipes/charts/heatmap.md) |
-| Combo, bar plus line, secondary axis | [combo](recipes/charts/combo.md) |
-| Radar | [radar](recipes/charts/radar.md) |
-| Polar bar | [polar-bar](recipes/charts/polar-bar.md) |
+| Chart                                      | File                                        |
+| ------------------------------------------ | ------------------------------------------- |
+| Bar, grouped, stacked, percent, horizontal | [bar](recipes/charts/bar.md)                |
+| Line, several groups, smooth, gaps, dates  | [line](recipes/charts/line.md)              |
+| Area, stacked, percent                     | [area](recipes/charts/area.md)              |
+| Pie, donut                                 | [pie](recipes/charts/pie.md)                |
+| Scatter, bubble                            | [scatter](recipes/charts/scatter.md)        |
+| Heatmap                                    | [heatmap](recipes/charts/heatmap.md)        |
+| Combo, bar plus line, secondary axis       | [combo](recipes/charts/combo.md)            |
+| Radar                                      | [radar](recipes/charts/radar.md)            |
+| Polar bar                                  | [polar-bar](recipes/charts/polar-bar.md)    |
+| Boxplot                                    | [boxplot](recipes/geoms/boxplot.md)         |
+| Candlestick                                | [candlestick](recipes/geoms/candlestick.md) |
+| Dumbbell                                   | [dumbbell](recipes/geoms/dumbbell.md)       |
+| Funnel                                     | [funnel](recipes/geoms/funnel.md)           |
+| Lollipop                                   | [lollipop](recipes/geoms/lollipop.md)       |
+| Waterfall                                  | [waterfall](recipes/geoms/waterfall.md)     |
 
-Plugins are one file each under [recipes/plugins](recipes/plugins), from small examples to full layouts.
+The six geom recipes install a published package; each is a complete component. Plugins are one file each under [recipes/plugins](recipes/plugins), from small examples to full layouts.
 
 ## Pitfalls
 
@@ -108,16 +116,17 @@ Plugins are one file each under [recipes/plugins](recipes/plugins), from small e
 - Map the column `key`, never the label.
 - There is no pie geom. Pie and donut are a polar bar.
 - Pass a theme to `createGraphyKit({ theme })` or the provider's `theme` prop. Themes stay outside the spec.
-- `plugins` and `theme` are read once at mount. Remount the provider to change either.
+- `plugins` and `theme` are read once at mount. Remount the provider with a new `key` to change either.
 - Date strings are read day-first unless the column sets `dateFormat`.
-- Build the spec once, or memoize it. A new spec object recompiles the chart.
+- Build the spec once, or memoize it. A new spec object recompiles the chart and clears undo history.
 - A responsive chart with no parent height is zero pixels tall.
-- `@graphysdk/react` shows the brand mark unless the spec turns it off.
-- An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may be blocking the CDN: use the offline vendor steps there.
+- `@graphysdk/react` shows the brand mark unless the spec sets `config.content.brandMark.enabled`.
+- An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may block the CDN: use the offline vendor steps there.
 - Never load React or Graphy from esm.sh. jsDelivr only.
-- `@graphysdk/react@1` 404s on jsDelivr. There is no stable 1.x yet. Use `@latest` or an exact published version.
-- Mapped `size` and `label` on a point or bubble do not appear in the default tooltip. The heading is x; the row is color plus y. Use annotations or a custom Tooltip slot for anything else.
-- Waterfall, funnel, mekko, and table are not chart types here. Say so and stop. Do not write a plugin for them.
+- `@graphysdk/react@1` 404s on jsDelivr. The `latest` dist-tag is a 1.9.0 beta. Use `@latest` or an exact published version.
+- Mapped `size` and `label` on a point or bubble do not appear in the default tooltip. The heading is x; the row is color plus y. Add a row with the layer's `tooltip` option: `geom.point({ tooltip: { size: { title: 'Population' } } })`. A custom Tooltip slot replaces the whole thing.
+- Waterfall, funnel, boxplot, candlestick, dumbbell, and lollipop are packages. Install `@graphysdk/geom-<name>`; do not write a plugin for them.
+- Mekko and table are not chart types here. Say so and stop. Do not write a plugin for them.
 
 ## Checking a spec
 
