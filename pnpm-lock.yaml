@@ -7,17 +7,17 @@ settings:
 catalogs:
   default:
     '@graphysdk/data-import-utils':
-      specifier: 1.9.0-beta.1791526990447
-      version: 1.9.0-beta.1791526990447
+      specifier: 1.9.0-beta.1791527697963
+      version: 1.9.0-beta.1791527697963
     '@graphysdk/react':
-      specifier: 1.9.0-beta.1791526990447
-      version: 1.9.0-beta.1791526990447
+      specifier: 1.9.0-beta.1791527697963
+      version: 1.9.0-beta.1791527697963
     '@graphysdk/react-renderer':
-      specifier: 1.9.0-beta.1791526990447
-      version: 1.9.0-beta.1791526990447
+      specifier: 1.9.0-beta.1791527697963
+      version: 1.9.0-beta.1791527697963
     '@graphysdk/viz-engine':
-      specifier: 1.9.0-beta.1791526990447
-      version: 1.9.0-beta.1791526990447
+      specifier: 1.9.0-beta.1791527697963
+      version: 1.9.0-beta.1791527697963
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
@@ -28,13 +28,13 @@ importers:
     dependencies:
       '@graphysdk/react':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447
+        version: 1.9.0-beta.1791527697963
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -53,13 +53,13 @@ importers:
         version: 0.3.216(@anthropic-ai/sdk@0.112.4(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@graphysdk/data-import-utils':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447
+        version: 1.9.0-beta.1791527697963
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1791526990447
+        version: 1.9.0-beta.1791527697963
       '@hono/node-server':
         specifier: ^1.19.14
         version: 1.19.14(hono@4.12.31)
@@ -649,11 +649,11 @@ packages:
       typescript:
         optional: true
 
-  '@graphysdk/data-import-utils@1.9.0-beta.1791526990447':
-    resolution: {integrity: sha512-HsPZJ8MbfUICxPf93oeMZe0Tv5liOGqpP1H2ZKdmbYuCEjKSijnaKTWCAiey4CrQ6/OKBn+7N5Jg7JiyVMs/1g==}
+  '@graphysdk/data-import-utils@1.9.0-beta.1791527697963':
+    resolution: {integrity: sha512-cR8iX4gcDDG/rpRa5N0YRQu4A/ZqHrR2MSoQnJjs+debFh0vM+OcfUJ80qaeMsik0MwYTpwQxlr1NaGddHQgtg==}
 
-  '@graphysdk/react-renderer@1.9.0-beta.1791526990447':
-    resolution: {integrity: sha512-CtMgDma2RCTKXJ0jnPQUQJr8SrrBY4Kwum/8ritbqWUoWbZNo/T1dgIZOEpLNFB7b3idIsSrFSUqaDjq08f8tg==}
+  '@graphysdk/react-renderer@1.9.0-beta.1791527697963':
+    resolution: {integrity: sha512-g9EfsoKGmGzcbkeblxTxjF7uZqd4QMG8M0mMbnzuWdkcFeZaASlg6mWNOYpTQTtJfaP/X90NnhSSCXMiqe/TJQ==}
     peerDependencies:
       '@tiptap/core': ^3.0.0
       '@tiptap/extension-bold': ^3.0.0
@@ -703,8 +703,8 @@ packages:
       '@tiptap/react':
         optional: true
 
-  '@graphysdk/react@1.9.0-beta.1791526990447':
-    resolution: {integrity: sha512-ShTuHyoW1skJp3QqwKUeZ1jnMdXLCJ8HTqSxYWV/jHODmm5dIZ9/T9P3qtRbVDbKZDEC+0QMZ5Dw+KEMHd5gCQ==}
+  '@graphysdk/react@1.9.0-beta.1791527697963':
+    resolution: {integrity: sha512-GMXY+X4VjqQb3g7JKyqdToY4i8VYkRKsbDK0UF7Is0JuSlJVr5vasVuJ/jbIxeqkcWJTwB65/+/sRnhwI4R4Wg==}
     peerDependencies:
       '@tiptap/core': ^3.0.0
       '@tiptap/extension-bold': ^3.0.0
@@ -754,8 +754,8 @@ packages:
       '@tiptap/react':
         optional: true
 
-  '@graphysdk/viz-engine@1.9.0-beta.1791526990447':
-    resolution: {integrity: sha512-tD6EyzUwy8NvYPsEjR/pJfuu158FKLXnT4IWzQvIxB43BXjbfRWHz+hTB0zVsY+rk5qPd2YeR0NNQFS0g7QOjg==}
+  '@graphysdk/viz-engine@1.9.0-beta.1791527697963':
+    resolution: {integrity: sha512-+rA/P71roOmLBlXzqvE5K4Tcg6bH/TrhPRpdzpnXtB7AdtHGXZfWjkM3HYYGnokESpJbbBzH0ZoYAgRZjoEW5A==}
 
   '@hono/node-server@1.19.14':
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
@@ -2674,16 +2674,16 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@graphysdk/data-import-utils@1.9.0-beta.1791526990447':
+  '@graphysdk/data-import-utils@1.9.0-beta.1791527697963':
     dependencies:
       exceljs: 4.4.0
       papaparse: 5.5.4
 
-  '@graphysdk/react-renderer@1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+  '@graphysdk/react-renderer@1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
       '@base-ui/react': 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@floating-ui/react-dom': 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@graphysdk/viz-engine': 1.9.0-beta.1791526990447
+      '@graphysdk/viz-engine': 1.9.0-beta.1791527697963
       '@vanilla-extract/css': 1.21.1
       '@vanilla-extract/dynamic': 2.1.5
       clsx: 2.1.1
@@ -2722,10 +2722,10 @@ snapshots:
       - typescript
       - use-sync-external-store
 
-  '@graphysdk/react@1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+  '@graphysdk/react@1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
-      '@graphysdk/react-renderer': 1.9.0-beta.1791526990447(5aad7dcc2d5e48e0508df442c5bbe6b3)
-      '@graphysdk/viz-engine': 1.9.0-beta.1791526990447
+      '@graphysdk/react-renderer': 1.9.0-beta.1791527697963(5aad7dcc2d5e48e0508df442c5bbe6b3)
+      '@graphysdk/viz-engine': 1.9.0-beta.1791527697963
       react: 19.2.7
     optionalDependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
@@ -2754,7 +2754,7 @@ snapshots:
       - typescript
       - use-sync-external-store
 
-  '@graphysdk/viz-engine@1.9.0-beta.1791526990447':
+  '@graphysdk/viz-engine@1.9.0-beta.1791527697963':
     dependencies:
       color2k: 2.0.4
       d3-delaunay: 6.0.4
