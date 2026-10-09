@@ -3781,12 +3781,6 @@ interface HighlightsAtObservationInput {
 }
 
 /**
- * `'low'` observations take the hover only where no normal-priority layer answers, for a geom drawn over another (an
- * error bar on its bar) that must not take the hover from it. They still join the winner's tooltip as related.
- */
-type HoverPriority = 'normal' | 'low';
-
-/**
  * What makes "the same observation" across recompiles, for morphs and hover stability.
  *
  * Three kinds are *derived*: the pipeline resolves them from the layer's position/mapping, so the geom
@@ -3885,6 +3879,20 @@ interface KnownAesthetics {
 
 /** The full set of supported BCP-47 locale strings. */
 const LOCALES: readonly ["en-GB", "en-US", "ar", "pt-PT"];
+
+/** `'previous'` for the nearest earlier layer that is not itself attached, `'none'` for no layer, else a layer `id`. */
+type LayerAttachTo = 'previous' | 'none' | (string & {});
+
+/**
+ * The layer an attached layer attaches to, and the variables an observation of each must agree on to describe the
+ * same one.
+ */
+interface LayerAttachment {
+    /** The `id` of the layer this one attaches to. */
+    layerId: string;
+    /** The variables both layers partition by. Empty when they share none: every observation pairs with every other. */
+    on: readonly VariableName[];
+}
 
 /** Optional per-layer aggregates the summarizer emits for label rendering. Fields are present only when the layer's geom calls for them. */
 interface LayerSummary {
@@ -5025,6 +5033,7 @@ interface ResolvedLayerSpecBase {
     yScaleType: YScaleType;
     transforms: TransformSpec[];
     interactive: boolean;
+    attachTo: LayerAttachTo;
     tooltip: LayerTooltipSpec;
     dataLabels: ResolvedDataLabelsSpec;
 }
@@ -7736,8 +7745,6 @@ interface SceneLayer {
      * use it across recompiles.
      */
     identityKey: IdentityKey;
-    /** Baked from the geom def. */
-    hoverPriority: HoverPriority;
     /** What the layer's tooltip shows: the geom's contract with the author's `tooltip` entries merged over it. */
     tooltip: SceneLayerTooltip;
     /** What the geom asks of the position scales it draws against, baked from the geom def. */
@@ -7751,6 +7758,8 @@ interface SceneLayer {
     params: ResolvedLayerSpec['params'];
     /** When `false`, hover ignores this layer: it is never the primary nor related. */
     interactive: boolean;
+    /** The layer whose observations this one describes, resolved from `ResolvedLayerSpec.attachTo`; `null` for none. */
+    attachment: LayerAttachment | null;
     dataLabels: ResolvedDataLabelsSpec;
     /** Per-layer aggregates emitted by the summarizer pipeline step. Gated by layer geometry. */
     summary: LayerSummary;

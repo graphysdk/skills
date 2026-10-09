@@ -52,7 +52,7 @@ export const Graph = ({ data }: { data: Data }) => (
 );
 ```
 
-The kit exposes `geom`, `stat`, `transform`, `scale`, `coord`, `createSpec`, `pipe`, and `plugins`. Custom methods are typed from each definition. `kit.GraphProvider` uses the renderer package's provider, whose brand mark defaults off.
+The kit exposes `geom`, `stat`, `transform`, `scale`, `coord`, `createSpec`, `pipe`, and `plugins`. Custom methods are typed from each definition. "Made with Graphy" defaults on in `@graphysdk/react` kits and off in `@graphysdk/react-renderer` kits.
 
 For existing provider wiring, pass the same array to `<GraphProvider plugins={plugins}>`. For headless compilation, use `createSpecBuilder({ plugins })` and `createCompiler({ plugins })` from `@graphysdk/viz-engine`.
 
@@ -151,23 +151,23 @@ The `aes` name can be anything. That is how a candlestick declares `open`, `high
 
 ### Other declarations
 
-| Field | Default | Meaning |
-| --- | --- | --- |
-| `identityKey` | `'x-group'` | What makes the same observation across recompiles. `'index'` for row order, `'x-y'` for grids, `{ variable: 'id' }` for a column the geom owns. |
-| `spatialKind` | `'points'` | The hit-test shape built from the position columns: `'points'`, `'buckets'`, `'filled-buckets'`, `'rects'`, `'cells'`, `'noop'`, or `'render-hit-test'`. |
-| `highlightStrategy` | `'overlay-anchor'` | `'overlay-anchor'` draws a marker through `getOverlayAnchor` when the contract has one. `'observation-rerender'` repaints matched observations through `render`. `null` opts out. |
-| `supportedCoordTypes` | `['cartesian', 'flip']` | Add `'polar'` only with a polar render contract. |
-| `defaultPosition` | `'identity'` | `'stack'`, `'dodge'`, `'fill'`, or `'identity'` when the layer sets none. |
-| `scaleConstraints` | none | `discreteMainAxis`, `discreteCrossAxis`, `zeroBaseline`, `bandPadding`, `inferredColor`. |
-| `tooltip` | `[]` | Rows to show: `[{ key: 'Open', aes: 'open' }]`. |
-| `legend` | `{}` | `suppressWhenSingleItem`, `sidePlacement`, `directLabelSupport`. |
-| `summaries` | `{}` | `grandTotal`, `stackTotals`, `perGroupHeadline`. |
-| `derivedVariables` | `[]` | Columns `compile` creates that an author may map. |
-| `supportedPositions` | all | Position adjustments the layer may set. |
-| `defaultInteractive` | `true` | Whether layers take part in hover by default. |
-| `grid` | `{}` | Per coord: `hideGridX`, `hideGridY`, `hideBorder`. |
-| `dataLabels`, `dataLabelCoordTypes` | none, `[]` | Data label defaults per coord, and the coords where labels can be placed. |
-| `isComposite` | `false` | One shape per group, as a line, instead of one per observation. |
+| Field                               | Default                 | Meaning                                                                                                                                                                           |
+| ----------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identityKey`                       | `'x-group'`             | What makes the same observation across recompiles. `'index'` for row order, `'x-y'` for grids, `{ variable: 'id' }` for a column the geom owns.                                   |
+| `spatialKind`                       | `'points'`              | The hit-test shape built from the position columns: `'points'`, `'buckets'`, `'filled-buckets'`, `'rects'`, `'cells'`, `'noop'`, or `'render-hit-test'`.                          |
+| `highlightStrategy`                 | `'overlay-anchor'`      | `'overlay-anchor'` draws a marker through `getOverlayAnchor` when the contract has one. `'observation-rerender'` repaints matched observations through `render`. `null` opts out. |
+| `supportedCoordTypes`               | `['cartesian', 'flip']` | Add `'polar'` only with a polar render contract.                                                                                                                                  |
+| `defaultPosition`                   | `'identity'`            | `'stack'`, `'dodge'`, `'fill'`, or `'identity'` when the layer sets none.                                                                                                         |
+| `scaleConstraints`                  | none                    | `discreteMainAxis`, `discreteCrossAxis`, `zeroBaseline`, `bandPadding`, `inferredColor`.                                                                                          |
+| `tooltip`                           | `[]`                    | Rows to show: `[{ key: 'Open', aes: 'open' }]`.                                                                                                                                   |
+| `legend`                            | `{}`                    | `suppressWhenSingleItem`, `sidePlacement`, `directLabelSupport`.                                                                                                                  |
+| `summaries`                         | `{}`                    | `grandTotal`, `stackTotals`, `perGroupHeadline`.                                                                                                                                  |
+| `derivedVariables`                  | `[]`                    | Columns `compile` creates that an author may map.                                                                                                                                 |
+| `supportedPositions`                | all                     | Position adjustments the layer may set.                                                                                                                                           |
+| `defaultInteractive`                | `true`                  | Whether layers take part in hover by default.                                                                                                                                     |
+| `grid`                              | `{}`                    | Per coord: `hideGridX`, `hideGridY`, `hideBorder`.                                                                                                                                |
+| `dataLabels`, `dataLabelCoordTypes` | none, `[]`              | Data label defaults per coord, and the coords where labels can be placed.                                                                                                         |
+| `isComposite`                       | `false`                 | One shape per group, as a line, instead of one per observation.                                                                                                                   |
 
 Optional hooks, each implemented only when the geom needs it: `resolveParams` to validate params beyond the default merge, `validateMapping` for a mapping rule a role cannot express, `resolveAnchorPosition(observation, context: AnchorContext): AnchorPosition | null` so annotations can pin to an observation (the context carries the coord system, position adjustment, purpose, and align; the result is `{ x, y }` in `[0, 1]`), `resolveBandFraction` for the band share a shape covers, `resolveValueSource` when the value is not `y`, and `resolveDataLabelDefaults` per position adjustment. A geom without `resolveAnchorPosition` cannot carry per-observation annotations.
 
@@ -187,18 +187,18 @@ The internal column names are exported as `POSITION_VARIABLES` (`x`, `y`, `xMin`
 
 `defineGeomRenderer(new LollipopGeom(), contract)` pairs the compile definition with its paint. The render contract:
 
-| Field | Required | What it does |
-| --- | --- | --- |
-| `coord` | yes | `'cartesian'` or `'polar'`. One contract per coord. |
-| `render` | yes | Paints the layer into the panel SVG. Or `{ fn, options: { overlay: true } }` for a live geom. |
-| `renderHover` | yes | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip. |
-| `renderHoverCompanions` | yes | Paints companions in this layer at the hovered position. Receives `layer`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `coordSystem` or `panelRect`. Usually `null`. |
-| `renderHighlight` | no | Repaints only matched observations when a highlight is active. Falls back to `render`. |
-| `swatchShape` | no | `'square'`, `'line'`, `'circle'`, `'area'`, or `'slice'` for legend and tooltip swatches. |
-| `guideMode` | no | `'band'` or `'crosshair'` hover guide. Omit or pass `null` for none. |
-| `getOverlayAnchor` | no | Returns `{ x, y }` in `[0, 1]`, y up, for the highlight marker under `'overlay-anchor'`. Omit it and highlights draw no marker. |
-| `hitTest` | for `'render-hit-test'` geoms | Returns a cursor tester. See Layout geoms. |
-| `getEditOutlineShapes` | no | Shapes the editor outlines, of kind `'region'`, `'stroke'`, or `'dots'` (`EditOutlineRegion`, `EditOutlineStroke`, `EditOutlineDots`). Omit and it uses bounding boxes. |
+| Field                   | Required                      | What it does                                                                                                                                                                              |
+| ----------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coord`                 | yes                           | `'cartesian'` or `'polar'`. One contract per coord.                                                                                                                                       |
+| `render`                | yes                           | Paints the layer into the panel SVG. Or `{ fn, options: { overlay: true } }` for a live geom.                                                                                             |
+| `renderHover`           | yes                           | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip.             |
+| `renderHoverCompanions` | yes                           | Paints companions in this layer at the hovered position. Receives `layer`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `coordSystem` or `panelRect`. Usually `null`. |
+| `renderHighlight`       | no                            | Repaints only matched observations when a highlight is active. Falls back to `render`.                                                                                                    |
+| `swatchShape`           | no                            | `'square'`, `'line'`, `'circle'`, `'area'`, or `'slice'` for legend and tooltip swatches.                                                                                                 |
+| `guideMode`             | no                            | `'band'` or `'crosshair'` hover guide. Omit or pass `null` for none.                                                                                                                      |
+| `getOverlayAnchor`      | no                            | Returns `{ x, y }` in `[0, 1]`, y up, for the highlight marker under `'overlay-anchor'`. Omit it and highlights draw no marker.                                                           |
+| `hitTest`               | for `'render-hit-test'` geoms | Returns a cursor tester. See Layout geoms.                                                                                                                                                |
+| `getEditOutlineShapes`  | no                            | Shapes the editor outlines, of kind `'region'`, `'stroke'`, or `'dots'` (`EditOutlineRegion`, `EditOutlineStroke`, `EditOutlineDots`). Omit and it uses bounding boxes.                   |
 
 Each handler's input type is exported, for a handler written outside the contract: `GeomRendererInput` for `render`, `GeomHoverRendererInput` for `renderHover`, `GeomHoverCompanionsRendererInput`, `GeomOverlayAnchorRendererInput`, and `GeomEditOutlineShapesRendererInput`. `GeomRenderInputBase` is the `styleReaders` and `colorScheme` part they share. `GeomRenderFn` types a plain render function and `GeomRender` the whole `render` field.
 
@@ -210,17 +210,17 @@ Scaled positions use `[0, 1]` with y pointing up. For SVG attributes, use `toPer
 
 Every reader takes an observation from `layer.data`. Position readers, `getSize`, `getAlpha`, and `getStrokeWidth` return a number or `null`. `getColor` and `getLineType` return `undefined` when the channel is not mapped. `getGroup` returns the group value.
 
-| Reader | Returns |
-| --- | --- |
-| `getX`, `getY` | The point position in `[0, 1]`. |
-| `getXMin`, `getXMax`, `getYMin`, `getYMax` | Interval ends, written for `min` and `max` roles. |
-| `getScaledAesthetic(observation, 'open')` | A `scalar` role's scaled position. |
-| `getYRaw` | The segment value before stacking. |
-| `getBarRectBounds(mainAxis, observation)` | A rect in `[0, 1]²` with top-left origin. |
-| `getTileRectBounds(observation)` | The same for a tile, from its interval columns. |
-| `getAngleExtent`, `getRadiusExtent` | Polar extents. |
-| `getColor`, `getSize`, `getAlpha`, `getStrokeWidth`, `getLineType` | Scaled visual channels from the data. |
-| `getGroup` | The observation's group value. |
+| Reader                                                             | Returns                                           |
+| ------------------------------------------------------------------ | ------------------------------------------------- |
+| `getX`, `getY`                                                     | The point position in `[0, 1]`.                   |
+| `getXMin`, `getXMax`, `getYMin`, `getYMax`                         | Interval ends, written for `min` and `max` roles. |
+| `getScaledAesthetic(observation, 'open')`                          | A `scalar` role's scaled position.                |
+| `getYRaw`                                                          | The segment value before stacking.                |
+| `getBarRectBounds(mainAxis, observation)`                          | A rect in `[0, 1]²` with top-left origin.         |
+| `getTileRectBounds(observation)`                                   | The same for a tile, from its interval columns.   |
+| `getAngleExtent`, `getRadiusExtent`                                | Polar extents.                                    |
+| `getColor`, `getSize`, `getAlpha`, `getStrokeWidth`, `getLineType` | Scaled visual channels from the data.             |
+| `getGroup`                                                         | The observation's group value.                    |
 
 `getColor` sees only the colour scale. Read paint through `styleReaders` so stylesheet overrides reach the geom.
 

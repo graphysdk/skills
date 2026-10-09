@@ -106,7 +106,7 @@ export const Themed = ({ data, spec }: { data: Data; spec: Spec }) => (
 
 - `theme` is read once at mount, like `plugins`. To switch themes, remount the provider with a new `key`.
 - Combine a theme and plugins in one kit: `createGraphyKit({ theme: watercolor, plugins: [dumbbell] })`.
-- `kit.GraphProvider` is the renderer package's provider, so the brand mark is off unless the spec turns it on.
+- `kit.GraphProvider` shows "Made with Graphy" by default. Disable it with `config({ content: { brandMark: { enabled: false } } })`.
 - Spreadsheet uses Arial and needs no CSS import. The other themes load Google Fonts through `fonts.css`. For self-hosted fonts, omit that import and load the same font families yourself; see [Fonts](#fonts).
 
 ## Changing one themed graph

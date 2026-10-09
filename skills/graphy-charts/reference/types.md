@@ -940,6 +940,8 @@ interface SwatchSlotProps {
     cornerRadius?: number;
     /** The symbol a circle swatch draws, the owning point layer's `symbol`. Omit for a circle. */
     symbol?: StylePointSymbol;
+    /** The chart's category axis, `'y'` under `coord.flip()`. An `interval` swatch runs along the other one. */
+    mainAxis?: MainAxis;
 }
 
 /** Props the renderer passes to the editor layer filling the `EditorSurface` slot. */
@@ -1010,8 +1012,8 @@ abstract class Geom<TParams = Record<string, never>> {
     readonly supportedPositions: readonly PositionAdjustment[];
     /** Whether layers of this geom take part in hover hit-testing by default (rule opts out). */
     readonly defaultInteractive: boolean;
-    /** Whether this geom's observations take the hover alongside other layers', or only when none answers. */
-    readonly hoverPriority: HoverPriority;
+    /** The layer a layer of this geom describes when the spec names none (see `LayerSpecBase.attachTo`). */
+    readonly defaultAttachTo: 'previous' | 'none';
     /**
      * The aesthetics this geom honours, each tagged by {@link GeomAesthetic} `kind`: a `'visual'` scaled
      * channel (`color`, `size`) or a `'data'` relational/layout input read straight from its mapped column
@@ -1729,6 +1731,8 @@ interface BaseGeomOptions<T extends GeomParams> {
     params?: Partial<T>;
     transforms?: TransformSpec[];
     interactive?: boolean;
+    /** See {@link LayerSpecBase.attachTo}. */
+    attachTo?: LayerAttachTo;
     /** Changes which fields this layer's tooltip shows and how. See {@link LayerTooltipSpec}. */
     tooltip?: LayerTooltipSpec;
     dataLabels?: DataLabelsSpec;
@@ -2705,12 +2709,6 @@ interface HoverHitBase {
 }
 
 /**
- * `'low'` observations take the hover only where no normal-priority layer answers, for a geom drawn over another (an
- * error bar on its bar) that must not take the hover from it. They still join the winner's tooltip as related.
- */
-type HoverPriority = 'normal' | 'low';
-
-/**
  * What makes "the same observation" across recompiles, for morphs and hover stability.
  *
  * Three kinds are *derived*: the pipeline resolves them from the layer's position/mapping, so the geom
@@ -2809,6 +2807,9 @@ interface KnownAesthetics {
 /** The full set of supported BCP-47 locale strings. */
 const LOCALES: readonly ["en-GB", "en-US", "ar", "pt-PT"];
 
+/** `'previous'` for the nearest earlier layer that is not itself attached, `'none'` for no layer, else a layer `id`. */
+type LayerAttachTo = 'previous' | 'none' | (string & {});
+
 /**
  * Fields shared by every layer input regardless of geom. All optional fields fall back to resolved
  * defaults; the geom-specific arms of {@link LayerSpec} add `geom` and `params` on top.
@@ -2840,6 +2841,12 @@ interface LayerSpecBase {
      * @default true
      */
     interactive?: boolean;
+    /**
+     * The layer whose observations this one describes, such as the bars an error bar stands on; see
+     * {@link LayerAttachTo}. An attached layer joins the hover of the layer it attaches to instead of taking its own, and
+     * its tooltip rows sit under that layer's. Defaults to the geom's choice.
+     */
+    attachTo?: LayerAttachTo;
     /** Changes which fields this layer's tooltip shows and how. See {@link LayerTooltipSpec}. */
     tooltip?: LayerTooltipSpec;
 }
@@ -5551,8 +5558,9 @@ interface SourceStyle {
  * - `area` — a filled region with a stroke accent (areas)
  * - `circle` — a filled dot (points)
  * - `slice` — a pie / donut wedge (polar bars)
+ * - `interval` — a stem capped at both ends, upright unless the chart is flipped (error bars)
  */
-type SwatchShape = 'square' | 'line' | 'circle' | 'area' | 'slice';
+type SwatchShape = 'square' | 'line' | 'circle' | 'area' | 'slice' | 'interval';
 
 /** The UI surface a swatch is painted on. Lets a Swatch slot restyle one surface and delegate the rest. */
 type SwatchSurface = 'legend' | 'tooltip' | 'headline' | 'callout' | 'rule-label';
