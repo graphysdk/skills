@@ -2420,6 +2420,8 @@ interface GeomMappingValidationInput {
     mapping: AesMapping;
     /** Aesthetics the layer's stat computes at compile time, which count as "provided". */
     computedVariables: ReadonlySet<string>;
+    /** The layer's dataset before its stat runs, for a requirement on a mapped column's type. */
+    data: Dataset;
 }
 
 /**
