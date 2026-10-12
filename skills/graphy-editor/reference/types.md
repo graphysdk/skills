@@ -5502,7 +5502,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -6531,13 +6531,19 @@ const STYLE_TARGETS: {
         };
         readonly vocabulary: {
             readonly stroke: "color";
+            readonly strokeAlpha: "unitInterval";
             readonly strokeWidth: "pixels";
+            readonly dashArray: "dashArray";
+            readonly haloColor: "color";
+            readonly haloAlpha: "unitInterval";
             readonly offset: "pixels";
             readonly cornerRadius: "pixels";
         };
         readonly rest: {
-            readonly strokeWidth: 2;
-            readonly offset: 2;
+            readonly stroke: StyleTokenRef;
+            readonly strokeWidth: 1.5;
+            readonly dashArray: readonly [3.5, 2.5];
+            readonly offset: 3;
             readonly cornerRadius: 3;
         };
         readonly partWildcard: true;
@@ -6549,12 +6555,17 @@ const STYLE_TARGETS: {
                 };
                 readonly vocabulary: {
                     readonly stroke: "color";
+                    readonly strokeAlpha: "unitInterval";
                     readonly strokeWidth: "pixels";
+                    readonly dashArray: "dashArray";
+                    readonly haloColor: "color";
+                    readonly haloAlpha: "unitInterval";
                     readonly offset: "pixels";
                     readonly cornerRadius: "pixels";
                 };
                 readonly rest: {
-                    readonly stroke: StyleTokenRef;
+                    readonly strokeAlpha: 0.4;
+                    readonly haloAlpha: 0.5;
                 };
             };
             readonly selected: {
@@ -6564,12 +6575,17 @@ const STYLE_TARGETS: {
                 };
                 readonly vocabulary: {
                     readonly stroke: "color";
+                    readonly strokeAlpha: "unitInterval";
                     readonly strokeWidth: "pixels";
+                    readonly dashArray: "dashArray";
+                    readonly haloColor: "color";
+                    readonly haloAlpha: "unitInterval";
                     readonly offset: "pixels";
                     readonly cornerRadius: "pixels";
                 };
                 readonly rest: {
-                    readonly stroke: StyleTokenRef;
+                    readonly strokeAlpha: 0.85;
+                    readonly haloAlpha: 0.9;
                 };
             };
         };

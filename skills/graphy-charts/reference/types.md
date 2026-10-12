@@ -4093,7 +4093,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
