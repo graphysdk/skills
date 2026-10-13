@@ -407,12 +407,20 @@ const sheet = styles({
 
 ## Palettes and color scales
 
-Group colors come from the color scale, not the stylesheet. Declare one whenever `color` is mapped.
+Group colors come from the color scale, not the stylesheet. Declare one whenever `color` is mapped and leave it bare; the theme's palette, or the engine default, picks the colors.
 
 ```ts
 import { scale } from '@graphysdk/react';
 
 scale.color.palette();
+scale.color.discrete({ range: ['#ec008c', '#f7931e', '#662d91'] }); // colors from the brief, in band order
+```
+
+Only when the brief names a palette:
+
+```ts
+import { scale } from '@graphysdk/react';
+
 scale.color.palette({ palette: { type: 'graphy' } });
 scale.color.palette({ palette: { type: 'pastel' } });
 scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
@@ -420,10 +428,9 @@ scale.color.palette({ palette: { type: 'mono', base: 'blue', variant: 'dark' } }
 scale.color.palette({ palette: { type: 'custom', id: 'brand-2026' } });
 scale.color.palette({ palette: { type: 'graphy' }, overrides: { 1: { hex: '#1d2129' } } });
 scale.color.palette({ palette: { type: 'custom', id: 'brand-2026' }, overrides: { 3: { id: 'accent' } } });
-scale.color.discrete({ range: ['#ec008c', '#f7931e', '#662d91'] });
 ```
 
-- `type: 'default'` (also what an empty call gives) is the engine's eight-color group palette. Geoms that touch default to a single-hue brick ramp instead, which reads `colorScheme`. Touching means any stacked or filled layer (a pie included), or a tile layer. A theme palette replaces both (themes.md).
+- `type: 'default'` (what an empty call gives) is the engine's eight-color group palette, whose first color is also the fill of an unmapped geom. Geoms that touch default to a single-hue brick ramp instead, which reads `colorScheme`. Touching means any stacked or filled layer (a pie included), or a tile layer. A theme palette replaces all three, except that a theme `geom` token decides the unmapped fill (themes.md).
 - `graphy` and `pastel` are fixed lists. `neon` and `mono` are built from a base hue, and `base` is required on both. Neon bases: `cyan`, `pink`, `purple`, `red`, `orange`, `yellow`, `green`, `blue`. Mono bases: `brick`, `gray`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`. Mono `variant` is `light` (default) or `dark`, for the background it sits on.
 - `graphy`, `pastel` and `neon` accept `variant: 'waterfall'`, which swaps in four colors in order: start, positive, negative, total. On a neon palette it ignores `base`. The colors alone do not make a waterfall chart; that is `@graphysdk/geom-waterfall`.
 - `overrides` is keyed by group number, 1-indexed. `hex` is a literal. `id` looks up a color in the active custom palette, so it needs `type: 'custom'`; otherwise it warns PALETTE_NOT_FOUND and the palette color shows through. When both are set, `hex` decides.
@@ -461,12 +468,20 @@ export function Chart({ data }: { data: { columns: { key: string }[]; rows: Reco
 }
 ```
 
-A numeric `color` mapping takes a continuous scale.
+A numeric `color` mapping takes a continuous scale. Leave its ramp options out unless the brief names a scheme or gives the colors, or the values cross zero, which needs a diverging scheme with `domainMid`.
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-scale.color.continuous();
+scale.color.continuous(); // the theme's colormap, else the engine's brick ramp
+scale.color.continuous({ scheme: 'RdBu', domainMid: 0 }); // values cross zero: a diverging scheme, neutral at zero
+```
+
+Only when the brief asks for a specific ramp:
+
+```ts
+import { scale } from '@graphysdk/react';
+
 scale.color.continuous({ scheme: 'viridis' });
 scale.color.continuous({ scheme: 'Blues', reverse: true });
 scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });

@@ -23,16 +23,16 @@ Contents
 
 Import `Theme` from `@graphysdk/react`. Only `name` and `styles` are required.
 
-| Field         | Purpose                                                                                                                                |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | Names the theme in diagnostics. Also a good React `key` when switching themes                                                          |
-| `styles`      | A `Stylesheet` with tokens, defaults and overrides. Sits above the built-in stylesheet and below the spec's `styles()`                 |
-| `palette`     | Group colors in order. Used as the default palette, for touching geoms, and by discrete color scales without a `range`                 |
-| `colormap`    | Continuous color stops, low to high. Used by continuous color scales without a `range` or `scheme`                                     |
-| `config`      | `ThemeConfig`: a `ConfigSpec` without `content`. Sits below the spec's `config()`                                                      |
-| `colorScheme` | `'light'` or `'dark'`. Overrides the provider's `colorScheme` prop. Omit it when the theme's colors are `{ light, dark }` pairs        |
-| `plugins`     | Repaints of built-in geoms. The host's `plugins` are read after them, so a host repaint of the same geom and coordinate system decides |
-| `shapes`      | Replacements for the shared `GeomCircle`, `GeomLine`, `GeomRect` and `GeomPath` that geoms from packages draw with                     |
+| Field         | Purpose                                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | Names the theme in diagnostics. Also a good React `key` when switching themes                                                                                                                     |
+| `styles`      | A `Stylesheet` with tokens, defaults and overrides. Sits above the built-in stylesheet and below the spec's `styles()`                                                                            |
+| `palette`     | Group colors in order. Used as the default palette, for touching geoms, by discrete color scales without a `range`, and its first color fills unmapped geoms unless the theme sets a `geom` token |
+| `colormap`    | Continuous color stops, low to high. Used by continuous color scales without a `range` or `scheme`                                                                                                |
+| `config`      | `ThemeConfig`: a `ConfigSpec` without `content`. Sits below the spec's `config()`                                                                                                                 |
+| `colorScheme` | `'light'` or `'dark'`. Overrides the provider's `colorScheme` prop. Omit it when the theme's colors are `{ light, dark }` pairs                                                                   |
+| `plugins`     | Repaints of built-in geoms. The host's `plugins` are read after them, so a host repaint of the same geom and coordinate system decides                                                            |
+| `shapes`      | Replacements for the shared `GeomCircle`, `GeomLine`, `GeomRect` and `GeomPath` that geoms from packages draw with                                                                                |
 
 ## Built-in themes
 
@@ -177,7 +177,6 @@ export const ledger: Theme = {
       textPrimary: '#1F2A37',
       textSecondary: '#6B7280',
       gridLine: '#E5E0D3',
-      geom: '#1D4ED8',
     },
     defaults: [
       style.graph({ fontFamily: "'IBM Plex Sans', system-ui, sans-serif", cornerRadius: 0, padding: 24 }),
@@ -199,7 +198,7 @@ const kit = createGraphyKit({ theme: ledger });
 
 The five tokens above recolour most of the graph. See [Built-in stylesheet](styling.md#built-in-stylesheet) for the full token list.
 
-- `palette` replaces the default palette, including the single-hue ramp used for touching geoms. List group colors in order.
+- `palette` replaces the default palette, including the single-hue ramp used for touching geoms. List group colors in order. Its first color also fills unmapped geoms, so a `geom` token is only needed when that fill should differ.
 - `colormap` supplies continuous color stops from low to high.
 - `config` accepts `parsingLocale`, `legend`, `axes`, `panel`, `headline`, `tooltip` and `numberFormat`. It cannot set `content`: titles, sources and the brand mark belong to the spec.
 - `colorScheme: 'light'` fixes the scheme. To support both, see [Light and dark](#light-and-dark).

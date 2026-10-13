@@ -71,6 +71,8 @@ Tiles show their value as a data label by default. Turn it off with `geom.tile({
 
 ### Named color scheme
 
+Only when the brief asks for one. The bare call above takes the theme's colormap, else the engine's brick ramp. Values that cross zero take the diverging variant below.
+
 ```ts
 import { scale } from '@graphysdk/react';
 

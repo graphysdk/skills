@@ -41,7 +41,7 @@ const spec = pipe(
   coord.cartesian(),
   scale.x(),
   scale.y(),
-  scale.color.palette({ palette: { type: 'graphy' } }),
+  scale.color.palette(),
   config({
     legend: { position: 'top' },
     axes: { y: { label: 'Sales' } },
@@ -224,7 +224,7 @@ const spec = pipe(
   geom.tile(),
   scale.x(),
   scale.y(),
-  scale.color.continuous({ scheme: 'viridis' }),
+  scale.color.continuous(),
   config({ axes: { x: { position: 'top' }, y: { position: 'left' } }, legend: { position: 'none' } })
 );
 ```
@@ -315,24 +315,25 @@ const spec = pipe(
 ```ts
 import { scale } from '@graphysdk/react';
 
-// Groups from a named palette. Default palette when the option is omitted.
-scale.color.palette(); // default palette; goes single-hue when geoms touch (stacked, filled, or tiles)
+// Groups: the theme's palette, else the engine default (single-hue when geoms touch).
+scale.color.palette();
+// Groups with colors from the brief, in band order.
+scale.color.discrete({ range: ['#B84737', '#0B8666', '#3D63A8'] });
+// A numeric variable: the theme's colormap, else the brick ramp.
+scale.color.continuous();
+// A numeric variable that crosses zero: diverging, symmetric about 0.
+scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
+
+// Only when the brief names a palette or a scheme.
 scale.color.palette({ palette: { type: 'graphy' } });
 scale.color.palette({ palette: { type: 'pastel' } });
-scale.color.palette({ palette: { type: 'mono', base: 'blue' } });
+scale.color.palette({ palette: { type: 'mono', base: 'blue', variant: 'dark' } }); // variant 'light' | 'dark'
 scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
 scale.color.palette({ palette: { type: 'graphy', variant: 'waterfall' } }); // colors only; the chart is @graphysdk/geom-waterfall
-scale.color.palette({ palette: { type: 'mono', base: 'blue', variant: 'dark' } }); // mono takes variant 'light' | 'dark'
 scale.color.palette({ palette: { type: 'custom', id: 'brand' } }); // registered through GraphProvider customPalettes
-scale.color.palette({ overrides: { 1: { hex: '#E83562' }, 3: { id: 'accent' } } }); // group number, 1-based; id looks up the active custom palette
-
-// Groups with explicit colors, in band order.
-scale.color.discrete({ range: ['#B84737', '#0B8666', '#3D63A8'] });
-
-// A numeric variable on a color ramp.
+scale.color.palette({ overrides: { 1: { hex: '#E83562' }, 3: { id: 'accent' } } }); // 1-based group; id looks up the custom palette
 scale.color.continuous({ scheme: 'viridis' });
 scale.color.continuous({ range: ['#F2D8CB', '#6E0500'], interpolate: 'lab' });
-scale.color.continuous({ scheme: 'RdBu', domainMid: 0 }); // diverging, symmetric about 0 by default
 ```
 
 Schemes: `viridis`, `magma`, `inferno`, `plasma`, `cividis`, `turbo`, `Blues`, `Greens`, `Greys`, `Oranges`, `Purples`, `Reds`, and the diverging `RdBu`, `BrBG`, `PuOr`, `Spectral` (aliases `'red-blue'`, `'brown-teal'`, `'purple-orange'`, `'spectral'`). Names are case-insensitive. A diverging scheme without `domainMid` warns DIVERGING_SCHEME_WITHOUT_MIDPOINT. `symmetric: false` keeps the raw extent. Setting both `scheme` and `range` warns CONFLICTING_COLOR_RAMP and uses the range. An unregistered custom palette or an unknown override id warns PALETTE_NOT_FOUND and falls back. `mono` bases: brick, gray, red, orange, yellow, green, cyan, blue, purple, pink; `variant` defaults to `'light'`. `neon` bases: cyan, pink, purple, red, orange, yellow, green, blue. Full palette detail in styling.md § Palettes and color scales.

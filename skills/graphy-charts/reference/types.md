@@ -496,7 +496,7 @@ interface LightDarkColor {
  * The engine's built-in stylesheet: the look of every style target when nothing else decides.
  * It is the implicit base of every stylesheet — entries sit below the authored `defaults`, tokens
  * merge under the authored table, so redefining a token restyles the default it backs.
- * Colors are never palette lookups — scales only speak for mapped aesthetics.
+ * Scales decide mapped colors; the `geom` token, the default palette's first color, fills the rest.
  */
 const BUILTIN_STYLES: Readonly<{
     tokens: Readonly<StyleTokenTable>;
