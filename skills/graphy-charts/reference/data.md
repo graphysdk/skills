@@ -225,7 +225,7 @@ Every option is optional. By default all categorical and temporal columns are ke
 
 ## From data type to scale
 
-`scale.x()`, `scale.y()`, and `scale.ySecondary()` with no arguments infer the scale kind from the mapped column's data type. A color scale is added for you when none is declared: a palette by default, or one inferred from the column under a tile. Declare `scale.color.continuous()`, `scale.color.discrete()`, or `scale.color.palette()` to choose.
+`scale.x()`, `scale.y()`, and `scale.ySecondary()` with no arguments infer the scale kind from the mapped column's data type. A color scale is added for you when none is declared: a discrete scale by default, or one inferred from the column under a tile. Declare `scale.color.continuous()` or `scale.color.discrete()` to choose.
 
 - numeric position: continuous.
 - categorical position: band (one slot per distinct value).

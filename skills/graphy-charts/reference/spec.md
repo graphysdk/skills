@@ -41,7 +41,7 @@ const spec = pipe(
   coord.cartesian(),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   config({
     legend: { position: 'top' },
     axes: { y: { label: 'Sales' } },
@@ -140,7 +140,7 @@ const spec = pipe(
   scale.x.log(),
   scale.y(),
   scale.size.continuous({ range: [3, 30] }),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -156,7 +156,7 @@ const spec = pipe(
   geom.line({ params: { curve: 'smooth', missingValues: 'connect' } }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -172,7 +172,7 @@ const spec = pipe(
   geom.area({ position: 'fill' }), // 100% stacked
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -188,7 +188,7 @@ const grouped = pipe(
   geom.bar({ position: 'dodge', params: { width: 0.7 } }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -214,7 +214,7 @@ Rules are not interactive by default. They draw under cartesian and flip coords 
 
 ### tile
 
-No params. A tile fills one cell of a band on x and a band on y. This is the heatmap geom. Map `color` to a numeric variable; `color` is required. The color scale is inferred from that variable when you declare none, so `scale.color.continuous()` is only needed to pick a scheme. The y band is reversed by default so the first band sits at the top, and band padding defaults to 0; an explicit `reverse` or `padding` still applies. Tiles draw under cartesian coords only and accept only `position: 'identity'`; flip or polar fails with UNSUPPORTED_COORD and another position with UNSUPPORTED_POSITION. Tiles label every cell by default, so pass `dataLabels: { showDataLabels: false }` to turn labels off. Tiles hide both grids.
+No params. A tile fills one cell of a band on x and a band on y. This is the heatmap geom. Map `color` to a numeric variable; `color` is required. The color scale is inferred from that variable when you declare none, so `scale.color.continuous()` is only needed to set a range or a diverging midpoint. The y band is reversed by default so the first band sits at the top, and band padding defaults to 0; an explicit `reverse` or `padding` still applies. Tiles draw under cartesian coords only and accept only `position: 'identity'`; flip or polar fails with UNSUPPORTED_COORD and another position with UNSUPPORTED_POSITION. Tiles label every cell by default, so pass `dataLabels: { showDataLabels: false }` to turn labels off. Tiles hide both grids.
 
 ```ts
 import { createSpec, pipe, geom, scale, config } from '@graphysdk/react';
@@ -289,6 +289,7 @@ scale.y.sqrt();
 - `domainMin` and `domainMax` pin one end; the other end follows the data. A lone `domainMin: 0` with all-negative data keeps zero at the top.
 - Bars and areas always hold zero on their value axis, so `domainMin: 0` is redundant there, and a `domainMin` above zero is overridden with an INCOMPATIBLE_SCALE_DOMAIN warning. Points and lines do not hold zero.
 - A log scale needs a domain that is all positive or all negative. One that includes zero falls back to linear with INCOMPATIBLE_SCALE_DOMAIN.
+- When `domainMid` falls strictly inside the domain, the color scale is diverging. Use an odd number of stops to specify a neutral middle color. An even count in the selected `range` or theme palette blends the two central colors and emits EVEN_DIVERGING_RAMP; the supplied ramp still renders.
 - `nice` rounds the domain to round values. On by default for continuous, off for datetime, skipped on log scales. An inferred `scale.y()` turns it off under `position: 'fill'`.
 - `clamp` defaults to false for position scales and true for size, alpha, strokeWidth, and color.
 - A discrete `domain` lists the bands in order and drops everything else. `padding` defaults to 0.1 of the band step. Tiles default it to 0, and `coord.polar()` forces it to 0 for every discrete scale.
@@ -310,33 +311,25 @@ const spec = pipe(
 
 ### Color scales
 
-`scale.color` has no inferred form. Leave it out for the default palette, or pick one of three:
+`scale.color` has no inferred form. Leave it out for the default palette, or pick one of four:
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-// Groups: the theme's palette, else the engine default (single-hue when geoms touch).
-scale.color.palette();
+// Groups: the theme's palette, else the engine default (brick tones when geoms touch).
+scale.color.discrete();
 // Groups with colors from the brief, in band order.
 scale.color.discrete({ range: ['#B84737', '#0B8666', '#3D63A8'] });
-// A numeric variable: the theme's colormap, else the brick ramp.
+// A numeric variable: the theme's sequential list, else the brick ramp.
 scale.color.continuous();
-// A numeric variable that crosses zero: diverging, symmetric about 0.
-scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
+// Values that cross zero: the theme's diverging list, else the engine's blue-gray-brick ramp, neutral at zero.
+scale.color.continuous({ domainMid: 0 });
 
-// Only when the brief names a palette or a scheme.
-scale.color.palette({ palette: { type: 'graphy' } });
-scale.color.palette({ palette: { type: 'pastel' } });
-scale.color.palette({ palette: { type: 'mono', base: 'blue', variant: 'dark' } }); // variant 'light' | 'dark'
-scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
-scale.color.palette({ palette: { type: 'graphy', variant: 'waterfall' } }); // colors only; the chart is @graphysdk/geom-waterfall
-scale.color.palette({ palette: { type: 'custom', id: 'brand' } }); // registered through GraphProvider customPalettes
-scale.color.palette({ overrides: { 1: { hex: '#E83562' }, 3: { id: 'accent' } } }); // 1-based group; id looks up the custom palette
-scale.color.continuous({ scheme: 'viridis' });
+// Only when the brief gives the colors for a numeric variable.
 scale.color.continuous({ range: ['#F2D8CB', '#6E0500'], interpolate: 'lab' });
 ```
 
-Schemes: `viridis`, `magma`, `inferno`, `plasma`, `cividis`, `turbo`, `Blues`, `Greens`, `Greys`, `Oranges`, `Purples`, `Reds`, and the diverging `RdBu`, `BrBG`, `PuOr`, `Spectral` (aliases `'red-blue'`, `'brown-teal'`, `'purple-orange'`, `'spectral'`). Names are case-insensitive. A diverging scheme without `domainMid` warns DIVERGING_SCHEME_WITHOUT_MIDPOINT. `symmetric: false` keeps the raw extent. Setting both `scheme` and `range` warns CONFLICTING_COLOR_RAMP and uses the range. An unregistered custom palette or an unknown override id warns PALETTE_NOT_FOUND and falls back. `mono` bases: brick, gray, red, orange, yellow, green, cyan, blue, purple, pink; `variant` defaults to `'light'`. `neon` bases: cyan, pink, purple, red, orange, yellow, green, blue. Full palette detail in styling.md § Palettes and color scales.
+`domainMid` makes the domain symmetric around the midpoint; `symmetric: false` keeps the raw extent. A theme sets group colors through `palettes.categorical`. Full palette detail in styling.md § Palettes and color scales.
 
 ### Size, alpha, stroke width, line type
 
@@ -370,7 +363,7 @@ const pie = pipe(
   coord.polar({ theta: 'y' }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 
 // Donut: same with a hole
@@ -380,7 +373,7 @@ const donut = pipe(
   coord.polar({ theta: 'y', innerRadius: 0.55, startAngle: 0 }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -435,7 +428,7 @@ const reshaped = pipe(
   geom.bar({ position: 'stack' }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -552,7 +545,7 @@ Other notes:
 
 ## Unsupported chart types
 
-Mekko and table are not chart types in this SDK. Say they are unsupported and stop. Do not write a plugin or a geom for them. Waterfall and funnel are packages, `@graphysdk/geom-waterfall` and `@graphysdk/geom-funnel`; see [recipes/geoms](../recipes/geoms/). `variant: 'waterfall'` on a palette only swaps in start, positive, negative and total colors. It does not build a waterfall chart.
+Mekko and table are not chart types in this SDK. Say they are unsupported and stop. Do not write a plugin or a geom for them. Waterfall and funnel are packages, `@graphysdk/geom-waterfall` and `@graphysdk/geom-funnel`; see [recipes/geoms](../recipes/geoms/).
 
 ## Pitfalls
 

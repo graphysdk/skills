@@ -158,7 +158,7 @@ release — to remap a variable, rebuild the `Spec`; see "When no command exists
 `ToggleDataLabelsCommand`, `SetDataLabelsFormatCommand`, `ToggleCategoryLabelsCommand`,
 `ToggleLineFillCommand`, `ToggleLinePointsVisibilityCommand`, `ToggleStackTotalsCommand`.
 
-**Scales & coords** — `SetScaleDomainCommand`, `SetScalePaletteCommand`, `SetScaleReverseCommand`,
+**Scales & coords** — `SetScaleDomainCommand`, `SetScaleReverseCommand`,
 `SetScaleTransformCommand`, `SetScaleZeroCommand`, `SetCoordLimitsCommand`,
 `SetPolarInnerRadiusCommand`, `SetPolarStartAngleCommand`.
 

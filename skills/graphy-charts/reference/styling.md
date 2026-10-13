@@ -259,7 +259,7 @@ const spec = pipe(
   geom.bar({ position: 'dodge' }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   styles({
     defaults: [style.geom.bar({ cornerRadius: 'md', strokeWidth: 0 })],
     overrides: [style.geom.bar({ fill: '#1d2129' }, { where: { variable: 'region', eq: 'North' } })],
@@ -409,92 +409,59 @@ const sheet = styles({
 
 Group colors come from the color scale, not the stylesheet. Declare one whenever `color` is mapped and leave it bare; the theme's palette, or the engine default, picks the colors.
 
+`scale.color.discrete()` takes the theme's `palettes.categorical` list, else the built-in palette: an eight-color list whose first color is also the fill of an unmapped geom. Geoms that touch take brick tones spread over the group count instead, read for the `colorScheme`. Touching means any stacked or filled layer (a pie included), or a tile layer.
+
 ```ts
 import { scale } from '@graphysdk/react';
 
-scale.color.palette();
+scale.color.discrete();
+```
+
+`scale.color.discrete({ range })` sets explicit colors in group order and cycles when groups outnumber colors.
+
+```ts
+import { scale } from '@graphysdk/react';
+
 scale.color.discrete({ range: ['#ec008c', '#f7931e', '#662d91'] }); // colors from the brief, in band order
 ```
 
-Only when the brief names a palette:
+A theme sets group colors through `palettes.categorical` (themes.md). The list decides for every bare color scale under that theme, touching geoms included, and its first color fills unmapped geoms unless the theme sets a `geom` token.
 
 ```ts
-import { scale } from '@graphysdk/react';
+import type { Theme } from '@graphysdk/react';
 
-scale.color.palette({ palette: { type: 'graphy' } });
-scale.color.palette({ palette: { type: 'pastel' } });
-scale.color.palette({ palette: { type: 'neon', base: 'cyan' } });
-scale.color.palette({ palette: { type: 'mono', base: 'blue', variant: 'dark' } });
-scale.color.palette({ palette: { type: 'custom', id: 'brand-2026' } });
-scale.color.palette({ palette: { type: 'graphy' }, overrides: { 1: { hex: '#1d2129' } } });
-scale.color.palette({ palette: { type: 'custom', id: 'brand-2026' }, overrides: { 3: { id: 'accent' } } });
-```
-
-- `type: 'default'` (what an empty call gives) is the engine's eight-color group palette, whose first color is also the fill of an unmapped geom. Geoms that touch default to a single-hue brick ramp instead, which reads `colorScheme`. Touching means any stacked or filled layer (a pie included), or a tile layer. A theme palette replaces all three, except that a theme `geom` token decides the unmapped fill (themes.md).
-- `graphy` and `pastel` are fixed lists. `neon` and `mono` are built from a base hue, and `base` is required on both. Neon bases: `cyan`, `pink`, `purple`, `red`, `orange`, `yellow`, `green`, `blue`. Mono bases: `brick`, `gray`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`. Mono `variant` is `light` (default) or `dark`, for the background it sits on.
-- `graphy`, `pastel` and `neon` accept `variant: 'waterfall'`, which swaps in four colors in order: start, positive, negative, total. On a neon palette it ignores `base`. The colors alone do not make a waterfall chart; that is `@graphysdk/geom-waterfall`.
-- `overrides` is keyed by group number, 1-indexed. `hex` is a literal. `id` looks up a color in the active custom palette, so it needs `type: 'custom'`; otherwise it warns PALETTE_NOT_FOUND and the palette color shows through. When both are set, `hex` decides.
-- A mono palette has a tone list for 1 to 7 groups; more groups use one default list of eight tones.
-- An unregistered custom palette id warns PALETTE_NOT_FOUND and falls back to the default palette.
-- `discrete({ range })` sets explicit colors in group order.
-
-A custom palette is registered on the provider and referenced by id.
-
-```tsx
-import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
-
-const customPalettes = {
-  'brand-2026': [
-    { id: 'lead', hex: '#ec008c', name: 'Magenta' },
-    { id: 'accent', hex: '#f7931e' },
-    { id: 'third', hex: '#662d91' },
-  ],
+const theme: Theme = {
+  name: 'brand',
+  styles: {},
+  palettes: { categorical: ['#ec008c', '#f7931e', '#662d91'] },
 };
-
-const spec = pipe(
-  createSpec({ x: 'quarter', y: 'sales', color: 'region' }),
-  geom.bar({ position: 'stack' }),
-  scale.x(),
-  scale.y(),
-  scale.color.palette({ palette: { type: 'custom', id: 'brand-2026' } })
-);
-
-export function Chart({ data }: { data: { columns: { key: string }[]; rows: Record<string, string | number>[] } }) {
-  return (
-    <GraphProvider data={data} spec={spec} customPalettes={customPalettes}>
-      <GraphRenderer />
-    </GraphProvider>
-  );
-}
 ```
 
-A numeric `color` mapping takes a continuous scale. Leave its ramp options out unless the brief names a scheme or gives the colors, or the values cross zero, which needs a diverging scheme with `domainMid`.
+A numeric `color` mapping takes a continuous scale. Leave its ramp options out unless the brief gives the colors, or the values cross zero, which needs `domainMid`.
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-scale.color.continuous(); // the theme's colormap, else the engine's brick ramp
-scale.color.continuous({ scheme: 'RdBu', domainMid: 0 }); // values cross zero: a diverging scheme, neutral at zero
+scale.color.continuous(); // the theme's sequential list, else the engine's brick ramp
+scale.color.continuous({ domainMid: 0 }); // values cross zero: the theme's diverging list, else the engine's blue-gray-brick ramp, neutral at zero
 ```
 
-Only when the brief asks for a specific ramp:
+Only when the brief gives the colors:
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-scale.color.continuous({ scheme: 'viridis' });
-scale.color.continuous({ scheme: 'Blues', reverse: true });
-scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
 scale.color.continuous({ range: ['#fff5eb', '#ff6719', '#3a0a00'], interpolate: 'lab' });
+scale.color.continuous({ range: ['#deebf7', '#08306b'], reverse: true });
+scale.color.continuous({ range: ['#2166ac', '#f7f7f7', '#b2182b'], domainMid: 0 });
 ```
 
-- Sequential schemes: `viridis`, `magma`, `inferno`, `plasma`, `cividis`, `turbo`, `Blues`, `Greens`, `Greys`, `Oranges`, `Purples`, `Reds`. Names are case-insensitive.
-- Diverging schemes: `RdBu`, `BrBG`, `PuOr`, `Spectral`, or the aliases `red-blue`, `brown-teal`, `purple-orange`, `spectral`. A diverging scheme needs `domainMid`, the neutral value; without it the compile warns DIVERGING_SCHEME_WITHOUT_MIDPOINT. The domain is made symmetric around `domainMid` unless `symmetric: false`.
-- `range` is an explicit ramp of two or more stops. Setting both `range` and `scheme` warns CONFLICTING_COLOR_RAMP and uses the range. `interpolate` is `lab` (default), `rgb`, `hcl` or `hsl` and only applies to `range`.
-- No scheme and no range gives the brick sequential ramp, unless a theme supplies a colormap.
+- A bare scale takes the theme's `palettes.sequential` list, else the engine's light to dark brick ramp.
+- `domainMid` is the neutral value for data that crosses zero. The scale takes the theme's `palettes.diverging` list, else the engine's blue, gray, brick ramp, with the middle stop at the midpoint. The domain is made symmetric around `domainMid` unless `symmetric: false`.
+- `range` is an explicit ramp of two or more stops and decides over the theme. `interpolate` is `lab` (default), `rgb`, `hcl` or `hsl`, the space the stops blend in. `reverse` flips the ramp.
 - A continuous color scale gets its own legend: one pill per domain stop.
 
-`sampleColorScheme(options?, count?)` from `@graphysdk/viz-engine` samples a scheme into `count` evenly spaced colors for a picker or legend preview. `options` takes `scheme`, `range`, `interpolate` and `reverse`.
+`sampleColorRamp(options?, count?)` from `@graphysdk/viz-engine` samples a ramp into `count` evenly spaced colors for a picker or legend preview. `options` takes `range`, `interpolate`, `reverse`, `diverging` and `palettes`. Without a valid `range`, it uses `palettes.sequential`, or `palettes.diverging` when `diverging` is `true`, then falls back to the corresponding built-in ramp.
 
 ## Sharing a stylesheet between specs
 
@@ -583,7 +550,7 @@ Dash presets the built-ins use, in stroke widths: solid `[]`, line dashed `[4, 2
 
 - There is no `color` property. Fill a shape with `fill`, stroke a line with `stroke`, paint text with `textColor`.
 - A `defaults` entry yields to a mapped aesthetic. To repaint bars whose `color` is mapped, use `overrides`.
-- Position scales are separate from styling. `scale.color.palette()` decides group colors; the stylesheet cannot assign a color per group except through `overrides` with `where`.
+- Position scales are separate from styling. `scale.color.discrete()` decides group colors; the stylesheet cannot assign a color per group except through `overrides` with `where`.
 - `where`, `state` and `layer` are geom-only. On a chrome target they are a type error, and in serialized JSON the whole entry is dropped with a warning.
 - `cornerRadius` on a bar is a token or pixels. On a tile, the graph, the panel border and the edit outline it is pixels only. On boxes it can be per corner.
 - A bare `style.tooltip` is the box, `style.source` the label, `style.legend` the row. Reach the parts by name.

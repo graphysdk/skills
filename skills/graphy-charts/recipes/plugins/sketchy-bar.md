@@ -29,7 +29,7 @@ const spec = pipe(
   geom.bar({ position: 'stack' }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 
 export const SketchyGraph = () => (

@@ -82,7 +82,7 @@ Open one file, then use the contents list at the top of that file.
 | Human docs                                                        | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
 
 - Dark mode is `colorScheme` on the provider plus stylesheet tokens.
-- Leave `scale.color.palette()` and `scale.color.continuous()` bare; the theme or the engine default picks the colors. Exceptions: a named palette or scheme in the brief, given colors (`scale.color.discrete({ range })`), or values that cross zero (a diverging scheme with `domainMid`).
+- Leave `scale.color.discrete()` and `scale.color.continuous()` bare; the theme or the engine default picks the colors. Exceptions: a named palette in the brief, given colors (`scale.color.discrete({ range })` or `scale.color.continuous({ range })`), or values that cross zero (`domainMid`).
 - Currency and percentages are a column `valueFormat`. `config({ numberFormat })` formats the whole chart.
 - CSV import generates keys such as `c1`. Map those keys.
 - Rows are parsed day-first. The display locale is `formattingLocale` on the provider.

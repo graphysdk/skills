@@ -11,7 +11,6 @@ Contents
 - Live data
 - Color scheme and theme
 - Formatting locale
-- Custom palettes
 - Errors and warnings
 - The graph handle
 - Hooks inside the tree
@@ -56,14 +55,13 @@ Props:
 - `formattingLocale`: how displayed values are formatted. See "Formatting locale".
 - `theme`: a `Theme`. Read once at mount. See "Color scheme and theme".
 - `plugins`: custom geoms, stats and transforms. Read once at mount. See plugins.md.
-- `customPalettes`: named color lists a spec picks with `scale.color.palette`.
 - `handleRef`: filled with a `GraphHandle` for code outside the tree.
 - `onSpecChange`: fires with the new spec after a committed command, an undo or a redo. See "Commands and onSpecChange".
 - `onError`: fires with the diagnostics of a failed compile, a render crash, or a command, undo or redo the compiler refused.
 - `onWarnings`: fires with the warnings of a successful compile.
 - `children`: usually one `GraphRenderer`.
 
-`data`, `spec`, `colorScheme` and `customPalettes` recompile when they change by reference. `theme` and `plugins` are read once at mount; remount the provider with a new `key` to change either.
+`data`, `spec` and `colorScheme` recompile when they change by reference. `theme` and `plugins` are read once at mount; remount the provider with a new `key` to change either.
 
 Exported types: `GraphProviderProps`, `ColorScheme`, `Scene` and `ResolvedSpec`.
 
@@ -151,7 +149,7 @@ Exported types: `GraphAnimation` for the prop and `GraphAnimationProps` for the 
 
 ## Live data
 
-The provider recompiles when `data`, `spec`, `customPalettes` or `colorScheme` change by reference. Pass a new `data` object and the graph updates, with transitions if they are on.
+The provider recompiles when `data`, `spec` or `colorScheme` change by reference. Pass a new `data` object and the graph updates, with transitions if they are on.
 
 ```tsx
 import { useEffect, useMemo, useState } from 'react';
@@ -180,7 +178,7 @@ export const LiveGraph = ({ initial }: { initial: Data }) => {
 const nextRow = () => ({ time: new Date(), value: Math.random() * 100 });
 ```
 
-A new `spec` prop replaces the graph: uncommitted edits are dropped, and the undo history is cleared once the new spec compiles. A spec that fails to compile leaves the history in place. A new `data`, `customPalettes` or `colorScheme` recompiles the spec as edited and keeps the history. Passing the spec received from `onSpecChange` back into the `spec` prop is recognized as an echo: no recompile, no history clear.
+A new `spec` prop replaces the graph: uncommitted edits are dropped, and the undo history is cleared once the new spec compiles. A spec that fails to compile leaves the history in place. A new `data` or `colorScheme` recompiles the spec as edited and keeps the history. Passing the spec received from `onSpecChange` back into the `spec` prop is recognized as an echo: no recompile, no history clear.
 
 `plugins` and `theme` are not live. Both are read once at mount. To change either, remount the provider with a new `key`.
 
@@ -219,50 +217,6 @@ export const PortugueseGraph = ({ data, spec }: { data: Data; spec: Spec }) => (
 ```
 
 Parsing and formatting are separate. Data rows are parsed day-first; `config({ parsingLocale })` reads values written in the spec; `formattingLocale` prints. See data.md § Parsing locale and formatting locale. `useGraphLocale()` returns the resolved display locale inside the tree.
-
-## Custom palettes
-
-Register named palettes on the provider, then pick one in the spec.
-
-```tsx
-import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
-const customPalettes = {
-  brand: [
-    { id: 'primary', hex: '#1d4ed8' },
-    { id: 'secondary', hex: '#9333ea' },
-    { id: 'warning', hex: '#dc2626' },
-  ],
-};
-
-const spec = pipe(
-  createSpec({ x: 'month', y: 'sales', color: 'region' }),
-  geom.bar({ position: 'stack' }),
-  scale.x(),
-  scale.y(),
-  scale.color.palette({ palette: { type: 'custom', id: 'brand' } })
-);
-
-export const BrandGraph = ({ data }: { data: Data }) => (
-  <GraphProvider data={data} spec={spec} customPalettes={customPalettes}>
-    <GraphRenderer />
-  </GraphProvider>
-);
-```
-
-Colors are assigned to groups in order. The `CustomPalettes` type is not exported from `@graphysdk/react`, so leave the object untyped. An id that is not registered gives a `PALETTE_NOT_FOUND` warning and the default palette.
-
-`overrides` pins a group to a color. Keys are group numbers counted from 1. A value is `{ hex }` or `{ id }` naming a color of the active custom palette. With both set, `hex` is used. An id the palette lacks keeps the palette color and logs `PALETTE_NOT_FOUND`. A key below 1 is ignored.
-
-```ts
-import { scale } from '@graphysdk/react';
-
-const pinned = scale.color.palette({
-  palette: { type: 'custom', id: 'brand' },
-  overrides: { 2: { id: 'warning' }, 3: { hex: '#0f766e' } },
-});
-```
 
 ## Errors and warnings
 
@@ -370,7 +324,7 @@ The scene has `spec`, `coordSystem`, `layers`, `scales`, `guides`, `config`, `an
 
 ## Commands and onSpecChange
 
-`dispatch(command)` applies a command and fires `onSpecChange` with the resulting spec. `dispatch(command, { transient: true })` paints the frame and fires nothing. A run of transient dispatches reports one `onSpecChange` when `commit()` is called, or when the next committed dispatch or a change to `data`, `customPalettes` or `colorScheme` closes it. An undo or redo during an open run reverts the whole run in one step and fires `onSpecChange` with the stepped spec. A new `spec` prop discards the run instead. `onSpecChange` never fires for a new `spec` prop itself.
+`dispatch(command)` applies a command and fires `onSpecChange` with the resulting spec. `dispatch(command, { transient: true })` paints the frame and fires nothing. A run of transient dispatches reports one `onSpecChange` when `commit()` is called, or when the next committed dispatch or a change to `data` or `colorScheme` closes it. An undo or redo during an open run reverts the whole run in one step and fires `onSpecChange` with the stepped spec. A new `spec` prop discards the run instead. `onSpecChange` never fires for a new `spec` prop itself.
 
 ```tsx
 import { useGraphCommands } from '@graphysdk/react';

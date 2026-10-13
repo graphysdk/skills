@@ -68,7 +68,7 @@ const spec = pipe(
   geom.point({ position: 'stack', interactive: false }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -87,7 +87,7 @@ const spec = pipe(
   styles({ defaults: [style.geom.area({ fillAlpha: 0.15 })] }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 

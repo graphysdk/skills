@@ -75,9 +75,6 @@ interface Spec {
 
 /** The light/dark axis a {@link LightDarkColor} resolves against. */
 type ColorScheme = 'light' | 'dark';
-
-/** Any named color scheme accepted by a continuous color scale. */
-type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
 ```
 
 ## Spec builders
@@ -90,7 +87,7 @@ type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
  * `pipe(createSpec({...}), geom.x(), scale.x(), scale.y(), ...)`.
  *
  * @example
- * pipe(createSpec({ x: 'month', y: 'sales', color: 'region' }), geom.line(), scale.x(), scale.y(), scale.color.palette());
+ * pipe(createSpec({ x: 'month', y: 'sales', color: 'region' }), geom.line(), scale.x(), scale.y(), scale.color.discrete());
  */
 function pipe(spec: Spec, ...items: SpecItem[]): Spec;
 
@@ -149,7 +146,7 @@ const geom: {
 /**
  * Builders for the scale of each aesthetic (`scale.x`, `scale.y`, `scale.color`, ...). Position aesthetics
  * are callable directly to infer the scale type from the data (`scale.x()`); every aesthetic also exposes
- * explicit methods (`scale.x.continuous()`, `scale.color.palette()`). `Object.assign` gives `x`/`y` both
+ * explicit methods (`scale.x.continuous()`, `scale.color.discrete()`). `Object.assign` gives `x`/`y` both
  * forms — color, size, etc. have no inferred shorthand, so they stay dot-access only. Position scales are
  * never auto-created — declare one for every mapped position aesthetic.
  */
@@ -227,7 +224,7 @@ function highlight(predicate: Predicate, options?: HighlightBuilderOptions): Hig
  *     geom.line(),
  *     scale.x.discrete(),
  *     scale.y(),
- *     scale.color.palette(),
+ *     scale.color.discrete(),
  *     annotation.differenceArrow({
  *       start: { anchorValue: 'Jan', groupValue: 'North' },
  *       end: { anchorValue: 'Jun', groupValue: 'North' },
@@ -540,48 +537,26 @@ interface AnnotationsSpec {
 ## Scales & palettes
 
 ```ts
-/**
- * Sparse override map.  Keys are group numbers (1-indexed), values are either a raw
- * hex value, or a color id to look up in the active custom palette.
- *
- * Indexes that are not specified fallback to the palette default.
- *
- * If both are set, `hex` wins.  If `id` is set but not found in the active custom palette,
- * the override is ignored.
- */
-type PaletteOverridesSpec = Record<number, {
-    hex?: string;
-    id?: string;
-}>;
-
-/** Host-owned custom palettes, keyed by `paletteId`, that a `scale.color.palette` may reference by id. */
-type CustomPalettes = Record<string, CustomPaletteColor[]>;
-
-/** The hues available as a base for monochrome palettes, in pick order. */
-const MONO_BASES: readonly ["brick", "gray", "red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"];
-
-/** The hues available as a base for neon palettes, in pick order. */
-const NEON_BASES: readonly ["cyan", "pink", "purple", "red", "orange", "yellow", "green", "blue"];
-
 /** Group colors when a graph specifies no palette and its geoms don't touch. Cycled in order as groups grow. */
 const DEFAULT_COLOR_PALETTE: [string, ...string[]];
 
 /** A normalized color ramp: maps `t ∈ [0, 1]` to a color string. */
 type ColorRamp = (t: number) => string;
 
-type SequentialSchemeName = (typeof SEQUENTIAL_SCHEME_NAMES)[number];
-
-/** A diverging colormap: its canonical ColorBrewer code or a friendly alias. */
-type DivergingSchemeName = (typeof DIVERGING_SCHEME_NAMES)[number] | SchemeAlias;
+/**
+ * The light-to-dark ramp a continuous color scale takes when it names no `range` and the theme has no
+ * sequential list. Stops blend in the scale's `interpolate` space.
+ */
+const DEFAULT_SEQUENTIAL_RAMP: string[];
 
 /**
- * Samples a continuous color scheme (or an explicit `range`) into `count` evenly-spaced color strings —
- * the swatch strip a scheme picker or continuous-color legend preview renders. Stop precedence matches a
- * continuous color scale: an explicit `range` wins over a named `scheme`, which wins over the brand
- * sequential ramp. The stops span `t ∈ [0, 1]` inclusive; `count < 2` yields a single `t = 0` stop (or an
- * empty array below 1).
+ * The blue-to-brick ramp a continuous color scale with a `domainMid` takes when it names no `range` and
+ * the theme has no diverging list. The middle stop is the neutral that lands on the midpoint.
  */
-function sampleColorScheme(options?: SampleColorSchemeOptions, count?: number): string[];
+const DEFAULT_DIVERGING_RAMP: string[];
+
+/** Samples a ramp into `count` evenly spaced colors from `t = 0` to `t = 1`, for a picker or a legend preview. */
+function sampleColorRamp(options?: ColorRampOptions, count?: number): string[];
 ```
 
 ## Diagnostics
@@ -641,7 +616,6 @@ interface GraphProviderProps {
     /** Fires with any warnings a successful compile produced. */
     onWarnings?: (warnings: VizDiagnostic[]) => void;
     colorScheme?: ColorScheme;
-    customPalettes?: CustomPalettes;
     children: ReactNode;
 }
 
@@ -702,19 +676,24 @@ interface Theme {
     name: string;
     /** Sits above the built-in stylesheet and below the spec's own styles. */
     styles: Stylesheet;
-    /**
-     * Colors groups take, in order: what the default palette resolves to, for touching geoms too, and
-     * what a discrete color scale takes when it names no `range`.
-     */
-    palette?: readonly string[];
-    /** Stops a continuous color scale takes when it names no `range` or `scheme`, low to high. */
-    colormap?: readonly string[];
+    /** The theme's color scale lists. The spec's own `range` still decides. */
+    palettes?: ThemePalettes;
     /** Sits above the config defaults and below the spec's own config. */
     config?: ThemeConfig;
     /** The one scheme the theme is drawn for. Omitted when its colors are light and dark pairs. */
     colorScheme?: ColorScheme;
     /** Repaints of built-in geoms. The host's `plugins` are read after these, so the host's decide on a clash. */
     plugins?: readonly RenderOnlyPlugin[];
+}
+
+/** The colors a theme hands the color scales, one list per scale class. */
+interface ThemePalettes {
+    /** Group colors in order, for a discrete color scale with no `range`. */
+    categorical?: readonly string[];
+    /** Stops from low to high, for a continuous color scale with no `range`. */
+    sequential?: readonly string[];
+    /** Stops for a continuous color scale with a `domainMid`: an odd count, the neutral in the middle. */
+    diverging?: readonly string[];
 }
 
 /**
@@ -1769,9 +1748,8 @@ type BrandMarkPlacement = 'footer' | 'header';
 type BrandMarkVariant = 'full' | 'mini';
 
 /**
- * Color interpolation space for an explicit ramp's stops. `'lab'` (perceptually near-uniform) is the
- * engine default; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's. Named schemes
- * carry their own baked-in interpolation, so this never applies to them.
+ * Color interpolation space for a ramp's stops. `'lab'` is the engine default and near uniform to the
+ * eye; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's.
  */
 const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
 
@@ -1835,31 +1813,25 @@ type ChromeTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
 
 /**
  * Options for a continuous `color` scale. Same as {@link ContinuousScaleOptions}, but the value maps to a
- * color: supply a `scheme`, an explicit `range` of stops, or neither (the brand sequential ramp).
+ * color: an explicit `range` of stops, or none, which takes the theme's sequential list, or its
+ * diverging list when `domainMid` is set, else the built-in ramp of that class.
  */
 type ColorContinuousScaleOptions = Omit<ContinuousScaleOptions, 'range'> & {
     /**
-     * Explicit color ramp — two-or-more stops the value interpolates through, in the `interpolate` space.
-     * Supersedes `scheme`.
+     * Explicit color ramp: two or more stops the value interpolates through, in the `interpolate` space.
      * @example scale.color.continuous({ range: ['#fff', '#f00'] })
      */
     range?: ReadonlyArray<number | string>;
     /**
-     * Named colormap. Sequential (`'viridis'`, `'magma'`, …) or diverging (`'RdBu'`, `'BrBG'`, …), matched
-     * case-insensitively. A diverging scheme reads as intended only with a `domainMid`.
-     * @example scale.color.continuous({ scheme: 'viridis' })
-     */
-    scheme?: ColorSchemeName;
-    /**
-     * Color interpolation space for `range` stops. `'lab'` (default) is perceptually near-uniform; `'rgb'`
-     * matches d3's raw default. Ignored for `scheme` (which carries its own interpolation).
+     * Color interpolation space for the ramp's stops. `'lab'` (default) is near uniform to the eye;
+     * `'rgb'` matches d3's raw default.
      * @example scale.color.continuous({ range: ['#440154', '#21908c', '#fde725'], interpolate: 'lab' })
      */
     interpolate?: ColorInterpolationSpace;
     /**
-     * Diverging midpoint — pins the ramp's neutral stop to this data value (usually 0) rather than the data
-     * midpoint.
-     * @example scale.color.continuous({ scheme: 'RdBu', domainMid: 0 })
+     * Diverging midpoint: pins the diverging ramp's neutral stop to this data value (usually 0) rather
+     * than the data midpoint.
+     * @example scale.color.continuous({ domainMid: 0 })
      */
     domainMid?: number;
     /**
@@ -1872,25 +1844,38 @@ type ColorContinuousScaleOptions = Omit<ContinuousScaleOptions, 'range'> & {
 
 type ColorInterpolationSpace = (typeof COLOR_INTERPOLATION_SPACES)[number];
 
+/** What decides a ramp: the stops, the space they blend in, and which built-in ramp stands in. */
+interface ColorRampOptions {
+    /** Two or more stops. Fewer fall through to the theme's list, then the built-in ramp. */
+    range?: ReadonlyArray<string | number> | null;
+    /** The space the stops blend in; `'lab'` by default. */
+    interpolate?: ColorInterpolationSpace;
+    /** Flip the ramp so `t = 0` reads the far end. */
+    reverse?: boolean;
+    /** Take the diverging list and ramp rather than the sequential ones. */
+    diverging?: boolean;
+    /** The theme's color lists, read before the built-in ramps. */
+    palettes?: ThemePalettes;
+}
+
 interface ColorScaleMethods {
     /**
      * Continuous (numeric) color scale. Supports `transform`, `reverse`, `nice`, `domainMin`,
-     * `domainMax`, a `scheme` or color-ramp `range`, the `interpolate` space, and — for a diverging ramp —
-     * `domainMid` (neutral value) with `symmetric`.
-     * @example scale.color.continuous({ scheme: 'viridis' })
-     * @example scale.color.continuous({ scheme: 'RdBu', domainMid: 0, symmetric: true })
+     * `domainMax`, a color-ramp `range` and the `interpolate` space, and, for a diverging ramp,
+     * `domainMid` (neutral value) with `symmetric`. Without a `range` the theme's sequential or diverging
+     * list decides, else the built-in ramp.
+     * @example scale.color.continuous()
+     * @example scale.color.continuous({ domainMid: 0 })
+     * @example scale.color.continuous({ range: ['#fff', '#f00'] })
      */
     continuous: (options?: ColorContinuousScaleOptions) => ContinuousScaleSpec;
     /**
-     * Discrete (categorical) color scale. Supports explicit `range` values.
+     * Discrete (categorical) color scale: the `range` in group order, else the theme's categorical list, else
+     * the built-in palette.
+     * @example scale.color.discrete()
      * @example scale.color.discrete({ range: ['red', 'blue', 'green'] })
      */
     discrete: (options?: DiscreteScaleOptions) => DiscreteScaleSpec;
-    /**
-     * Color scale from a named Graphy palette.
-     * @example scale.color.palette({ palette: { type: "graphy" } })
-     */
-    palette: (options?: PaletteScaleOptions) => PaletteScaleSpec;
 }
 
 /**
@@ -2000,15 +1985,11 @@ type ContinuousScaleSpec = {
     /**
      * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a ramp of
      * two-or-more color strings for a continuous `color` scale, interpolated in the
-     * {@link ContinuousScaleSpec.interpolate} space.
+     * {@link ContinuousScaleSpec.interpolate} space. A color scale with none takes the theme's sequential
+     * list, or its diverging list when `domainMid` is set, else the built-in ramp of that class.
      */
     range?: ReadonlyArray<number | string> | null;
-    /**
-     * Named colormap for a continuous `color` scale (e.g. `'viridis'`, `'RdBu'`). Superseded by an explicit
-     * `range`. Inert for non-color aesthetics.
-     */
-    scheme?: ColorSchemeName | null;
-    /** Interpolation space for a color `range`'s stops. Ignored for `scheme`. Inert for non-color aesthetics. */
+    /** Interpolation space for a color ramp's stops. Inert for non-color aesthetics. */
     interpolate?: ColorInterpolationSpace;
     /** Diverging midpoint — pins a color ramp's neutral stop to this value. Inert for non-color aesthetics. */
     domainMid?: number | null;
@@ -2072,19 +2053,6 @@ type CustomGeomStyleBuilders<P extends readonly Plugin[]> = {
     [Def in GeomDefsOf<P> as [DeclaredStyleTarget<Def>] extends [never] ? never : Def['type'] & string]: NodeBuilder<GeomStyleNodeFor<Def['type'] & string, DeclaredStyleTarget<Def>>>;
 };
 
-/** A single named color slot within a custom palette supplied by the host. */
-type CustomPaletteColor = {
-    id: string;
-    hex: string;
-    name?: string;
-};
-
-/** Reference to a user-registered custom palette by id, resolved against the palette registry. */
-type CustomPaletteSpec = {
-    type: 'custom';
-    id: string;
-};
-
 /**
  * The `role` partition of the dataLabel target — which on-canvas label an entry addresses.
  *
@@ -2115,13 +2083,6 @@ const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
  * - `annotationId` — id of the annotation the diagnostic is about
  */
 const DIAGNOSTIC_CONTEXT_KEYS: readonly ["layerIndex", "layerId", "annotationId", "aesthetic", "variableName", "scaleType", "variableType", "expected", "actual", "requested", "available", "kind", "geom", "param", "styleEntryId", "ref", "annotationId"];
-
-/**
- * Diverging colormap names from `d3-scale-chromatic`, in Brewer's capitalization. `RdBu`, `BrBG` and
- * `PuOr` are color-vision-deficiency safe; `Spectral` is offered for its familiar rainbow look but is not
- * CVD-safe. Red-green ramps are deliberately excluded.
- */
-const DIVERGING_SCHEME_NAMES: readonly ["RdBu", "BrBG", "PuOr", "Spectral"];
 
 /** Dash and gap lengths in multiples of the stroke width; `[]` is solid. */
 type DashArray = readonly number[];
@@ -2227,10 +2188,6 @@ type DeclaredStyleTarget<Def extends Geom<unknown>> = undefined extends Def['sty
  */
 type DeepPartial<T> = {
     [K in keyof T]?: T[K] extends Array<infer U> ? Array<DeepPartial<U>> : unknown extends T[K] ? T[K] : NonNullable<T[K]> extends object ? DeepPartial<NonNullable<T[K]>> : T[K];
-};
-
-type DefaultPaletteSpec = {
-    type: 'default';
 };
 
 /** The three compile-side definition shapes a plugin can contribute. */
@@ -2571,14 +2528,6 @@ interface GraphLayout {
     /** Rects for the legend regions, keyed by edge. */
     legends: Partial<Record<Edge, Rect>>;
 }
-
-type GraphyPaletteSpec = {
-    type: 'graphy';
-    variant?: GraphyPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type GraphyPaletteVariant = 'default' | 'waterfall';
 
 /** A geom's per-coord grid/border visibility overrides, applied by the axes guide. */
 interface GridPolicy {
@@ -3082,30 +3031,6 @@ interface MeasuredText {
  */
 type MissingValues = 'zero' | 'gap' | 'connect';
 
-/** One of the base hues a monochrome palette can be built from. */
-type MonoPaletteBase = (typeof MONO_BASES)[number];
-
-type MonoPaletteSpec = {
-    type: 'mono';
-    base: MonoPaletteBase;
-    variant?: MonoPaletteVariant;
-};
-
-/** Tints the single-hue ramp for use on light vs dark backgrounds. */
-type MonoPaletteVariant = 'light' | 'dark';
-
-/** One of the base hues a neon palette can be built from. */
-type NeonPaletteBase = (typeof NEON_BASES)[number];
-
-type NeonPaletteSpec = {
-    type: 'neon';
-    base: NeonPaletteBase;
-    variant?: NeonPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type NeonPaletteVariant = 'default' | 'waterfall';
-
 /**
  * Configuration for formatting a single number.
  * Defines how numeric values should be displayed in the chart.
@@ -3194,28 +3119,6 @@ const POLAR_THETAS: readonly ["x", "y"];
 /** Every {@link PositionAdjustment}, for validation and diagnostics. */
 const POSITION_ADJUSTMENTS: readonly ["stack", "dodge", "identity", "fill"];
 
-interface PaletteScaleOptions {
-    /** Named or custom palette to draw group colors from. */
-    palette?: PaletteSpec;
-    /** Per-group color overrides on top of the chosen palette. */
-    overrides?: PaletteOverridesSpec;
-}
-
-/** User-facing palette color scale; defaults to the active theme palette when `palette` is omitted. */
-interface PaletteScaleSpec {
-    type: 'scale';
-    /** Which aesthetic this scale drives — only color aesthetics accept palettes. */
-    scaledAesthetic: ScaledAestheticKey;
-    scaleType: 'palette';
-    /** Named or custom palette to draw group colors from. */
-    palette?: PaletteSpec;
-    /** Per-group color overrides on top of the chosen palette. */
-    overrides?: PaletteOverridesSpec;
-}
-
-/** Palette selector accepted from users; a custom palette is referenced by `id` only. */
-type PaletteSpec = DefaultPaletteSpec | GraphyPaletteSpec | PastelPaletteSpec | NeonPaletteSpec | MonoPaletteSpec | CustomPaletteSpec;
-
 /**
  * Panel configuration. The border's paint is styled through the stylesheet's `panelBorder` target.
  */
@@ -3240,14 +3143,6 @@ type PanelOverflowStrategy = 'outside' | 'inside' | 'none';
 type PartsOf<Target> = Target extends {
     parts: infer Parts;
 } ? Parts : Record<never, never>;
-
-type PastelPaletteSpec = {
-    type: 'pastel';
-    variant?: PastelPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type PastelPaletteVariant = 'default' | 'waterfall';
 
 /**
  * Names where the percentage-share denominator comes from for a layer. Strategies declare this
@@ -4037,21 +3932,6 @@ interface RuleGeomParams {
  */
 type RuleLabelPosition = 'start' | 'end';
 
-/** Friendly aliases for the ColorBrewer diverging codes: `'red-blue'` resolves to the same ramp as `'RdBu'`. */
-const SCHEME_ALIASES: {
-    readonly 'red-blue': "RdBu";
-    readonly 'brown-teal': "BrBG";
-    readonly 'purple-orange': "PuOr";
-    readonly spectral: "Spectral";
-};
-
-/**
- * Sequential colormap names from `d3-scale-chromatic`. Matplotlib schemes are lowercase (`viridis`),
- * ColorBrewer schemes keep Brewer's capitalization (`Blues`) — lookup is case-insensitive, so casing only
- * drives autocomplete. `viridis`/`cividis` are perceptually uniform and color-vision-deficiency safe.
- */
-const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "Blues", "Greens", "Greys", "Oranges", "Purples", "Reds"];
-
 /** The paint every geom speaks, a plugin geom's observations included. */
 const SHARED_GEOM_VOCABULARY: {
     readonly fill: "paint";
@@ -4107,18 +3987,6 @@ const STYLE_TEXT_DECORATIONS: readonly ["none", "underline", "line-through"];
 
 const STYLE_TEXT_TRANSFORMS: readonly ["none", "uppercase", "lowercase", "capitalize"];
 
-/** Options for {@link sampleColorScheme} — the color-ramp knobs a scheme picker or legend preview exposes. */
-interface SampleColorSchemeOptions {
-    /** Named colormap, sequential or diverging (e.g. `'viridis'`, `'RdBu'`), matched case-insensitively. Superseded by `range`. */
-    scheme?: ColorSchemeName;
-    /** Explicit ramp of two-or-more color stops, blended in `interpolate`. Supersedes `scheme`. */
-    range?: readonly string[];
-    /** Interpolation space for `range` stops; `'lab'` by default. Ignored for a named `scheme` (which carries its own). */
-    interpolate?: ColorInterpolationSpace;
-    /** Flip the ramp so `t = 0` reads the far end. */
-    reverse?: boolean;
-}
-
 /** The domains whose value is one scalar, the same shape at every tier. */
 interface ScalarStyleDomainValues {
     unitInterval: number;
@@ -4163,8 +4031,8 @@ interface ScaleAPI {
      */
     ySecondary: ((options?: InferredScaleOptions) => InferredScaleSpec) & PositionalScaleMethods;
     /**
-     * Color scale. Use `.continuous()`, `.discrete()`, or `.palette()`.
-     * @example scale.color.palette({ palette: 'Bright' })
+     * Color scale. Use `.continuous()` or `.discrete()`.
+     * @example scale.color.discrete()
      * @example scale.color.discrete({ range: ['red', 'blue'] })
      */
     color: ColorScaleMethods;
@@ -4219,7 +4087,7 @@ interface ScaleConstraints {
 /**
  * Union type for all possible scale specifications (including inferred, pre-resolution).
  */
-type ScaleSpec = ContinuousScaleSpec | DiscreteScaleSpec | PaletteScaleSpec | DatetimeScaleSpec | IdentityScaleSpec | InferredScaleSpec;
+type ScaleSpec = ContinuousScaleSpec | DiscreteScaleSpec | DatetimeScaleSpec | IdentityScaleSpec | InferredScaleSpec;
 
 /**
  * Mathematical transformation for continuous scales.
@@ -4241,9 +4109,6 @@ type ScaledPositionAestheticKey = 'x' | 'y' | 'ySecondary';
 
 /** Scale keys whose output is a visual channel rather than a position. */
 type ScaledVisualAestheticKey = 'color' | 'size' | 'alpha' | 'strokeWidth' | 'lineType';
-
-/** A human-readable alias for a cryptic ColorBrewer diverging code (e.g. `'red-blue'` → `'RdBu'`). */
-type SchemeAlias = keyof typeof SCHEME_ALIASES;
 
 /**
  * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
@@ -4885,7 +4750,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * Constant mapping - a literal value applied to every observation.

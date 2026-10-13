@@ -37,7 +37,7 @@ const spec = pipe(
   geom.bar({ position: 'dodge' }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   highlight({ variable: 'region', eq: 'EU' })
 );
 ```
@@ -84,7 +84,7 @@ const spec = pipe(
   geom.line({ id: 'lines' }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'series', layerId: 'lines' })
 );
 ```
@@ -101,7 +101,7 @@ const spec = pipe(
   geom.bar({ position: 'dodge' }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   highlight({ variable: 'region', eq: 'EU' }),
   styles({
     defaults: [
@@ -247,7 +247,7 @@ const spec = pipe(
   }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   styles({
     defaults: [
       style.dataLabel({ fontSize: 11, fontWeight: 700 }),
@@ -281,7 +281,7 @@ const spec = pipe(
   geom.line(),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   config({ legend: { position: 'right', display: 'direct' } }),
   styles({ defaults: [style.directLabel({ fontSize: 12, fontWeight: 600 })] })
 );
@@ -398,7 +398,7 @@ const spec = pipe(
   geom.bar({ position: 'dodge' }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   annotation.differenceArrow({
     id: 'eu-growth',
     start: { anchorValue: 'Jan', groupValue: 'EU' },
@@ -573,7 +573,7 @@ const spec = pipe(
   geom.line(),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'series' }),
   config({ legend: { position: 'right', display: 'direct' } }),
   styles({

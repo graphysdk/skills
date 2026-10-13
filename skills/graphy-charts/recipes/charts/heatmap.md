@@ -69,19 +69,9 @@ Tiles show their value as a data label by default. Turn it off with `geom.tile({
 
 ## Variants
 
-### Named color scheme
-
-Only when the brief asks for one. The bare call above takes the theme's colormap, else the engine's brick ramp. Values that cross zero take the diverging variant below.
-
-```ts
-import { scale } from '@graphysdk/react';
-
-const colorScale = scale.color.continuous({ scheme: 'viridis' });
-```
-
 ### Custom color range
 
-Two or more stops. A range replaces the scheme.
+Only when the brief gives the colors. The bare call above takes the theme's sequential list, else the engine's brick ramp. Values that cross zero take the diverging variant below. A `range` is two or more stops and decides over the theme.
 
 ```ts
 import { scale } from '@graphysdk/react';
@@ -91,12 +81,12 @@ const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
 
 ### Diverging values around zero
 
-Pin the neutral color to zero. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
+Pin the neutral color to zero. The theme's diverging list, else the engine's blue, gray, brick ramp, supplies the colors. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
 
 ```ts
 import { scale } from '@graphysdk/react';
 
-const colorScale = scale.color.continuous({ scheme: 'RdBu', domainMid: 0 });
+const colorScale = scale.color.continuous({ domainMid: 0 });
 ```
 
 ### Wide matrix from a spreadsheet
@@ -190,6 +180,6 @@ const cellStyles = styles({ defaults: [style.geom.tile({ cornerRadius: 4, stroke
 - Both x and y are always bands under a tile, whatever the values. An explicit continuous scale is replaced by a band with a warning. Use `scale.x.discrete({ domain })` only to pin the order or the set of bands.
 - The y band reads top-down: the first band is at the top. `scale.y.discrete({ reverse: false })` flips it.
 - A tile takes `position: 'identity'` only and draws in cartesian coordinates only. No stacking, no `coord.flip()`, no `coord.polar()`. Swap the two mappings to transpose the grid.
-- The color scale is inferred from the value. Declare `scale.color.continuous(...)` to pick a scheme, a range or a diverging midpoint.
-- A diverging scheme without `domainMid` puts the neutral color at the data midpoint and raises a warning. Use a sequential scheme when the data does not cross zero.
+- The color scale is inferred from the value. Declare `scale.color.continuous(...)` to set a range or a diverging midpoint.
+- Use `domainMid` only when the values cross zero; otherwise the midpoint falls outside the data and the scale stays sequential.
 - The legend for a continuous color scale is one pill per domain stop: the two ends, plus the midpoint of a diverging scale. There is no gradient bar.

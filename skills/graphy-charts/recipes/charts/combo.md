@@ -58,7 +58,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.ySecondary(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 
 export function RevenueAndGrowth() {
@@ -114,7 +114,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.ySecondary(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -156,7 +156,7 @@ const spec = pipe(
   }),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -190,7 +190,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.ySecondary(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -229,7 +229,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.ySecondary(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 

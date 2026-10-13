@@ -6,7 +6,7 @@
 // The spec module must export:
 //   data  — the viz-engine Data shape ({ columns, rows })
 //   spec  — a Spec built with the spec builders (pipe, createSpec, mapping, geom, scale, …)
-// Optional exports: plugins (engine plugins), customPalettes, colorScheme.
+// Optional exports: plugins (engine plugins), colorScheme.
 // Exit code 0 = compiled OK, 1 = errors.
 //
 // Needs @graphysdk/viz-engine resolvable from the current working directory (the project whose
@@ -117,13 +117,15 @@ try {
   process.exit(1);
 }
 
-const { data, spec, plugins = [], customPalettes, colorScheme } = specModule;
+const { data, spec, plugins = [], colorScheme } = specModule;
 if (data === undefined || spec === undefined) {
-  console.error(`Spec module must export both "data" and "spec"; got ${Object.keys(specModule).join(', ') || 'no exports'}.`);
+  console.error(
+    `Spec module must export both "data" and "spec"; got ${Object.keys(specModule).join(', ') || 'no exports'}.`
+  );
   process.exit(1);
 }
 
-const result = createCompiler({ plugins }).compile({ spec, data, customPalettes, colorScheme });
+const result = createCompiler({ plugins }).compile({ spec, data, colorScheme });
 
 if (result.ok) {
   printSummary(result.scene, result.warnings);

@@ -66,7 +66,7 @@ const spec = pipe(
   geom.point(),
   scale.x(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -123,11 +123,11 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.size.continuous(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
-Every mapped visual aesthetic needs its scale: `scale.size.continuous()` and `scale.color.palette()` here.
+Every mapped visual aesthetic needs its scale: `scale.size.continuous()` and `scale.color.discrete()` here.
 
 ### Log scale
 

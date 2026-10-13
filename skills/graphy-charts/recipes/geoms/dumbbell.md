@@ -40,7 +40,7 @@ const spec = kit.pipe(
   kit.geom.dumbbell(),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette()
+  kit.scale.color.discrete()
 );
 
 export function PayGap() {
@@ -64,7 +64,7 @@ const horizontalSpec = kit.pipe(
   kit.geom.dumbbell(),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette(),
+  kit.scale.color.discrete(),
   kit.coord.flip()
 );
 ```
@@ -89,7 +89,7 @@ const wideSpec = kit.pipe(
   kit.geom.dumbbell(),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette(),
+  kit.scale.color.discrete(),
   kit.coord.flip()
 );
 ```
@@ -120,7 +120,7 @@ const styledSpec = kit.pipe(
   }),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette()
+  kit.scale.color.discrete()
 );
 ```
 

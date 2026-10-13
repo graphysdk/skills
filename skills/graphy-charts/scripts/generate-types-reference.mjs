@@ -64,7 +64,7 @@ const GROUPS = [
   {
     title: 'Core & data',
     pkg: 'viz-engine',
-    symbols: ['Data', 'DataValue', 'DataType', 'VariableName', 'Locale', 'Spec', 'ColorScheme', 'ColorSchemeName'],
+    symbols: ['Data', 'DataValue', 'DataType', 'VariableName', 'Locale', 'Spec', 'ColorScheme'],
   },
   {
     // The builder consts carry the full option types inline — this is the
@@ -138,15 +138,11 @@ const GROUPS = [
     title: 'Scales & palettes',
     pkg: 'viz-engine',
     symbols: [
-      'PaletteOverridesSpec',
-      'CustomPalettes',
-      'MONO_BASES',
-      'NEON_BASES',
       'DEFAULT_COLOR_PALETTE',
       'ColorRamp',
-      'SequentialSchemeName',
-      'DivergingSchemeName',
-      'sampleColorScheme',
+      'DEFAULT_SEQUENTIAL_RAMP',
+      'DEFAULT_DIVERGING_RAMP',
+      'sampleColorRamp',
     ],
   },
   {
@@ -162,7 +158,7 @@ const GROUPS = [
   {
     title: 'Themes',
     pkg: 'viz-engine',
-    symbols: ['Theme', 'ThemeConfig'],
+    symbols: ['Theme', 'ThemePalettes', 'ThemeConfig'],
   },
   {
     title: 'Theme tokens',

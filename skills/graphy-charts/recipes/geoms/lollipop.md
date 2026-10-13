@@ -85,7 +85,7 @@ const groupedSpec = kit.pipe(
   kit.geom.lollipop(),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette()
+  kit.scale.color.discrete()
 );
 ```
 

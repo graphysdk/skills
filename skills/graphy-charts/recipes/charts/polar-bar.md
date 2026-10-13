@@ -56,7 +56,7 @@ const spec = pipe(
   coord.polar({ theta: 'x' }),
   scale.x.discrete(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   config({ legend: { position: 'top' } })
 );
 
@@ -94,7 +94,7 @@ const spec = pipe(
   coord.polar({ theta: 'y', innerRadius: 0.15 }),
   scale.x.discrete(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 
@@ -110,7 +110,7 @@ const spec = pipe(
   coord.polar({ theta: 'x' }),
   scale.x.discrete(),
   scale.y(),
-  scale.color.palette()
+  scale.color.discrete()
 );
 ```
 

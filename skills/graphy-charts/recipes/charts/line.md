@@ -82,7 +82,7 @@ const spec = pipe(
   geom.point({ interactive: false }),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   config({ legend: { position: 'top' } })
 );
 ```
@@ -104,7 +104,7 @@ const spec = pipe(
   geom.line(),
   scale.x(),
   scale.y(),
-  scale.color.palette(),
+  scale.color.discrete(),
   scale.lineType.discrete({ domain: ['North', 'South', 'East'], range: ['solid', 'dashed', 'dotted'] })
 );
 ```

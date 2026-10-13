@@ -233,7 +233,6 @@ interface GraphProviderProps {
     /** Fires with any warnings a successful compile produced. */
     onWarnings?: (warnings: VizDiagnostic[]) => void;
     colorScheme?: ColorScheme;
-    customPalettes?: CustomPalettes;
     children: ReactNode;
 }
 ```
@@ -836,21 +835,6 @@ class SetScaleDomainCommand implements Command<SetScaleDomainParams> {
     readonly metadata: CommandMetadata;
     readonly params: SetScaleDomainParams;
     constructor(params: SetScaleDomainParams, metadata?: Partial<CommandMetadata>);
-    get target(): EditTarget;
-    apply(spec: ResolvedSpec): CommandApplyResult | null;
-}
-
-/**
- * Replaces the palette config on the scale bound to the given scale aesthetic key.
- *
- * @remarks
- * Only stores the palette config — the compiler resolves the concrete color range
- * from the config . */
-class SetScalePaletteCommand implements Command<SetScalePaletteParams> {
-    readonly type: "set-scale-palette";
-    readonly metadata: CommandMetadata;
-    readonly params: SetScalePaletteParams;
-    constructor(params: SetScalePaletteParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
@@ -2779,9 +2763,8 @@ type BrandMarkPlacement = 'footer' | 'header';
 type BrandMarkVariant = 'full' | 'mini';
 
 /**
- * Color interpolation space for an explicit ramp's stops. `'lab'` (perceptually near-uniform) is the
- * engine default; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's. Named schemes
- * carry their own baked-in interpolation, so this never applies to them.
+ * Color interpolation space for a ramp's stops. `'lab'` is the engine default and near uniform to the
+ * eye; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's.
  */
 const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
 
@@ -2878,9 +2861,6 @@ type ColorInterpolationSpace = (typeof COLOR_INTERPOLATION_SPACES)[number];
 
 /** The light/dark axis a {@link LightDarkColor} resolves against. */
 type ColorScheme = 'light' | 'dark';
-
-/** Any named color scheme accepted by a continuous color scale. */
-type ColorSchemeName = SequentialSchemeName | DivergingSchemeName;
 
 /**
  * A chart drawn as two layers so its halves can differ: bars under a line, or lines throughout. The
@@ -3027,15 +3007,11 @@ type ContinuousScaleSpec = {
     /**
      * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a ramp of
      * two-or-more color strings for a continuous `color` scale, interpolated in the
-     * {@link ContinuousScaleSpec.interpolate} space.
+     * {@link ContinuousScaleSpec.interpolate} space. A color scale with none takes the theme's sequential
+     * list, or its diverging list when `domainMid` is set, else the built-in ramp of that class.
      */
     range?: ReadonlyArray<number | string> | null;
-    /**
-     * Named colormap for a continuous `color` scale (e.g. `'viridis'`, `'RdBu'`). Superseded by an explicit
-     * `range`. Inert for non-color aesthetics.
-     */
-    scheme?: ColorSchemeName | null;
-    /** Interpolation space for a color `range`'s stops. Ignored for `scheme`. Inert for non-color aesthetics. */
+    /** Interpolation space for a color ramp's stops. Inert for non-color aesthetics. */
     interpolate?: ColorInterpolationSpace;
     /** Diverging midpoint — pins a color ramp's neutral stop to this value. Inert for non-color aesthetics. */
     domainMid?: number | null;
@@ -3090,16 +3066,6 @@ interface CurrencyValueFormat {
  */
 type Curve = 'linear' | 'smooth';
 
-/** A single named color slot within a custom palette supplied by the host. */
-type CustomPaletteColor = {
-    id: string;
-    hex: string;
-    name?: string;
-};
-
-/** Host-owned custom palettes, keyed by `paletteId`, that a `scale.color.palette` may reference by id. */
-type CustomPalettes = Record<string, CustomPaletteColor[]>;
-
 /**
  * The input node a custom (plugin-contributed) stat builder produces.
  */
@@ -3149,13 +3115,6 @@ const DATA_LABEL_ROLES: readonly ("aggregate" | "observation" | "category")[];
  * - `annotationId` — id of the annotation the diagnostic is about
  */
 const DIAGNOSTIC_CONTEXT_KEYS: readonly ["layerIndex", "layerId", "annotationId", "aesthetic", "variableName", "scaleType", "variableType", "expected", "actual", "requested", "available", "kind", "geom", "param", "styleEntryId", "ref", "annotationId"];
-
-/**
- * Diverging colormap names from `d3-scale-chromatic`, in Brewer's capitalization. `RdBu`, `BrBG` and
- * `PuOr` are color-vision-deficiency safe; `Spectral` is offered for its familiar rainbow look but is not
- * CVD-safe. Red-green ramps are deliberately excluded.
- */
-const DIVERGING_SCHEME_NAMES: readonly ["RdBu", "BrBG", "PuOr", "Spectral"];
 
 /** Dash and gap lengths in multiples of the stroke width; `[]` is solid. */
 type DashArray = readonly number[];
@@ -3296,10 +3255,6 @@ type DefaultKitTargets = {
     [Geom in DefaultKitGeom as Geom['type']]: NonNullable<Geom['styleTarget']>;
 };
 
-type DefaultPaletteSpec = {
-    type: 'default';
-};
-
 /** The three compile-side definition shapes a plugin can contribute. */
 type Definition = Geom<unknown> | StatDefinition | TransformStrategy;
 
@@ -3394,9 +3349,6 @@ interface DiscreteScaleSpec {
     padding?: number | null;
     reverse?: boolean;
 }
-
-/** A diverging colormap: its canonical ColorBrewer code or a friendly alias. */
-type DivergingSchemeName = (typeof DIVERGING_SCHEME_NAMES)[number] | SchemeAlias;
 
 /** Extra fields an entry on this node may carry. Every entry may also carry a `coord`. */
 type EntryOption = 'where' | 'state' | 'layer' | 'annotation';
@@ -3592,14 +3544,6 @@ interface GeomSummaries {
 type GeomVocabulary = {
     [Property in KeysOfUnion<NodeVocabularies_2<GeomRoot>> & StyleProperty]: NodeVocabularies_2<GeomRoot> extends infer Vocab ? Vocab extends Record<Property, infer Domain extends StyleDomain> ? Domain : never : never;
 };
-
-type GraphyPaletteSpec = {
-    type: 'graphy';
-    variant?: GraphyPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type GraphyPaletteVariant = 'default' | 'waterfall';
 
 /**
  * Axes a grid command writes. `both` is one command under one edit target, so a drag over the whole
@@ -4133,9 +4077,6 @@ interface LookupValueFormat {
     fallback: ExplicitValueFormat;
 }
 
-/** The hues available as a base for monochrome palettes, in pick order. */
-const MONO_BASES: readonly ["brick", "gray", "red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"];
-
 /**
  * The data-space axis a `CartesianCoordSystem` uses as the main (independent) axis.
  * When `mainAxis === 'y'` (flip), the position variable roles swap: the x-variables (`getX`/`getXMin`/
@@ -4182,18 +4123,6 @@ interface MeasuredText {
  */
 type MissingValues = 'zero' | 'gap' | 'connect';
 
-/** One of the base hues a monochrome palette can be built from. */
-type MonoPaletteBase = (typeof MONO_BASES)[number];
-
-type MonoPaletteSpec = {
-    type: 'mono';
-    base: MonoPaletteBase;
-    variant?: MonoPaletteVariant;
-};
-
-/** Tints the single-hue ramp for use on light vs dark backgrounds. */
-type MonoPaletteVariant = 'light' | 'dark';
-
 /** Serialized parameters of {@link MoveAnnotationCommand}. */
 type MoveAnnotationParams = {
     /** Identity of the annotation to move, unique across every bucket. */
@@ -4201,21 +4130,6 @@ type MoveAnnotationParams = {
     /** How far to move it. Clamped inside the panel on apply, so a caller may ask for more than fits. */
     translation: PanelTranslation;
 };
-
-/** The hues available as a base for neon palettes, in pick order. */
-const NEON_BASES: readonly ["cyan", "pink", "purple", "red", "orange", "yellow", "green", "blue"];
-
-/** One of the base hues a neon palette can be built from. */
-type NeonPaletteBase = (typeof NEON_BASES)[number];
-
-type NeonPaletteSpec = {
-    type: 'neon';
-    base: NeonPaletteBase;
-    variant?: NeonPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type NeonPaletteVariant = 'default' | 'waterfall';
 
 /** The properties the built-in stylesheet backs on a node: inherited and own `rest`, within the vocabulary. */
 type NodeBacked<Node, Inherited extends StyleProperty> = Extract<Inherited | NodeRestKeys<Node>, keyof NodeVocabulary<Node>>;
@@ -4372,14 +4286,6 @@ interface PanelPoint {
 type PartsOf<Target> = Target extends {
     parts: infer Parts;
 } ? Parts : Record<never, never>;
-
-type PastelPaletteSpec = {
-    type: 'pastel';
-    variant?: PastelPaletteVariant;
-};
-
-/** `waterfall` swaps in the positive/negative/total colors used by waterfall graphs. */
-type PastelPaletteVariant = 'default' | 'waterfall';
 
 /** One value for the axes named, or one per axis — what a `both` revert needs, the two being writable apart. */
 type PerAxisValue<T> = T | Readonly<Record<AxisKey, T>>;
@@ -4884,12 +4790,6 @@ interface ResolvedCustomGeomLayerSpec extends ResolvedLayerSpecBase {
     params: Record<string, unknown>;
 }
 
-type ResolvedCustomPaletteSpec = {
-    type: 'custom';
-    id: string;
-    colors: string[];
-};
-
 type ResolvedDataLabelPosition = (typeof RESOLVED_DATA_LABEL_POSITIONS)[number];
 
 /**
@@ -5111,21 +5011,6 @@ type ResolvedOverlay = readonly ResolvedPaint[];
 
 type ResolvedPaint = StylePaint<string>;
 
-/** Resolved palette overrides: group number (1-indexed) to a concrete hex color. */
-type ResolvedPaletteOverridesSpec = Record<number, string>;
-
-/** Resolved palette color scale with a concrete palette config. */
-interface ResolvedPaletteScaleSpec {
-    type: 'scale';
-    scaledAesthetic: ScaledAestheticKey;
-    scaleType: 'palette';
-    palette: ResolvedPaletteSpec;
-    overrides?: ResolvedPaletteOverridesSpec;
-}
-
-/** Resolved palette selector; a custom palette carries its looked-up `colors`. */
-type ResolvedPaletteSpec = DefaultPaletteSpec | GraphyPaletteSpec | PastelPaletteSpec | NeonPaletteSpec | MonoPaletteSpec | ResolvedCustomPaletteSpec;
-
 /** Resolved pinned-number annotation with all optional fields defaulted. */
 interface ResolvedPinnedNumberAnnotationSpec {
     id: string;
@@ -5221,7 +5106,7 @@ type ResolvedScaleSpec = ResolvedScaleSpecBase & {
  * Union of scale specs that can appear after resolution (all fields required).
  * InferredScaleSpec is resolved to a concrete type during spec resolution.
  */
-type ResolvedScaleSpecBase = ResolvedContinuousScaleSpec | ResolvedDiscreteScaleSpec | ResolvedDatetimeScaleSpec | ResolvedIdentityScaleSpec | ResolvedPaletteScaleSpec;
+type ResolvedScaleSpecBase = ResolvedContinuousScaleSpec | ResolvedDiscreteScaleSpec | ResolvedDatetimeScaleSpec | ResolvedIdentityScaleSpec;
 
 /** Resolved shape annotation with all optional fields defaulted. */
 interface ResolvedShapeSpec {
@@ -5253,7 +5138,7 @@ interface ResolvedSmoothStatSpec {
  *   createSpec({ x: 'date', y: 'revenue', color: 'region' }),
  *   geom.bar(),
  * );
- * const resolved = resolveSpec(container, { ...spec, data: dataset }, customPalettes);
+ * const resolved = resolveSpec(container, { ...spec, data: dataset });
  *
  * // resolved.layers   → at least one layer with resolved geom params, stat, and position
  * // resolved.scales   → concrete scale types (no 'inferred'), all defaults filled
@@ -5447,21 +5332,6 @@ interface RuleGeomParams {
  * Where the optional inline label is anchored along a reference line.
  */
 type RuleLabelPosition = 'start' | 'end';
-
-/** Friendly aliases for the ColorBrewer diverging codes: `'red-blue'` resolves to the same ramp as `'RdBu'`. */
-const SCHEME_ALIASES: {
-    readonly 'red-blue': "RdBu";
-    readonly 'brown-teal': "BrBG";
-    readonly 'purple-orange': "PuOr";
-    readonly spectral: "Spectral";
-};
-
-/**
- * Sequential colormap names from `d3-scale-chromatic`. Matplotlib schemes are lowercase (`viridis`),
- * ColorBrewer schemes keep Brewer's capitalization (`Blues`) — lookup is case-insensitive, so casing only
- * drives autocomplete. `viridis`/`cividis` are perceptually uniform and color-vision-deficiency safe.
- */
-const SEQUENTIAL_SCHEME_NAMES: readonly ["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "Blues", "Greens", "Greys", "Oranges", "Purples", "Reds"];
 
 /** The paint every geom speaks, a plugin geom's observations included. */
 const SHARED_GEOM_VOCABULARY: {
@@ -7503,9 +7373,8 @@ type ScaleTransformType = 'linear' | 'log' | 'sqrt';
  * - `'discrete'` — Discrete categorical values
  * - `'datetime'` — Date/time range
  * - `'identity'` — Pass-through, values used as-is
- * - `'palette'` — Discrete values mapped through a named color palette
  */
-type ScaleType = 'continuous' | 'discrete' | 'datetime' | 'identity' | 'palette';
+type ScaleType = 'continuous' | 'discrete' | 'datetime' | 'identity';
 
 /**
  * Identifiers for scales. Superset of AestheticKey — includes `ySecondary`
@@ -8081,14 +7950,9 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
      * inputs via {@link SceneScaleBase.domain}.
      */
     map: (value: Input) => DataValue;
-    /**
-     * Color scales only: the palette before its position-keyed `overrides`, which a color picker offers.
-     */
-    paletteBeforeOverrides?: readonly string[];
+    /** Color scales only: the colors the scale hands its groups, which a color picker offers. */
+    palette?: readonly string[];
 }
-
-/** A human-readable alias for a cryptic ColorBrewer diverging code (e.g. `'red-blue'` → `'RdBu'`). */
-type SchemeAlias = keyof typeof SCHEME_ALIASES;
 
 /**
  * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
@@ -8125,8 +7989,6 @@ interface SelectionRegionAnchor {
      */
     padding?: number | AnchorOffset;
 }
-
-type SequentialSchemeName = (typeof SEQUENTIAL_SCHEME_NAMES)[number];
 
 /**
  * Axis title, where `null` means explicitly no label. Only `ySecondary` may omit it: that drops the
@@ -8403,11 +8265,6 @@ type SetScaleDomainParams = {
     domainMin?: ResolvedContinuousScaleSpec['domainMin'];
     /** New upper bound; omit to leave the existing maximum unchanged. */
     domainMax?: ResolvedContinuousScaleSpec['domainMax'];
-};
-
-type SetScalePaletteParams = {
-    scaledAesthetic: ScaledAestheticKey;
-    palette: ResolvedPaletteSpec;
 };
 
 type SetScaleReverseParams = {
@@ -9182,7 +9039,7 @@ type UpdateAnnotationParams<TKind extends AnnotationKind = AnnotationKind> = {
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'PALETTE_NOT_FOUND' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'CONFLICTING_COLOR_RAMP' | 'DIVERGING_SCHEME_WITHOUT_MIDPOINT' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * One user-input problem authored once and used three ways: pushed onto the collector as a warning

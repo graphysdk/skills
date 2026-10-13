@@ -33,7 +33,7 @@ const spec = kit.pipe(
   kit.createSpec({ x: 'mass' }),
   kit.geom.beeswarm({ aes: { name: 'name', color: 'species' } }),
   kit.scale.x.continuous(),
-  kit.scale.color.palette()
+  kit.scale.color.discrete()
 );
 
 export const BeeswarmGraph = () => (

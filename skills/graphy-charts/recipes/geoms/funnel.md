@@ -100,7 +100,7 @@ const coloredSpec = kit.pipe(
   kit.geom.funnel({ dataLabels: { showDataLabels: true } }),
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
-  kit.scale.color.palette(),
+  kit.scale.color.discrete(),
   kit.coord.flip(),
   kit.config({ axes: { y: { isVisible: false } }, legend: { position: 'none' } })
 );
