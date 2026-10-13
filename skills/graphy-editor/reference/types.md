@@ -8147,10 +8147,19 @@ type SetAxisPositionParams = {
     position: AxisPosition;
 };
 
-type SetAxisTickModeParams = {
+/**
+ * Which ticks are drawn. Only `ySecondary` may omit it: that drops the override so the axis follows
+ * the primary y axis again. On `y`, `keepSecondaryAxis` leaves the secondary y axis as it is drawn;
+ * without it the edit reaches both vertical axes.
+ */
+type SetAxisTickModeParams = ({
     axis: AxisKey;
-    /** Which ticks are drawn. */
     tickMode: AxisTickMode;
+} | {
+    axis: 'ySecondary';
+    tickMode?: AxisTickMode;
+}) & {
+    keepSecondaryAxis?: boolean;
 };
 
 type SetAxisTicksVisibilityParams = {
@@ -8159,10 +8168,19 @@ type SetAxisTicksVisibilityParams = {
     isVisible: boolean;
 };
 
-type SetAxisVisibilityParams = {
+/**
+ * Whether the axis is drawn. Only `ySecondary` may omit it: that drops the override so the axis
+ * follows the primary y axis again. On `y`, `keepSecondaryAxis` leaves the secondary y axis as it is
+ * drawn; without it the edit reaches both vertical axes.
+ */
+type SetAxisVisibilityParams = ({
     axis: AxisKey;
-    /** Whether the axis is drawn. */
     isVisible: boolean;
+} | {
+    axis: 'ySecondary';
+    isVisible?: boolean;
+}) & {
+    keepSecondaryAxis?: boolean;
 };
 
 type SetBarCornerRadiusParams = {
