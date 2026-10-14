@@ -3956,6 +3956,8 @@ interface LegendPolicy {
     sidePlacement?: LegendSidePlacement;
     /** Positions for which this geom shows direct (inline) series labels instead of a pill legend. */
     directLabelSupport?: Partial<Record<PositionAdjustment, boolean>>;
+    /** Where an `'auto'` legend goes when every layer's geom agrees; an explicit `config.legend.position` wins. */
+    defaultPosition?: Exclude<LegendPosition, 'auto'>;
 }
 
 type LegendPosition = 'auto' | 'right' | 'left' | 'top' | 'bottom' | 'none';
