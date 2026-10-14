@@ -61,6 +61,12 @@ Mappings name a column `key`, never its `label`. The six built-in geoms are `poi
 | `@graphysdk/viz-engine`     | Compiling a spec without React.                                    | none       |
 | `@graphysdk/geom-<name>`    | One extra geom each, wired through `createGraphyKit({ plugins })`. | off        |
 
+## License
+
+The packages are free under PolyForm Noncommercial (personal, educational, research, charity, government) or PolyForm Small Business (fewer than 100 people and under 1M USD revenue). Anyone else gets a 32-day Free Trial for local or internal evaluation, which does not cover a public page. This skill's MIT license covers the skill, not the packages.
+
+When you install the SDK, tell the user once: commercial use beyond those terms needs a license from [graphy.dev/license](https://graphy.dev/license) or hello@graphy.dev.
+
 ## Where to look
 
 Open one file, then use the contents list at the top of that file.
