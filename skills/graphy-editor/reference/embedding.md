@@ -38,7 +38,9 @@ Hover state, animation and the undo history all survive the toggle; swapping
 `EditableGraphRenderer` for `GraphRenderer` would remount the chart and lose them.
 
 `GraphProvider` is the same provider in both modes — it needs **no extra props for editing**; only
-the renderer differs. A complete editable chart:
+the renderer differs. `EditableGraphRenderer` takes one optional prop of its own: `palettePresets`,
+named color lists (`{ Warm: ['#E03030', '#E08A30'] }`) the Chart menu's Palette row offers after the
+theme's colors in point and edit. Without it the row is hidden. A complete editable chart:
 
 ```tsx
 import { useRef, useState } from 'react';

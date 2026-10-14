@@ -1570,7 +1570,7 @@ interface RichTextContent {
  * </GraphProvider>
  * ```
  */
-const EditableGraphRenderer: ({ slots, mode, ...rest }: GraphRendererProps) => JSX.Element;
+const EditableGraphRenderer: ({ slots, mode, palettePresets, ...rest }: EditableGraphRendererProps) => JSX.Element;
 
 /**
  * The translation context editor UI needs, already carrying the editing surface's wording. Mount it
@@ -1955,9 +1955,10 @@ interface RadioGridControlProps extends ContinuousControlProps<string> {
     /**
      * `tile` (default) captions each icon; `swatch` drops the caption for a dense grid of pure
      * pictures — color chips a name would only clutter — naming each through `aria-label` instead;
-     * `icon` drops the tile too, names each in a tooltip and thickens the checked stroke for a 24-unit viewBox.
+     * `icon` drops the tile too, names each in a tooltip and thickens the checked stroke for a 24-unit viewBox;
+     * `track` sets the pictures on a toggle group's sunken track, the checked one raised, each named through `aria-label`.
      */
-    itemLayout?: 'tile' | 'swatch' | 'icon';
+    itemLayout?: 'tile' | 'swatch' | 'icon' | 'track';
 }
 
 /** A single-choice dropdown, for a set too long or too wordy for a segmented row. */
@@ -7970,6 +7971,8 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
     map: (value: Input) => DataValue;
     /** Color scales only: the colors the scale hands its groups, which a color picker offers. */
     palette?: readonly string[];
+    /** Color scales only: the colors it takes with no `range`, which a palette picker offers as the theme's. */
+    defaultPalette?: readonly string[];
 }
 
 /**
@@ -9355,6 +9358,15 @@ type ButtonContentProps = {
     ariaLabel: string;
 };
 
+/** Props for {@link EditableGraphRenderer}: the renderer's own, plus what only the editor reads. */
+interface EditableGraphRendererProps extends GraphRendererProps {
+    /**
+     * Named color lists the Chart menu's Palette row offers after the theme's. A pick writes the list as the
+     * color scale's `range`, so the spec keeps its colors whatever the host offers later. With none, no row.
+     */
+    palettePresets?: PalettePresets;
+}
+
 /**
  * Chart display and interaction mode.
  * - 'readonly': Normal chart display with full interactivity but no editing (default)
@@ -9460,6 +9472,9 @@ interface IntroAnimationOptions {
 
 /** Without an IntersectionObserver, as in a test environment, `inView` plays on mount. */
 type IntroTrigger = 'mount' | 'inView';
+
+/** Color lists keyed by the name the Chart menu's Palette row gives each. */
+type PalettePresets = Readonly<Record<string, readonly string[]>>;
 
 interface PanelExpansion {
     expandSection: (title: string) => void;

@@ -158,7 +158,8 @@ release — to remap a variable, rebuild the `Spec`; see "When no command exists
 `ToggleDataLabelsCommand`, `SetDataLabelsFormatCommand`, `ToggleCategoryLabelsCommand`,
 `ToggleLineFillCommand`, `ToggleLinePointsVisibilityCommand`, `ToggleStackTotalsCommand`.
 
-**Scales & coords** — `SetScaleDomainCommand`, `SetScaleReverseCommand`,
+**Scales & coords** — `SetScaleDomainCommand`, `SetScaleRangeCommand` (a discrete scale's
+colors; `null` returns to the theme's), `SetScaleReverseCommand`,
 `SetScaleTransformCommand`, `SetScaleZeroCommand`, `SetCoordLimitsCommand`,
 `SetPolarInnerRadiusCommand`, `SetPolarStartAngleCommand`.
 
