@@ -7,6 +7,8 @@
 //   data  — the viz-engine Data shape ({ columns, rows })
 //   spec  — a Spec built with the spec builders (pipe, createSpec, mapping, geom, scale, …)
 // Optional exports: plugins (engine plugins), colorScheme.
+// The builders may be imported from '@graphysdk/react' as written on a page; that bare
+// specifier is read as '@graphysdk/viz-engine' here, so React components are not available.
 // Exit code 0 = compiled OK, 1 = errors.
 //
 // Needs @graphysdk/viz-engine resolvable from the current working directory (the project whose
@@ -19,13 +21,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const PACKAGE_NAME = '@graphysdk/viz-engine';
+const REACT_PACKAGE_NAME = '@graphysdk/react';
 const ANCHORS = [pathToFileURL(path.join(process.cwd(), 'validate-spec-anchor.mjs')).href, import.meta.url];
 
 function installResolveHook() {
   const matches = (specifier) => specifier === PACKAGE_NAME || specifier.startsWith(`${PACKAGE_NAME}/`);
   if (typeof module.registerHooks === 'function') {
     module.registerHooks({
-      resolve: (specifier, context, next) => {
+      resolve: (requested, context, next) => {
+        const specifier = requested === REACT_PACKAGE_NAME ? PACKAGE_NAME : requested;
         if (matches(specifier)) {
           let lastError;
           for (const anchor of ANCHORS) {
@@ -52,7 +56,8 @@ function installResolveHook() {
   }
   // Older Node (< 22.15): async hook in a worker thread via a data-URL module.
   const source = `const anchors = ${JSON.stringify(ANCHORS)};
-export async function resolve(specifier, context, next) {
+export async function resolve(requested, context, next) {
+  const specifier = requested === '${REACT_PACKAGE_NAME}' ? '${PACKAGE_NAME}' : requested;
   if (specifier === '${PACKAGE_NAME}' || specifier.startsWith('${PACKAGE_NAME}/')) {
     let lastError;
     for (const anchor of anchors) {

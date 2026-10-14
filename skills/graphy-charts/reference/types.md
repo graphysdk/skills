@@ -4994,7 +4994,7 @@ type BoundGeomRendererDefinition<Definition extends Geom<unknown>> = Omit<GeomRe
 /**
  * How the badge paints at the current frame size:
  * - `full` — glyph + "Made with Graphy" pill
- * - `mini` — circular glyph capsule (also the under-200 px ladder step)
+ * - `mini` — circular glyph capsule
  * - `hidden` — flag off, or frame below the minimum footprint
  */
 type BrandMarkVisual = 'full' | 'mini' | 'hidden';

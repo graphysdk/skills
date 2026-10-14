@@ -123,7 +123,9 @@ The package ships a single-file browser build at `dist/index.browser.mjs` (its `
 
 React's npm files are not browser ESM, so load them with jsDelivr `/+esm` and a pinned version. Load Graphy from `dist/index.browser.mjs`, not from `/+esm`.
 
-There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. Use `@latest` (today a `1.9.0-beta` on the `latest` dist-tag) or pin an exact published version.
+There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. When the Graphy URL below contains an exact version, use it as written; do not search npm for another version.
+
+If the URL uses `@latest`, resolve that tag once with `npm view @graphysdk/react@latest version`, then replace `@latest` in both the import map and the vendor URL below with that exact version. Do not go looking for an older one.
 
 ```html
 <!doctype html>
@@ -141,7 +143,7 @@ There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. Use `@latest` (toda
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@latest/dist/index.browser.mjs"
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1791971351252/dist/index.browser.mjs"
         }
       }
     </script>
@@ -169,6 +171,27 @@ There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. Use `@latest` (toda
 
 Pin the same React version in every import map entry. The editing surface has its own file, `dist/editable.browser.mjs`, a superset of the read-only one. A page imports one of the two, never both.
 
+### Light and dark on a CDN page
+
+An artifact ships both schemes. Replace the `createRoot(...).render(...)` call above with this snippet. It reads `data-theme` on `<html>`, falling back to the system preference, passes the result as `colorScheme`, and renders again when either changes. Stylesheet colors written as `{ light, dark }` follow it, so give `style.graph({ fill })` the same pair as the page background.
+
+```js
+const query = matchMedia('(prefers-color-scheme: dark)');
+const currentScheme = () => {
+  const theme = document.documentElement.dataset.theme;
+  if (theme === 'dark' || theme === 'light') return theme;
+  return query.matches ? 'dark' : 'light';
+};
+
+const root = createRoot(document.getElementById('graph'));
+const render = () =>
+  root.render(createElement(GraphProvider, { data, spec, colorScheme: currentScheme() }, createElement(GraphRenderer)));
+
+render();
+query.addEventListener('change', render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+```
+
 To add a theme, extend the import map and load its fonts as shown in [themes: without a bundler](themes.md#without-a-bundler).
 
 ## When the CDN is blocked
@@ -177,13 +200,13 @@ jsDelivr `/+esm` files import with root paths such as `from"/npm/react@19.2.0/+e
 
 Vendor the files next to the HTML, then rewrite those imports to relative filenames:
 
-1. Save these jsDelivr URLs as local files (React 19.2.0, Graphy `@latest` or an exact version):
+1. Save these jsDelivr URLs as local files (React 19.2.0, Graphy from the same URL as the import map):
    - `vendor/react.mjs` from `https://cdn.jsdelivr.net/npm/react@19.2.0/+esm`
    - `vendor/jsx-runtime.mjs` from `https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm`
    - `vendor/react-dom.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm`
    - `vendor/react-dom-client.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm`
    - `vendor/scheduler.mjs` from `https://cdn.jsdelivr.net/npm/scheduler@0.27.0/+esm`
-   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@latest/dist/index.browser.mjs`
+   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1791971351252/dist/index.browser.mjs`
 2. In the React files, replace every `from"/npm/<package>@<version>/+esm"` (and any `/npm/<package>@<version>/<path>/+esm`) with a relative path to the matching local file. `graphy.mjs` imports `react`, `react-dom`, and `react/jsx-runtime` as bare specifiers, so leave it alone.
 3. Point the import map at the local files:
 
@@ -214,7 +237,7 @@ If the host accepts one HTML file only and also blocks the network, Graphy canno
 - Installing TipTap for a read-only graph. Those peers are only for `/editable`.
 - Loading React or Graphy from esm.sh. jsDelivr only.
 - Loading Graphy with `/+esm` instead of `dist/index.browser.mjs`.
-- `@graphysdk/react@1` on jsDelivr. That tag 404s. Use `@latest` or an exact version.
+- `@graphysdk/react@1` on jsDelivr. That tag 404s. Follow the version-pinning instructions in [CDN without a bundler](#cdn-without-a-bundler).
 - Saving `/+esm` files and serving them without rewriting `from"/npm/.../+esm"` to relative paths.
 - An HTML artifact with a React component file and a bare `@graphysdk/react` import. That package is not on the artifact allow-list.
 - Skipping `<meta charset="utf-8" />` in `<head>`. Curly quotes and degree signs then break on some hosts.

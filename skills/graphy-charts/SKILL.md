@@ -65,21 +65,21 @@ Mappings name a column `key`, never its `label`. The six built-in geoms are `poi
 
 Open one file, then use the contents list at the top of that file.
 
-| Task                                                              | Read                                                                          |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Install, HTML artifacts, jsDelivr CDN, offline vendor, brand mark | [setup](reference/setup.md)                                                   |
-| Data, dates, CSV                                                  | [data](reference/data.md)                                                     |
-| Mappings, geoms, scales, config                                   | [spec](reference/spec.md)                                                     |
-| Provider, sizing, live data, dark mode                            | [React](reference/react.md)                                                   |
-| Colors, fonts, conditions                                         | [styling](reference/styling.md)                                               |
-| Install a theme, write your own                                   | [themes](reference/themes.md)                                                 |
-| Highlights, labels, annotations                                   | [storytelling](reference/storytelling.md)                                     |
-| Replace the tooltip, legend, or axes                              | [slots](reference/slots.md)                                                   |
-| Boxplot, candlestick, dumbbell, funnel, lollipop, waterfall       | [recipes/geoms](recipes/geoms)                                                |
-| A new geom                                                        | [plugins](reference/plugins.md)                                               |
-| Exact option names                                                | [types](reference/types.md)                                                   |
-| Edit an existing chart                                            | the `graphy-editor` skill                                                     |
-| Human docs                                                        | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
+| Task                                                                              | Read                                                                          |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Install, HTML artifacts, jsDelivr CDN, light and dark, offline vendor, brand mark | [setup](reference/setup.md)                                                   |
+| Data, dates, CSV                                                                  | [data](reference/data.md)                                                     |
+| Mappings, geoms, scales, config                                                   | [spec](reference/spec.md)                                                     |
+| Provider, sizing, live data, dark mode                                            | [React](reference/react.md)                                                   |
+| Colors, fonts, conditions                                                         | [styling](reference/styling.md)                                               |
+| Install a theme, write your own                                                   | [themes](reference/themes.md)                                                 |
+| Highlights, labels, annotations                                                   | [storytelling](reference/storytelling.md)                                     |
+| Replace the tooltip, legend, or axes                                              | [slots](reference/slots.md)                                                   |
+| Boxplot, candlestick, dumbbell, funnel, lollipop, waterfall                       | [recipes/geoms](recipes/geoms)                                                |
+| A new geom                                                                        | [plugins](reference/plugins.md)                                               |
+| Exact option names                                                                | [types](reference/types.md)                                                   |
+| Edit an existing chart                                                            | the `graphy-editor` skill                                                     |
+| Human docs                                                                        | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
 
 - Dark mode is `colorScheme` on the provider plus stylesheet tokens.
 - Leave `scale.color.discrete()` and `scale.color.continuous()` bare; the theme or the engine default picks the colors. Exceptions: a named palette in the brief, given colors (`scale.color.discrete({ range })` or `scale.color.continuous({ range })`), or values that cross zero (`domainMid`).
@@ -124,15 +124,21 @@ The six geom recipes install a published package; each is a complete component. 
 - `@graphysdk/react` shows the brand mark unless the spec sets `config.content.brandMark.enabled`.
 - An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may block the CDN: use the offline vendor steps there.
 - Never load React or Graphy from esm.sh. jsDelivr only.
-- `@graphysdk/react@1` 404s on jsDelivr. The `latest` dist-tag is a 1.9.0 beta. Use `@latest` or an exact published version.
+- `@graphysdk/react@1` 404s on jsDelivr. Use the pinned Graphy URL in [setup](reference/setup.md). If it uses `@latest`, resolve that tag to an exact version first.
 - Mapped `size` and `label` on a point or bubble do not appear in the default tooltip. The heading is x; the row is color plus y. Add a row with the layer's `tooltip` option: `geom.point({ tooltip: { size: { title: 'Population' } } })`. A custom Tooltip slot replaces the whole thing.
 - Waterfall, funnel, boxplot, candlestick, dumbbell, and lollipop are packages. Install `@graphysdk/geom-<name>`; do not write a plugin for them.
 - Mekko and table are not chart types here. Say so and stop. Do not write a plugin for them.
 
 ## Checking a spec
 
+`scripts/validate-spec.mjs` in this skill compiles a spec without a browser and prints errors and warnings. It resolves `@graphysdk/viz-engine` from the folder it runs from. Run it from the project root when `@graphysdk/viz-engine` is a direct dependency (pnpm does not hoist it from `@graphysdk/react`). Otherwise use a scratch folder and install the exact version that the page's import map or the installed `node_modules/@graphysdk/react/package.json` names; the two packages always share a version, and there is nothing to look up on npm. Do not write your own compile loop.
+
 ```bash
-node skills/graphy-charts/scripts/validate-spec.mjs ./my-spec.mjs
+mkdir graphy-check && cd graphy-check
+npm init -y && npm install @graphysdk/viz-engine@<the exact version your page or project uses>
+node <path to this skill>/scripts/validate-spec.mjs ./my-spec.mjs
 ```
+
+`my-spec.mjs` exports `data` and `spec`. The builders may be imported from `@graphysdk/react` exactly as on the page, or from `@graphysdk/viz-engine`; the script reads the first as the second. One module per chart.
 
 `reference/types.md` is a generated snapshot. If it disagrees with the installed package, trust the package.
