@@ -2567,8 +2567,8 @@ interface AxisMapping {
 type AxisPosition = 'left' | 'right' | 'top' | 'bottom';
 
 /**
- * A single axis tick with its raw value and normalized position. Ticks in one axis share the same
- * `valueFormat` — it lives on `SceneAxisGuide`, not per-tick.
+ * A single axis tick with its raw value and normalized position. Ticks in one candidate share the same
+ * `valueFormat` — it lives on the candidate or `SceneAxisGuide`, not per-tick.
  */
 interface AxisTick {
     /** Raw value in data space (number, Date, or string) */
@@ -2584,12 +2584,16 @@ interface AxisTick {
 }
 
 /**
- * A tick-set candidate for an axis. The runtime picks the densest one whose labels fit. Datetime candidates
- * may carry a `valueFormat` matched to their interval's granularity, overriding the axis-level format.
+ * A tick-set candidate for an axis. The runtime picks the densest one whose labels fit. A candidate's
+ * `valueFormat` overrides the axis-level format: a datetime interval's granularity, or the categories of a
+ * category-span axis, whose own format reads its numbers.
  */
 interface AxisTickCandidate {
+    /** Ordered by position. */
     ticks: AxisTick[];
     valueFormat?: ValueFormat;
+    /** What placed the ticks. */
+    source: AxisTickSource;
 }
 
 /**
@@ -2598,6 +2602,11 @@ interface AxisTickCandidate {
  * - 'edges': Show only the first and last tick
  */
 type AxisTickMode = 'auto' | 'edges';
+
+/**
+ * What placed a candidate's ticks: the axis's own generator, or one per category a geom spans on it.
+ */
+type AxisTickSource = 'generated' | 'categories';
 
 /**
  * Configuration for a single axis's ticks
@@ -7476,6 +7485,15 @@ interface SceneAxisGuide {
      * renderer paints `FormattedAxis.ticks[].formattedLabel` as-is and must not re-apply this `ValueFormat`.
      */
     valueFormat: ValueFormat;
+    /**
+     * On a category-span axis, the format of the categories its span layers name, and those layers' ids: their `x`
+     * reads in this format, while every other layer's `x` is a number on the scale, read in `valueFormat`. Read a
+     * layer's through `resolveLayerAxisValueFormat`.
+     */
+    categorySpan?: {
+        valueFormat: ValueFormat;
+        layerIds: string[];
+    };
     /** Tick mode from config. Already honored by the compiler when building candidates — don't re-filter ticks. */
     tickMode: AxisTickMode;
     /** Whether tick marks are visible. Labels still show when this is false (independent of `isVisible`). */
@@ -9039,7 +9057,7 @@ type UpdateAnnotationParams<TKind extends AnnotationKind = AnnotationKind> = {
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * One user-input problem authored once and used three ways: pushed onto the collector as a warning
