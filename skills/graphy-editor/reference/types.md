@@ -1571,7 +1571,7 @@ interface RichTextContent {
  * </GraphProvider>
  * ```
  */
-const EditableGraphRenderer: ({ slots, mode, palettePresets, ...rest }: EditableGraphRendererProps) => JSX.Element;
+const EditableGraphRenderer: ({ slots, mode, palettePresets, editMenus, ...rest }: EditableGraphRendererProps) => JSX.Element;
 
 /**
  * The translation context editor UI needs, already carrying the editing surface's wording. Mount it
@@ -3145,6 +3145,16 @@ type DataLabelAlign = 'start' | 'center' | 'end';
  * the panel edge is off-canvas.
  */
 type DataLabelJustify = DataLabelAlign | 'panel-start' | 'panel-end';
+
+/** Looks up how a layer's data labels are placed, over the built-in geoms folded with a `plugins` array. */
+interface DataLabelPlacementResolver {
+    /** How this geom's labels are placed under these coords, or `null` when it places none there. */
+    resolve: (geom: string, coordType: CoordType_2) => ResolvedPlacementStrategyEntry | null;
+    /** Whether the geom places labels under these coords; editors ask before offering a switch nothing would draw. */
+    hasCapability: (geom: string, coordType: CoordType_2) => boolean;
+    /** Whether the layer's labels have a denominator for `format: 'percentage'`; editors ask before offering it. */
+    hasPercentageFormat: (layer: SceneLayer, coordType: CoordType_2) => boolean;
+}
 
 /**
  * Where data labels sit relative to the geom they decorate.
@@ -5028,6 +5038,12 @@ type ResolvedPaint = StylePaint<string>;
 interface ResolvedPinnedNumberAnnotationSpec {
     id: string;
     at: ResolvedObservationAnchorSpec;
+}
+
+/** A geom's placement with its layer type widened away, so one call site places every layer's labels. */
+interface ResolvedPlacementStrategyEntry {
+    place: (context: PluginPlacementContext) => PlacementResult;
+    getPercentageValueStrategy: (layer: SceneLayer) => PercentageValueStrategy;
 }
 
 /**
@@ -9367,6 +9383,29 @@ type ButtonContentProps = {
     ariaLabel: string;
 };
 
+/** Whether the edit menu draws a row for a target, asked before it is hovered or selected; left out, it always does. */
+interface EditMenuRows<Target> {
+    hasRows?: (target: Target, inputs: EditMenuRowsInputs) => boolean;
+}
+
+/** What an edit menu reads to say whether it has rows: the scene, and the placement strategies plugins extend. */
+interface EditMenuRowsInputs {
+    scene: Scene;
+    dataLabelPlacement: DataLabelPlacementResolver;
+}
+
+/** The edit menus Graphy or a host registers, where `null` answers with none and `undefined` reads as left out. */
+interface EditMenus {
+    /** Edit menus for observations drawn one way, keyed by their layer's geom, the chart's coord and the position. */
+    layers?: Readonly<Record<string, LayerEditMenus | undefined>>;
+    /** Edit menus for observations however they are drawn, keyed by their layer's geom, a built-in or a custom one. */
+    geoms?: Readonly<Record<string, ObservationsEditMenu | null | undefined>>;
+    legend?: TargetEditMenu<'legend'> | null;
+    axis?: TargetEditMenu<'axis'> | null;
+    grid?: TargetEditMenu<'grid'> | null;
+    graph?: TargetEditMenu<'graph'> | null;
+}
+
 /** Props for {@link EditableGraphRenderer}: the renderer's own, plus what only the editor reads. */
 interface EditableGraphRendererProps extends GraphRendererProps {
     /**
@@ -9374,6 +9413,10 @@ interface EditableGraphRendererProps extends GraphRendererProps {
      * color scale's `range`, so the spec keeps its colors whatever the host offers later. With none, no row.
      */
     palettePresets?: PalettePresets;
+    /**
+     * A host's edit menus, searched before Graphy's. `null` removes that menu, and a missing entry leaves Graphy's.
+     */
+    editMenus?: EditMenus;
 }
 
 /**
@@ -9458,6 +9501,11 @@ type GraphSizing = {
     aspectRatio: number;
 };
 
+/** The edit targets a press on a guide takes: the legend, an axis, the grid lines of an axis. */
+type GuideEditTarget = Extract<EditTarget, {
+    kind: 'legend' | 'axis' | 'grid';
+}>;
+
 interface IntlProviderProps {
     locale?: I18nLocale;
     children: ReactNode;
@@ -9481,6 +9529,12 @@ interface IntroAnimationOptions {
 
 /** Without an IntersectionObserver, as in a test environment, `inView` plays on mount. */
 type IntroTrigger = 'mount' | 'inView';
+
+/** One geom's edit menus, keyed by the chart's coord and then by the layer's position. */
+type LayerEditMenus = Partial<Record<CoordType, Partial<Record<PositionAdjustment, ObservationsEditMenu | null>>>>;
+
+/** The rows the overlay menu draws under its title for a selection of observations. */
+type ObservationsEditMenu = ComponentType<ResolvedObservations> & EditMenuRows<ObservationsTarget>;
 
 /** Color lists keyed by the name the Chart menu's Palette row gives each. */
 type PalettePresets = Readonly<Record<string, readonly string[]>>;
@@ -9543,12 +9597,27 @@ interface ResizeObserverState {
     isDefault: boolean;
 }
 
+/** What the overlay menu hands the edit menu of a selection of observations. */
+interface ResolvedObservations {
+    /** The selected observations' edit target, which the edit menu's rows hand to their commands. */
+    target: ObservationsTarget;
+}
+
 interface SettingRowProps {
     label?: string;
     layout?: RowLayout;
     icon?: ReactNode;
     children: ReactNode;
 }
+
+/** The rows the overlay menu draws under its title for a guide or the chart, handed its edit target. */
+type TargetEditMenu<Kind extends GuideEditTarget['kind'] | 'graph'> = ComponentType<{
+    target: Extract<EditTarget, {
+        kind: Kind;
+    }>;
+}> & EditMenuRows<Extract<EditTarget, {
+    kind: Kind;
+}>>;
 
 interface ToggledSectionProps extends Omit<SectionProps, 'layout' | 'accessory' | 'onOpenChange'> {
     isChecked: boolean;

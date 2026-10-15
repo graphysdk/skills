@@ -14,8 +14,7 @@ import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
 
 `EditableGraphRenderer` is a `GraphRenderer` with the editing layer wired in: selection and
 dragging on the canvas, and in-place text editing for the title, subtitle, caption and text
-annotations. Its props are exactly `GraphRendererProps`; there is nothing editor-specific to
-configure on it.
+annotations. Its props are `GraphRendererProps`, plus `palettePresets` and `editMenus`.
 
 With the standard `@graphysdk/react` install, the same entry is `@graphysdk/react/editable` —
 identical exports. This skill's samples use the advanced-mode specifiers
@@ -38,9 +37,11 @@ Hover state, animation and the undo history all survive the toggle; swapping
 `EditableGraphRenderer` for `GraphRenderer` would remount the chart and lose them.
 
 `GraphProvider` is the same provider in both modes — it needs **no extra props for editing**; only
-the renderer differs. `EditableGraphRenderer` takes one optional prop of its own: `palettePresets`,
-named color lists (`{ Warm: ['#E03030', '#E08A30'] }`) the Chart menu's Palette row offers after the
-theme's colors in point and edit. Without it the row is hidden. A complete editable chart:
+the renderer differs. `EditableGraphRenderer` takes two optional props of its own. `palettePresets`
+are named color lists (`{ Warm: ['#E03030', '#E08A30'] }`) the Chart menu's Palette row offers after
+the theme's colors in point and edit. Without them the row is hidden. `editMenus` are a host's edit
+menus, searched before Graphy's in point and edit. `null` removes that menu, and a missing entry
+leaves Graphy's in place. A complete editable chart:
 
 ```tsx
 import { useRef, useState } from 'react';
