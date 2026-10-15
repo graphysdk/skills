@@ -598,7 +598,7 @@ class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
 /**
  * Sets the stroke width of a line or area layer — an area's outline is the same path.
  *
- * The width merges into the layer's own override entry, leaving whatever else that entry paints.
+ * The width merges into the layer's own override entry, or into the group's when `where` is set.
  */
 class SetLineWidthCommand implements Command<SetLineWidthParams> {
     readonly type: "set-line-width";
@@ -639,7 +639,7 @@ class SetLineMissingValuesCommand implements Command<SetLineMissingValuesParams>
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
 
-/** Sets a point layer's diameter. Merges into the layer's own override entry, leaving what else it paints. */
+/** Sets a point layer's diameter. Merges into the layer's own override entry, or the group's when `where` is set. */
 class SetPointSizeCommand implements Command<SetPointSizeParams> {
     readonly type: "set-point-size";
     readonly metadata: CommandMetadata;
@@ -774,6 +774,7 @@ class ToggleGoalLineCommand implements Command<ToggleGoalLineParams> {
  *
  * Switching off clears `fillAlpha`, or writes zero to suppress an inherited fill.
  * Switching on uses the requested alpha, an inherited fill, or the default opacity.
+ * A `where` writes that same choice on the group, and a fill on the layer still counts as inherited.
  */
 class ToggleLineFillCommand implements Command<ToggleLineFillParams> {
     readonly type: "toggle-line-fill";
@@ -8233,6 +8234,8 @@ type SetLineWidthParams = {
     layerId: string;
     /** Stroke width in px, or `null` to fall back to the stylesheet. */
     lineWidth: number | null;
+    /** When set, the width applies to that group only. Absent, it applies to the whole layer. */
+    where?: Predicate;
 };
 
 type SetNumberFormatAbbreviationParams = {
@@ -8247,6 +8250,8 @@ type SetPointSizeParams = {
     layerId: string;
     /** Point diameter in px, or `null` to fall back to the stylesheet. */
     size: number | null;
+    /** When set, the size applies to that group only. Absent, it applies to the whole layer. */
+    where?: Predicate;
 };
 
 type SetPolarInnerRadiusParams = {
@@ -8979,6 +8984,8 @@ type ToggleLineFillParams = {
     showFill: boolean;
     /** Optional opacity when enabling fill; otherwise uses the inherited fill or the default. */
     fillAlpha?: number;
+    /** When set, the fill applies to that group only. Absent, it applies to the whole layer. */
+    where?: Predicate;
 };
 
 type ToggleLinePointsParams = {
