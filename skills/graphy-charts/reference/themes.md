@@ -141,14 +141,16 @@ Start with the HTML page in [setup](setup.md). Add the theme to the import map's
 
 ```json
 {
-  "@graphysdk/theme-watercolor": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-watercolor@latest/dist/index.mjs"
+  "@graphysdk/theme-watercolor": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-watercolor@0.1.1-beta.1792072575527/dist/index.mjs"
 }
 ```
 
-The theme bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime` through that map, so it shares the page's engine and React. Load its fonts in `<head>`. The file sits at the package root. Spreadsheet has none.
+The theme bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime` through that map, so it shares the page's engine and React. Load its fonts in `<head>`. Each theme's `fonts.css` is one Google Fonts import; the file sits at the package root and names the families. Link that Google Fonts URL directly rather than the package file: artifact sandboxes allow stylesheets from Google Fonts only, and a blocked `fonts.css` leaves the theme on system faces. Spreadsheet has no fonts.
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@graphysdk/theme-watercolor@latest/fonts.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" />
 ```
 
 Import the theme in the module script and pass it to the provider:

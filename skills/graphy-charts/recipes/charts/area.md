@@ -2,27 +2,9 @@
 
 Use an area graph to show a total over time and how groups make it up.
 
-## Data
+## Basic
 
 One row per observation. Wide data with one column per group works after a reshape.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const regionData: Data = {
-  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }],
-  rows: [
-    { month: 'Jan', North: 300, South: 200 },
-    { month: 'Feb', North: 400, South: 350 },
-    { month: 'Mar', North: 350, South: 300 },
-    { month: 'Apr', North: 500, South: 400 },
-    { month: 'May', North: 450, South: 500 },
-    { month: 'Jun', North: 600, South: 450 },
-  ],
-};
-```
-
-## Basic
 
 A single area.
 
@@ -60,7 +42,17 @@ export function RevenueArea() {
 Areas stack by default when there is a color mapping. `transform.reshape()` with no options keeps the text and date columns and folds every numeric column into `key` and `value`.
 
 ```ts
-import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
+const regionData: Data = {
+  columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }],
+  rows: [
+    { month: 'Jan', North: 300, South: 200 },
+    { month: 'Feb', North: 400, South: 350 },
+    { month: 'Mar', North: 350, South: 300 },
+    { month: 'Apr', North: 500, South: 400 },
+    { month: 'May', North: 450, South: 500 },
+    { month: 'Jun', North: 600, South: 450 },
+  ],
+};
 
 const spec = pipe(
   createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
@@ -79,8 +71,6 @@ The point layer needs `position: 'stack'` too. Without it the markers sit at raw
 Set the position to identity and lower the fill opacity so both groups stay visible.
 
 ```ts
-import { createSpec, geom, mapping, pipe, scale, style, styles, transform } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec(transform.reshape(), mapping({ x: 'month', y: 'value', color: 'key' })),
   geom.area({ position: 'identity' }),
@@ -94,16 +84,12 @@ const spec = pipe(
 ### Percent stacked areas
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.area({ position: 'fill' });
 ```
 
 ### Smooth curve
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.area({ params: { curve: 'smooth' } });
 ```
 
@@ -112,16 +98,12 @@ const layer = geom.area({ params: { curve: 'smooth' } });
 Rows with `null` on y drop to zero by default. Use `'connect'` to bridge them. An area cannot show a gap, so `'gap'` is treated as `'zero'`.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const connect = geom.area({ params: { missingValues: 'connect' } });
 ```
 
 ### Horizontal areas
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x(), scale.y(), coord.flip());
 ```
 

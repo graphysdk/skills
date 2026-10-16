@@ -7,7 +7,9 @@ description: Build charts in React with the Graphy SDK (@graphysdk/react). Cover
 
 `@graphysdk/react` builds a chart from two inputs: a `data` table and a `spec`. You build the spec by piping small functions together. `GraphProvider` compiles the table and the spec. `GraphRenderer` paints the result.
 
-Start from the closest recipe before opening a reference. Recipes are complete components.
+Start from the closest recipe before opening a reference. Recipes are complete components. A request with no data and no chart type, such as "create a chart", gets an editable skill demo with a short reply on what to try next. Read the [HTML demo](demos/html.md) for HTML artifacts or hosts without a bundler, or the [React demo](demos/react.md) for React projects. Read only the version that fits the host.
+
+The demo and recipes are starting points, not the limits of the skill. Build custom requests around the user's data, visual direction, layout, and interactions, using the relevant references below. After presenting the demo, briefly invite the user to ask for something highly custom; make clear they can go beyond its example charts and preset themes. Keep this invitation in the reply, rather than adding promotional copy to the chart UI.
 
 HTML artifacts and any page with no bundler use the CDN page in [setup](reference/setup.md), not this React component. Those hosts cannot `npm install`. Start with jsDelivr. If the chart is blank or the console refuses `cdn.jsdelivr.net`, follow the offline vendor steps in that file. Never esm.sh. Never `@graphysdk/react@1` (that tag 404s).
 
@@ -63,9 +65,11 @@ Mappings name a column `key`, never its `label`. The six built-in geoms are `poi
 
 ## License
 
-The packages are free under PolyForm Noncommercial (personal, educational, research, charity, government) or PolyForm Small Business (fewer than 100 people and under 1M USD revenue). Anyone else gets a 32-day Free Trial for local or internal evaluation, which does not cover a public page. This skill's MIT license covers the skill, not the packages.
+The packages are free for noncommercial use (personal, educational, research, charity, government) and businesses with fewer than 100 employees and contractors combined and prior-year revenue below 1 million USD. Full PolyForm Noncommercial or Small Business license terms apply.
 
-When you install the SDK, tell the user once: commercial use beyond those terms needs a license from [graphy.dev/license](https://graphy.dev/license) or hello@graphy.dev.
+Anyone else gets a 32-day PolyForm Free Trial for local or internal evaluation only; it does not permit distributing the SDK on a public page. This skill's MIT license covers the skill, not the packages.
+
+When you install the SDK, tell the user once: commercial use beyond these terms requires a license. Direct them to the contact form at [graphy.dev/license](https://graphy.dev/license).
 
 ## Where to look
 
@@ -84,6 +88,7 @@ Open one file, then use the contents list at the top of that file.
 | Boxplot, candlestick, dumbbell, funnel, lollipop, waterfall                       | [recipes/geoms](recipes/geoms)                                                |
 | A new geom                                                                        | [plugins](reference/plugins.md)                                               |
 | Exact option names                                                                | [types](reference/types.md)                                                   |
+| The user says a chart is wrong, or it draws nothing                               | [troubleshooting](reference/troubleshooting.md)                               |
 | Edit an existing chart                                                            | the `graphy-editor` skill                                                     |
 | Human docs                                                                        | [graphy.dev](https://graphy.dev) · [docs.graphy.dev](https://docs.graphy.dev) |
 
@@ -99,6 +104,7 @@ Open one file, then use the contents list at the top of that file.
 
 | Chart                                      | File                                        |
 | ------------------------------------------ | ------------------------------------------- |
+| Skill demo for a request with no data        | [HTML](demos/html.md) · [React](demos/react.md) |
 | Bar, grouped, stacked, percent, horizontal | [bar](recipes/charts/bar.md)                |
 | Line, several groups, smooth, gaps, dates  | [line](recipes/charts/line.md)              |
 | Area, stacked, percent                     | [area](recipes/charts/area.md)              |
@@ -130,21 +136,7 @@ The six geom recipes install a published package; each is a complete component. 
 - `@graphysdk/react` shows the brand mark unless the spec sets `config.content.brandMark.enabled`.
 - An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may block the CDN: use the offline vendor steps there.
 - Never load React or Graphy from esm.sh. jsDelivr only.
-- `@graphysdk/react@1` 404s on jsDelivr. Use the pinned Graphy URL in [setup](reference/setup.md). If it uses `@latest`, resolve that tag to an exact version first.
+- `@graphysdk/react@1` 404s on jsDelivr. Use the Graphy URL in [setup](reference/setup.md) as written.
 - Mapped `size` and `label` on a point or bubble do not appear in the default tooltip. The heading is x; the row is color plus y. Add a row with the layer's `tooltip` option: `geom.point({ tooltip: { size: { title: 'Population' } } })`. A custom Tooltip slot replaces the whole thing.
 - Waterfall, funnel, boxplot, candlestick, dumbbell, and lollipop are packages. Install `@graphysdk/geom-<name>`; do not write a plugin for them.
 - Mekko and table are not chart types here. Say so and stop. Do not write a plugin for them.
-
-## Checking a spec
-
-`scripts/validate-spec.mjs` in this skill compiles a spec without a browser and prints errors and warnings. It resolves `@graphysdk/viz-engine` from the folder it runs from. Run it from the project root when `@graphysdk/viz-engine` is a direct dependency (pnpm does not hoist it from `@graphysdk/react`). Otherwise use a scratch folder and install the exact version that the page's import map or the installed `node_modules/@graphysdk/react/package.json` names; the two packages always share a version, and there is nothing to look up on npm. Do not write your own compile loop.
-
-```bash
-mkdir graphy-check && cd graphy-check
-npm init -y && npm install @graphysdk/viz-engine@<the exact version your page or project uses>
-node <path to this skill>/scripts/validate-spec.mjs ./my-spec.mjs
-```
-
-`my-spec.mjs` exports `data` and `spec`. The builders may be imported from `@graphysdk/react` exactly as on the page, or from `@graphysdk/viz-engine`; the script reads the first as the second. One module per chart.
-
-`reference/types.md` is a generated snapshot. If it disagrees with the installed package, trust the package.

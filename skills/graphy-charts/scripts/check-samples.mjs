@@ -80,8 +80,11 @@ function starExportsOf(fromPath, specifier, seen) {
       const base = resolve(dirname(fromPath), specifier);
       return exportsOf(base.endsWith('.d.ts') ? base : `${base}.d.ts`, seen);
     }
-    const entry = require.resolve(specifier, { paths: [REPO] });
-    return exportsOf(resolve(dirname(entry), 'index.d.ts'), seen);
+    // A subpath such as '@graphysdk/react-renderer/editable' has its own declaration file next to index.d.ts.
+    const segments = specifier.split('/');
+    const packageName = segments.slice(0, 2).join('/');
+    const subpath = segments.slice(2).join('/');
+    return exportsOf(dts(packageName, `${subpath || 'index'}.d.ts`), seen);
   } catch {
     return empty; // an unresolvable target is the resolver's problem, not a missing-export report
   }

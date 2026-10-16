@@ -4,27 +4,9 @@ Use a combo graph when two measures share an x but need different geoms, or diff
 
 Each layer maps its own y in `aes` and can run its own transforms before it reads the data.
 
-## Data
+## Basic
 
 Wide data with one column per measure. Currency and percent strings are read as numbers and keep their format.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const revenueGrowthData: Data = {
-  columns: [{ key: 'quarter' }, { key: 'Revenue' }, { key: 'Growth' }],
-  rows: [
-    { quarter: 'Q1', Revenue: '$12000', Growth: '5%' },
-    { quarter: 'Q2', Revenue: '$15000', Growth: '25%' },
-    { quarter: 'Q3', Revenue: '$14000', Growth: '-7%' },
-    { quarter: 'Q4', Revenue: '$18500', Growth: '32%' },
-    { quarter: 'Q5', Revenue: '$21000', Growth: '14%' },
-    { quarter: 'Q6', Revenue: '$19500', Growth: '-7%' },
-  ],
-};
-```
-
-## Basic
 
 Revenue bars on the left axis, growth line on the right axis.
 
@@ -79,9 +61,6 @@ The constant transforms add a label column to each layer, so each geom gets its 
 The bar layer reshapes the region columns to long form. The line reads the total on the right axis.
 
 ```ts
-import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const regionalData: Data = {
   columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }, { key: 'West' }, { key: 'total' }],
   rows: [
@@ -123,9 +102,6 @@ const spec = pipe(
 Both layers share the left axis. The line reads a constant `average` column.
 
 ```ts
-import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const regionQuarterData: Data = {
   columns: [{ key: 'quarter' }, { key: 'North' }, { key: 'South' }, { key: 'West' }, { key: 'average' }],
   rows: [
@@ -163,9 +139,6 @@ const spec = pipe(
 ### Area with a target line on the secondary axis
 
 ```ts
-import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const cumulativeData: Data = {
   columns: [{ key: 'month' }, { key: 'cumulative' }, { key: 'targetPct' }],
   rows: [
@@ -199,9 +172,6 @@ const spec = pipe(
 Reshaping columns with different formats keeps each observation's own format, so tooltips show `$12,000` for USD bars and `€10,500` for EUR bars. The share line on the right axis makes this a combo.
 
 ```ts
-import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const multiCurrencyData: Data = {
   columns: [{ key: 'quarter' }, { key: 'USD' }, { key: 'EUR' }, { key: 'Share' }],
   rows: [

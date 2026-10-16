@@ -4,27 +4,9 @@ Use a pie to show how a whole splits into a few parts. A donut is a pie with a h
 
 A pie is a bar geom in polar coordinates: one filled stack, with the angle carrying the value.
 
-## Data
+## Basic
 
 One row per slice.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const budgetData: Data = {
-  columns: [{ key: 'department' }, { key: 'spend' }],
-  rows: [
-    { department: 'Engineering', spend: 420 },
-    { department: 'Marketing', spend: 180 },
-    { department: 'Sales', spend: 150 },
-    { department: 'Operations', spend: 95 },
-    { department: 'HR', spend: 80 },
-    { department: 'Legal', spend: 75 },
-  ],
-};
-```
-
-## Basic
 
 ```tsx
 import { config, coord, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
@@ -70,16 +52,12 @@ The empty x mapping puts every slice in one stack. `position: 'fill'` makes the 
 Give the polar coordinate an inner radius as a fraction of the outer radius.
 
 ```ts
-import { coord } from '@graphysdk/react';
-
 const donut = coord.polar({ theta: 'y', innerRadius: 0.55 });
 ```
 
 ### Slice borders
 
 ```ts
-import { style, styles } from '@graphysdk/react';
-
 const sliceBorders = styles({ defaults: [style.geom.bar({ stroke: '#ffffff', strokeWidth: 2 })] });
 ```
 
@@ -88,8 +66,6 @@ const sliceBorders = styles({ defaults: [style.geom.bar({ stroke: '#ffffff', str
 Under polar the label format defaults to `'percentage'`. Set `format: 'absolute'` for raw values. `showCategoryLabels` prefixes the slice name, as in `Engineering · 42%`.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.bar({ position: 'fill', dataLabels: { showDataLabels: true, showCategoryLabels: true } });
 ```
 
@@ -98,8 +74,6 @@ const layer = geom.bar({ position: 'fill', dataLabels: { showDataLabels: true, s
 Turn on the headline with the center position. It sits in the hole only when the coordinate has an inner radius. The default position is above the graph.
 
 ```ts
-import { config, coord } from '@graphysdk/react';
-
 const donut = coord.polar({ theta: 'y', innerRadius: 0.55 });
 const headline = config({ headline: { show: 'total', position: 'center' } });
 ```
@@ -109,8 +83,6 @@ const headline = config({ headline: { show: 'total', position: 'center' } });
 `startAngle` is in degrees.
 
 ```ts
-import { coord } from '@graphysdk/react';
-
 const rotated = coord.polar({ theta: 'y', startAngle: 90 });
 ```
 
@@ -119,9 +91,6 @@ const rotated = coord.polar({ theta: 'y', startAngle: 90 });
 A date column on color still gives one slice per row. The legend shows the formatted dates.
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const monthlySalesData: Data = {
   columns: [{ key: 'month' }, { key: 'sales' }],
   rows: [

@@ -2,11 +2,12 @@
 
 Use a scatter to show the relationship between two numeric variables. Map a third variable to size for a bubble graph.
 
-## Data
+## Basic
 
-One row per observation. Both x and y are numeric.
+One row per observation: both x and y are numeric.
 
-```ts
+```tsx
+import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const bodyData: Data = {
@@ -17,29 +18,8 @@ const bodyData: Data = {
     { weight: 70, height: 175, group: 'B' },
     { weight: 75, height: 170, group: 'B' },
     { weight: 80, height: 180, group: 'B' },
-    { weight: 55, height: 158, group: 'A' },
-    { weight: 72, height: 172, group: 'B' },
-    { weight: 62, height: 162, group: 'A' },
-  ],
-};
-```
-
-## Basic
-
-```tsx
-import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
-const bodyData: Data = {
-  columns: [{ key: 'weight' }, { key: 'height' }],
-  rows: [
-    { weight: 60, height: 160 },
-    { weight: 65, height: 165 },
-    { weight: 70, height: 175 },
-    { weight: 75, height: 170 },
-    { weight: 80, height: 180 },
-    { weight: 85, height: 178 },
-    { weight: 90, height: 185 },
+    { weight: 85, height: 178, group: 'B' },
+    { weight: 90, height: 185, group: 'A' },
   ],
 };
 
@@ -59,8 +39,6 @@ export function HeightByWeight() {
 ### Color by group
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'weight', y: 'height', color: 'group' }),
   geom.point(),
@@ -75,9 +53,6 @@ const spec = pipe(
 A size mapping needs a size scale. `scale.size.continuous()` uses a square-root transform, so bubble area tracks the value. It adds a legend of two sized pills, the smallest and largest value.
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const gdpData: Data = {
   columns: [{ key: 'gdp' }, { key: 'lifeExpectancy' }, { key: 'population' }],
   rows: [
@@ -101,9 +76,6 @@ const bubbleSpec = pipe(
 ### Bubble with color
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const countryData: Data = {
   columns: [{ key: 'gdp' }, { key: 'lifeExpectancy' }, { key: 'population' }, { key: 'continent' }],
   rows: [
@@ -132,8 +104,6 @@ Every mapped visual aesthetic needs its scale: `scale.size.continuous()` and `sc
 ### Log scale
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'gdp', y: 'lifeExpectancy' }),
   geom.point(),
@@ -145,8 +115,6 @@ const spec = pipe(
 ### Marker size, symbol and border
 
 ```ts
-import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'weight', y: 'height' }),
   geom.point(),
@@ -163,8 +131,6 @@ Symbols: `'circle'`, `'square'`, `'diamond'`, `'triangle'`, `'cross'`, `'star'`,
 Add a second layer with the smooth stat.
 
 ```ts
-import { createSpec, geom, pipe, scale, stat } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'weight', y: 'height' }),
   geom.point(),
@@ -177,8 +143,6 @@ const spec = pipe(
 ### Flipped axes
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(createSpec({ x: 'weight', y: 'height' }), geom.point(), scale.x(), scale.y(), coord.flip());
 ```
 

@@ -4,31 +4,9 @@ Use a radar graph to compare a few groups across several measures on the same sc
 
 A radar is a line or area geom in polar coordinates with the band on the angle.
 
-## Data
+## Basic
 
 Long form: one row per group and measure.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const skillsData: Data = {
-  columns: [{ key: 'skill' }, { key: 'score' }, { key: 'player' }],
-  rows: [
-    { skill: 'Speed', score: 8, player: 'Alice' },
-    { skill: 'Power', score: 6, player: 'Alice' },
-    { skill: 'Defense', score: 7, player: 'Alice' },
-    { skill: 'Stamina', score: 9, player: 'Alice' },
-    { skill: 'Technique', score: 5, player: 'Alice' },
-    { skill: 'Speed', score: 6, player: 'Bob' },
-    { skill: 'Power', score: 9, player: 'Bob' },
-    { skill: 'Defense', score: 5, player: 'Bob' },
-    { skill: 'Stamina', score: 6, player: 'Bob' },
-    { skill: 'Technique', score: 8, player: 'Bob' },
-  ],
-};
-```
-
-## Basic
 
 Outline per group with a dot at each vertex.
 
@@ -81,8 +59,6 @@ export function SkillsRadar() {
 Swap the line for an area with identity position, so the groups overlap instead of stacking.
 
 ```ts
-import { config, coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'skill', y: 'score', color: 'player' }),
   geom.area({ position: 'identity' }),
@@ -100,8 +76,6 @@ Lower the fill opacity when shapes overlap a lot: `styles({ defaults: [style.geo
 ### Dots only
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'skill', y: 'score', color: 'player' }),
   geom.point(),
@@ -115,8 +89,6 @@ const spec = pipe(
 ### Fixed outer value
 
 ```ts
-import { scale } from '@graphysdk/react';
-
 const yScale = scale.y({ domainMin: 0, domainMax: 10 });
 ```
 
