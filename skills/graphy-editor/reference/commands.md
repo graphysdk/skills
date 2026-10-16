@@ -167,8 +167,8 @@ colors; `null` returns to the theme's), `SetScaleReverseCommand`,
 `SetContentCaptionCommand`, `SetContentSourceCommand`, `ToggleContentVisibilityCommand` (text is
 `TextContent = string | RichTextContent`; `null` clears). Axes: `SetAxisLabelCommand`,
 `SetAxisPositionCommand`, `SetAxisTickModeCommand`, `SetAxisTicksVisibilityCommand`,
-`SetAxisVisibilityCommand`. Grid: `SetGridVisibilityCommand`, `SetGridLineStyleCommand`,
-`SetGridLineWidthCommand`. Legend: `SetLegendPositionCommand`, `SetLegendDisplayCommand`,
+`SetAxisVisibilityCommand`. Grid: `SetGridVisibilityCommand`, `SetGridLineStyleCommand` (dash and
+width, one undo step). Legend: `SetLegendPositionCommand`, `SetLegendDisplayCommand`,
 `SetLegendAlignCommand`, `SetLegendPlacementCommand` (side and alignment as one undo step). Headline: `SetHeadlineShowCommand`, `SetHeadlineSizeCommand`,
 `SetHeadlinePositionCommand`, `SetHeadlineCompareWithCommand`. Numbers & appearance:
 `SetNumberFormatDecimalsCommand`, `SetNumberFormatAbbreviationCommand`,

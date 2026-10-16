@@ -185,7 +185,6 @@ const GROUPS = [
       'SetAxisVisibilityCommand',
       'SetGridVisibilityCommand',
       'SetGridLineStyleCommand',
-      'SetGridLineWidthCommand',
       'SetLegendAlignCommand',
       'SetLegendDisplayCommand',
       'SetLegendPlacementCommand',

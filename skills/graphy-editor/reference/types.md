@@ -1068,32 +1068,18 @@ class SetGridVisibilityCommand implements Command<SetGridVisibilityParams> {
 }
 
 /**
- * Sets a grid's dash pattern, on one axis or on `both` as a single edit.
+ * Sets a grid's dash pattern and stroke width, on one axis or on `both` as a single edit, in one undo step.
  *
- * Style is held independently of visibility, so hiding a grid and showing it again keeps it.
+ * Style is held independently of visibility, so hiding a grid and showing it again keeps it. A width
+ * below zero narrows to zero. Where a grid stops reading as a rule is a matter of taste
+ * and belongs to the control offering the range: a bound here could not put back a wider width the
+ * spec already held, a revert being built through this same constructor.
  */
 class SetGridLineStyleCommand implements Command<SetGridLineStyleParams> {
     readonly type: "set-grid-line-style";
     readonly metadata: CommandMetadata;
     readonly params: SetGridLineStyleParams;
     constructor(params: SetGridLineStyleParams, metadata?: Partial<CommandMetadata>);
-    get target(): EditTarget;
-    apply(spec: ResolvedSpec): CommandApplyResult | null;
-}
-
-/**
- * Sets the stroke width of a grid's lines, on one axis or on `both` as a single edit, or hands it
- * back to the stylesheet with `null`.
- *
- * Narrows only what has no stroke to draw. Where a grid stops reading as a rule is a matter of taste
- * and belongs to the control offering the range: a bound here could not put back a wider width the
- * spec already held, a revert being built through this same constructor.
- */
-class SetGridLineWidthCommand implements Command<SetGridLineWidthParams> {
-    readonly type: "set-grid-line-width";
-    readonly metadata: CommandMetadata;
-    readonly params: SetGridLineWidthParams;
-    constructor(params: SetGridLineWidthParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
@@ -8142,15 +8128,13 @@ type SetDataLabelsFormatParams = {
     format: ResolvedDataLabelsSpec['format'];
 };
 
+/** Serialized parameters of {@link SetGridLineStyleCommand}. Only the style fields given are written. */
 type SetGridLineStyleParams = {
     axis: GridAxisTarget;
     /** Dash pattern, or `null` to fall back to the stylesheet. */
-    lineStyle: PerAxisValue<LineType | null>;
-};
-
-type SetGridLineWidthParams = {
-    axis: GridAxisTarget;
-    lineWidth: PerAxisValue<number | null>;
+    lineStyle?: PerAxisValue<LineType | null>;
+    /** Stroke width in px, or `null` to fall back to the stylesheet. */
+    strokeWidth?: PerAxisValue<number | null>;
 };
 
 type SetGridVisibilityParams = {
