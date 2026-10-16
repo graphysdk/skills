@@ -152,11 +152,15 @@ release — to remap a variable, rebuild the `Spec`; see "When no command exists
 
 **Layers** (see "Per-layer control" below) — `AddLayerCommand`, `RemoveLayerCommand`,
 `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`,
-`SetBarWidthCommand`, `SetBarBorderRadiusCommand`, `SetLineWidthCommand`,
-`SetLineInterpolationCommand`, `SetLineMissingValuesCommand`, `SetPointSizeCommand`,
+`SetBarWidthCommand`, `SetBarBorderRadiusCommand`, `SetLineStyleCommand` (a line's dash, width and
+fill as one undo step),
+`SetLineInterpolationCommand`, `SetLineMissingValuesCommand`, `SetPointSizeCommand` (without
+`where` it also clears each group's size, leaving a group hidden at size 0 hidden; while the layer is
+at size 0 it sizes only the shown groups),
 `SetStatLineCommand`, `SetRuleValueCommand`, `SetRuleLabelCommand`, `ToggleGoalLineCommand`,
 `ToggleDataLabelsCommand`, `SetDataLabelsFormatCommand`, `ToggleCategoryLabelsCommand`,
-`ToggleLineFillCommand`, `ToggleLinePointsVisibilityCommand`, `ToggleStackTotalsCommand`.
+`ToggleLinePointsCommand` (a `where` shows or hides one group's points),
+`ToggleStackTotalsCommand`.
 
 **Scales & coords** — `SetScaleDomainCommand`, `SetScaleRangeCommand` (a discrete scale's
 colors; `null` returns to the theme's), `SetScaleReverseCommand`,

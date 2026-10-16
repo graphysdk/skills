@@ -544,7 +544,7 @@ Built-in defaults worth knowing before you restyle:
 - Legend: 8px gap, items padded 2px inline and 4px block with no border. Headline: 24px gap.
 - Annotations: arrows 4px solid with the outline hidden, difference arrows 2px, shapes at `fillAlpha: 0.25` with a 1px border, text annotations 15px at weight 500 with a 1.5px border width and 9px corners but no fill, callout markers 8px with a 2px `tooltipBackground` stroke. A shape's border takes its `fill` unless `stroke` is declared. A text annotation has no box until `fill` is declared; its border is then a darker shade of the fill unless `stroke` is declared. A difference arrow label's border takes the arrow's color.
 
-Dash presets the built-ins use, in stroke widths: solid `[]`, line dashed `[4, 2]`, line dotted `[1, 1]`, rule dashed `[2, 3]`, grid dashed `[2, 3]`, grid dotted `[1, 3]`. `DASH_PRESETS` from `@graphysdk/viz-engine` holds them.
+Dash presets the built-ins use, in stroke widths: solid `[]`, line dashed `[4, 2]`, line dotted `[0, 3]`, rule dashed `[2, 3]`, grid dashed `[2, 3]`, grid dotted `[0, 3]`. `DASH_PRESETS` from `@graphysdk/viz-engine` holds them.
 
 ## Pitfalls
 

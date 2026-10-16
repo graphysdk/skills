@@ -441,6 +441,7 @@ export const capsule: Theme = {
 ```
 
 - Read paint through `useGeomStyleReader(layer)` or the render input's `styleReaders`, passing the current state. Spec styles and mapped colors then reach the repaint.
+- A repainted line or area edge passes its `dashArray` and `strokeWidth` reads through `resolvePathStroke`, with the cap the stroke would otherwise paint: its `lineCap` read to follow the stylesheet, or a cap of its own. It spreads the `strokeWidth`, `strokeDasharray` and `strokeLinecap` it gets back onto its `<path>`. A dotted line is a run of zero-length dashes, which a butt cap leaves invisible, so a dotted stroke comes back round-capped under any cap.
 - `renderHover` redraws `primary.observation` in the `'hovered'` state above the dimmed layer. Returning `null` leaves the hovered bar dimmed with the rest.
 - Key shapes with `createStableKeyGenerator`, or `createStableCellKeyGenerator` for tiles, so they keep their identity across updates.
 - A contract covers one coordinate system. Add a second with `coord: 'polar'` to repaint pies and roses. Without it the built-in polar drawing stays.

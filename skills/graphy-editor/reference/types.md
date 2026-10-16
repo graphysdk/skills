@@ -596,17 +596,31 @@ class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
 }
 
 /**
- * Sets the stroke width of a line or area layer — an area's outline is the same path.
+ * Sets the dash, stroke width and fill of a line or area layer, merged into the layer's override rule
+ * or one group's, as one undo step. Without `where` the given properties also leave every group rule
+ * of the layer, so the whole path shows the new value.
  *
- * The width merges into the layer's own override entry, or into the group's when `where` is set.
+ * Switching the fill off writes a zero where a rule beneath still fills, and removes `fillAlpha` otherwise.
  */
-class SetLineWidthCommand implements Command<SetLineWidthParams> {
-    readonly type: "set-line-width";
+class SetLineStyleCommand implements Command<SetLineStyleParams> {
+    readonly type: "set-line-style";
     readonly metadata: CommandMetadata;
-    readonly params: SetLineWidthParams;
-    constructor(params: SetLineWidthParams, metadata?: Partial<CommandMetadata>);
+    readonly params: SetLineStyleParams;
+    constructor(params: SetLineStyleParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
+    private buildAddress;
+    private readGivenProperties;
+    /** The change at the edited rule, leaving out every property it already declares as asked. */
+    private readEdit;
+    /**
+     * The `fillAlpha` that draws the fill as asked, `null` to drop it, or `undefined` when the line already
+     * draws it so, counting a fill held by a rule beneath and, for a group, the layer's.
+     */
+    private readFillAlpha;
+    private isFilled;
+    /** `null` when the rule already reads as the edit asks. */
+    private applyEdit;
 }
 
 /**
@@ -639,7 +653,11 @@ class SetLineMissingValuesCommand implements Command<SetLineMissingValuesParams>
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
 
-/** Sets a point layer's diameter. Merges into the layer's own override entry, or the group's when `where` is set. */
+/**
+ * Sets a point layer's diameter, merged into the layer's own override entry or the group's when `where` is set.
+ * Without `where` the size also leaves every shown group's rule, and while the layer itself draws at size 0 only
+ * the groups shown on top of it take the size.
+ */
 class SetPointSizeCommand implements Command<SetPointSizeParams> {
     readonly type: "set-point-size";
     readonly metadata: CommandMetadata;
@@ -647,6 +665,12 @@ class SetPointSizeCommand implements Command<SetPointSizeParams> {
     constructor(params: SetPointSizeParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
+    /** A new layer rule goes before the layer's group rules: the last matching rule wins, so a group hidden at 0 stays hidden. */
+    private readNewLayerRuleIndex;
+    /** Every group rule with a size of its own above 0. A group hidden at size 0 is left out, so it stays hidden. */
+    private findShownGroupRules;
+    /** `null` takes the size off, so the group draws the layer's. */
+    private buildGroupSizeWrites;
 }
 
 /**
@@ -770,28 +794,15 @@ class ToggleGoalLineCommand implements Command<ToggleGoalLineParams> {
 }
 
 /**
- * Draws or removes the fill beneath a line. Line layers only: an area fills by definition.
- *
- * Switching off clears `fillAlpha`, or writes zero to suppress an inherited fill.
- * Switching on uses the requested alpha, an inherited fill, or the default opacity.
- * A `where` writes that same choice on the group, and a fill on the layer still counts as inherited.
- */
-class ToggleLineFillCommand implements Command<ToggleLineFillParams> {
-    readonly type: "toggle-line-fill";
-    readonly metadata: CommandMetadata;
-    readonly params: ToggleLineFillParams;
-    constructor(params: ToggleLineFillParams, metadata?: Partial<CommandMetadata>);
-    get target(): EditTarget;
-    apply(spec: ResolvedSpec): CommandApplyResult | null;
-}
-
-/**
  * Toggles a companion point layer for a line or an area — both are drawn as a path.
  *
  * A shown point layer inherits the path's mapping, position, y-scale binding and layer-local
  * transforms — everything that decides where a vertex lands, including which rows there are to land
  * on. Its `stat` is not: a smoothed line with raw dots is the scatter-and-trendline reading, and
  * copying the stat would draw the dots on the trend.
+ *
+ * One point layer draws every group, so a `where` hides a group by drawing it at size 0. The layer
+ * goes once no group draws a dot, and showing every group takes each size 0 away.
  */
 class ToggleLinePointsCommand implements Command<ToggleLinePointsParams> {
     readonly type: "toggle-line-points";
@@ -802,6 +813,11 @@ class ToggleLinePointsCommand implements Command<ToggleLinePointsParams> {
     apply(spec: ResolvedSpec): CommandApplyResult | null;
     private addPointLayer;
     private removePointLayer;
+    /** With no point layer yet, adds one drawn at size 0 and gives the group the default size. */
+    private showGroupPoints;
+    /** Draws the group at size 0, or removes the layer when that leaves no dot. */
+    private hideGroupPoints;
+    private showEveryGroup;
     private findAssociatedPointLayer;
 }
 
@@ -8230,12 +8246,16 @@ type SetLineMissingValuesParams = {
     missingValues: MissingValues;
 };
 
-type SetLineWidthParams = {
+/** Serialized parameters of {@link SetLineStyleCommand}. Only the style fields given are written. */
+type SetLineStyleParams = {
     layerId: string;
-    /** Stroke width in px, or `null` to fall back to the stylesheet. */
-    lineWidth: number | null;
-    /** When set, the width applies to that group only. Absent, it applies to the whole layer. */
+    /** One group's rule. Absent, the layer's own rule, and the given properties leave every group rule of the layer. */
     where?: Predicate;
+    lineStyle?: LineType;
+    /** Stroke width in px, or `null` to fall back to the stylesheet. */
+    strokeWidth?: number | null;
+    /** The wash beneath a line. An area fills by definition, so it ignores this. */
+    showFill?: boolean;
 };
 
 type SetNumberFormatAbbreviationParams = {
@@ -8250,7 +8270,7 @@ type SetPointSizeParams = {
     layerId: string;
     /** Point diameter in px, or `null` to fall back to the stylesheet. */
     size: number | null;
-    /** When set, the size applies to that group only. Absent, it applies to the whole layer. */
+    /** When set, the size applies to that group only. Absent, the whole layer, and a group hidden at 0 stays hidden. */
     where?: Predicate;
 };
 
@@ -8979,19 +8999,12 @@ type ToggleGoalLineParams = {
     removedLayer?: ResolvedLayerSpec;
 };
 
-type ToggleLineFillParams = {
-    layerId: string;
-    showFill: boolean;
-    /** Optional opacity when enabling fill; otherwise uses the inherited fill or the default. */
-    fillAlpha?: number;
-    /** When set, the fill applies to that group only. Absent, it applies to the whole layer. */
-    where?: Predicate;
-};
-
 type ToggleLinePointsParams = {
     /** Path layer whose vertices get points; absent, the chart's first line or area. */
     layerId?: string;
     showPoints: boolean;
+    /** When set, shows or hides that group's points only. Absent, every group's. */
+    where?: Predicate;
     /** When restoring a previously removed point layer, holds the full layer spec to re-insert. */
     removedLayer?: ResolvedLayerSpec;
 };
