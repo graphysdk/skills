@@ -37,7 +37,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792417802336/dist/editable.browser.mjs",
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792419363022/dist/editable.browser.mjs",
           "@graphysdk/theme-blueprint": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-blueprint@latest/dist/index.mjs",
           "@graphysdk/theme-botanical": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-botanical@latest/dist/index.mjs",
           "@graphysdk/theme-comic": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-comic@latest/dist/index.mjs",
