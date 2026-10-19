@@ -228,16 +228,10 @@ Save as `force-directed-geom.tsx`.
 ```tsx
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  createGraphyKit,
-  defineGeomRenderer,
-  Geom,
-  type GeomHoverPush,
-  getColor,
-  type ScreenRect,
-} from '@graphysdk/react';
+import { createGraphyKit, defineGeomRenderer, Geom, getColor, type LiveGeomApi } from '@graphysdk/react';
 import type { Dataset, GeomCompileResult, GeomCompilerInput, SceneLayer } from '@graphysdk/react';
 import {
+  type BoxSize,
   createDatasetFromKindPartitions,
   type IdentityKey,
   readAuthoredNumber,
@@ -477,48 +471,41 @@ function partition(data: Dataset): { nodes: GraphNode[]; edges: GraphEdge[] } {
 }
 
 /**
- * Partitions the topology and hands it to the canvas. The renderer mounts it inside the overlay portal
- * and owns the screen-rect measurement, the portal, and the hover push wiring.
+ * Partitions the topology and hands it to the canvas. The renderer paints it above the capture layer and
+ * owns the hover push wiring.
  */
-const ForceOverlay = ({
-  layer,
-  rect,
-  pushHover,
-}: {
-  layer: SceneLayer;
-  rect: ScreenRect;
-  pushHover: GeomHoverPush;
-}) => {
+const ForceLayer = ({ layer, panelSize, live }: { layer: SceneLayer; panelSize: BoxSize; live: LiveGeomApi }) => {
   const { nodes, edges } = useMemo(() => partition(layer.data), [layer.data]);
   const params = layer.params as unknown as ForceDirectedParams;
-  return <ForceCanvas rect={rect} pushHover={pushHover} nodes={nodes} edges={edges} params={params} />;
+  return <ForceCanvas panelSize={panelSize} live={live} nodes={nodes} edges={edges} params={params} />;
 };
 
 /**
- * The live canvas: an SVG over the panel that runs the simulation and paints it each frame. The SVG
- * ignores pointer events; only the node circles and the invisible wide edge-hit lines take them, so gaps
+ * The live canvas: a group over the panel that runs the simulation and paints it each frame, in panel units.
+ * The group ignores pointer events; only the node circles and the invisible wide edge-hit lines take them, so gaps
  * fall through to the graph below. Nodes paint after edges, so a node takes the pointer over the edges it
  * overlaps. Hover goes to `pushHover` for the central tooltip; a local `focusHover` state drives the
  * neighborhood fade.
  */
 const ForceCanvas = ({
-  rect,
-  pushHover,
+  panelSize,
+  live,
   nodes,
   edges,
   params,
 }: {
-  rect: ScreenRect;
-  pushHover: GeomHoverPush;
+  panelSize: BoxSize;
+  live: LiveGeomApi;
   nodes: GraphNode[];
   edges: GraphEdge[];
   params: ForceDirectedParams;
 }) => {
+  const { pushHover, readPanelPoint } = live;
   const simRef = useRef<ForceSimulation | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragIndexRef = useRef<number | null>(null);
-  const rectRef = useRef(rect);
-  rectRef.current = rect;
+  const panelSizeRef = useRef(panelSize);
+  panelSizeRef.current = panelSize;
 
   const [, setFrame] = useState(0);
   const [focusHover, setFocusHover] = useState<FocusHover | null>(null);
@@ -541,7 +528,7 @@ const ForceCanvas = ({
   // Build (or rebuild) the simulation when the topology or its tuning changes, never every frame.
   useEffect(() => {
     const simEdges: SimEdge[] = edges.map((edge) => ({ sourceIndex: edge.sourceIndex, targetIndex: edge.targetIndex }));
-    const { width, height } = rectRef.current;
+    const { width, height } = panelSizeRef.current;
     simRef.current = new ForceSimulation(nodes.length, simEdges, {
       width,
       height,
@@ -563,28 +550,32 @@ const ForceCanvas = ({
   useEffect(() => {
     const sim = simRef.current;
     if (!sim) return;
-    sim.resize(rect.width, rect.height);
+    sim.resize(panelSize.width, panelSize.height);
     ensureRunning();
-  }, [rect.width, rect.height, ensureRunning]);
+  }, [panelSize.width, panelSize.height, ensureRunning]);
 
   // One stable handler per kind, reading the index off the target's `data-index`, so the per-frame
   // ticks do not allocate a closure per node and edge.
   const handleNodePointerDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>) => {
+      // No point before the panel mounts: start no drag, so the loop's drag keep-alive never holds without one.
+      const point = readPanelPoint(event);
+      if (!point) return;
       const index = Number(event.currentTarget.dataset.index);
       event.currentTarget.setPointerCapture(event.pointerId);
       dragIndexRef.current = index;
-      simRef.current?.startDrag(index, event.clientX - rectRef.current.left, event.clientY - rectRef.current.top);
+      simRef.current?.startDrag(index, point.x, point.y);
       ensureRunning();
     },
-    [ensureRunning]
+    [ensureRunning, readPanelPoint]
   );
 
   const handleNodePointerMove = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>) => {
       const index = Number(event.currentTarget.dataset.index);
-      if (dragIndexRef.current === index) {
-        simRef.current?.drag(index, event.clientX - rectRef.current.left, event.clientY - rectRef.current.top);
+      const point = dragIndexRef.current === index ? readPanelPoint(event) : null;
+      if (point) {
+        simRef.current?.drag(index, point.x, point.y);
         ensureRunning();
       }
       setFocusHover({ kind: 'node', index });
@@ -633,7 +624,7 @@ const ForceCanvas = ({
   const focus = useMemo(() => computeFocus(focusHover, edges), [focusHover, edges]);
 
   return (
-    <svg width={rect.width} height={rect.height} style={{ pointerEvents: 'none', overflow: 'visible' }}>
+    <g style={{ pointerEvents: 'none' }}>
       {edges.map((edge, index) => {
         const source = positions[edge.sourceIndex];
         const target = positions[edge.targetIndex];
@@ -711,7 +702,7 @@ const ForceCanvas = ({
           </text>
         );
       })}
-    </svg>
+    </g>
   );
 };
 
@@ -757,14 +748,12 @@ export const kit = createGraphyKit({
   plugins: [
     defineGeomRenderer(new ForceDirectedGeom(), {
       coord: 'cartesian',
-      // The live, draggable simulation must own its pointer events, so `render` is overlay-hosted: the
-      // renderer mounts it in a screen portal above the capture layer and supplies `overlay`. Hover and
-      // the tooltip go through `overlay.pushHover`.
+      // The live, draggable simulation must own its pointer events, so `render` is live: the renderer
+      // paints it above the capture layer and supplies `live`. Hover and the tooltip go through
+      // `live.pushHover`.
       render: {
-        fn: ({ layer, overlay }) => (
-          <ForceOverlay layer={layer} rect={overlay.panelRect} pushHover={overlay.pushHover} />
-        ),
-        options: { overlay: true },
+        fn: ({ layer, panelRect, live }) => <ForceLayer layer={layer} panelSize={panelRect} live={live} />,
+        options: { live: true },
       },
       renderHover: () => null,
       renderHoverCompanions: () => null,
@@ -780,8 +769,8 @@ export const kit = createGraphyKit({
 - From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
 - `source`, `target`, and `value` are required data aesthetics. The geom derives `node`: a node's own name, an edge's source name.
 - The color scale trains on the dataset `compile` returns, not on the input. `color` must name a column of that dataset: the derived `node`, listed in `derivedVariables` so the unknown-variable check accepts it. `color: 'source'` compiles with no diagnostic and paints everything the fallback gray.
-- The overlay-hosted `render` (`options: { overlay: true }`) owns pointer events, so drag and hover work without a `hitTest`. Each `pushHover(key, cursor)` resolves against the `'render-hit-test'` index, so the geom still declares `spatialKind: 'render-hit-test'` and an `identityKey` of its own; without them the overlay paints but no hover or tooltip appears (`OVERLAY_REQUIRES_RENDER_HIT_TEST`). Do not also declare `hitTest`: that is `CONFLICTING_RENDER_HIT_TEST`, and only the overlay is used.
-- `renderHover` and `renderHoverCompanions` are required by the contract; return `null`. The overlay paints its own hover (the neighborhood fade), and the central tooltip anchors at the pushed cursor.
-- Positions are not in the scene: the layout re-settles on each mount and resize. `overlay.panelRect` is the panel in client pixels (`left`, `top`, `width`, `height`); subtract it from `clientX` and `clientY` for panel-local drag coordinates.
+- The live `render` (`options: { live: true }`) paints above the hover capture layer and owns pointer events, so drag and hover work without a `hitTest`. Each `pushHover(key, cursor)` resolves against the `'render-hit-test'` index, so the geom still declares `spatialKind: 'render-hit-test'` and an `identityKey` of its own; without them the geom paints but no hover or tooltip appears (`LIVE_RENDER_REQUIRES_RENDER_HIT_TEST`). Do not also declare `hitTest`: that is `CONFLICTING_RENDER_HIT_TEST`, and only the live render is used.
+- `renderHover` and `renderHoverCompanions` are required by the contract; return `null`. The geom paints its own hover (the neighborhood fade), and the central tooltip anchors at the pushed cursor.
+- Positions are not in the scene: the layout re-settles on each mount and resize. The simulation runs in panel units (`panelRect.width` by `panelRect.height`), and `live.readPanelPoint(event)` converts a pointer to the same units, so a drag follows the pointer at any graph size.
 - `getColor` reads the data tier only, so `style.geom({ fill })` overrides do not reach the nodes. To honor them, read `toPaintColor(styleReaders.get('fill', observation))` from the render input instead.
 - Params: `chargeStrength` (default 450) and `linkDistance` (default 0.22 of the smaller panel side). Both are read render-side from `layer.params`.

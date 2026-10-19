@@ -13,7 +13,7 @@ Contents
 - Light and dark
 - Polar graphs
 - Fonts
-- Texture, glow and shadow
+- Overpaint, glow and shadow
 - Repainting built-in geoms
 - Painting geoms from packages
 - Motion
@@ -296,9 +296,9 @@ export const typed: Theme = {
 - The SDK references fonts and does not load them. Before the first layout the renderer waits for `document.fonts.ready`, up to three seconds, then measures and lays out again when more fonts finish loading. Fonts added later still land, but the graph repaints.
 - A reusable theme package exports this CSS as `fonts.css`. An in-app theme uses the app's stylesheet.
 
-## Texture, glow and shadow
+## Overpaint, glow and shadow
 
-Use style properties for textures, glow and shadows before writing a repaint. See [styling](styling.md#property-values) for paint values.
+Use style properties for overpaints, glow and shadows before writing a repaint. See [styling](styling.md#property-values) for paint values.
 
 ```ts
 import { style, type Stylesheet } from '@graphysdk/react';
@@ -323,10 +323,10 @@ const effects: Stylesheet = {
         ],
       },
     }),
-    // Overlays keep the fill underneath. The first item in a list is on top.
-    style.geom({ overlay: { pattern: 'lines', color: 'rgba(0, 0, 0, 0.3)', size: 3 } }),
+    // Overpaints keep the fill underneath. The first item in a list is on top.
+    style.geom({ overpaint: { pattern: 'lines', color: 'rgba(0, 0, 0, 0.3)', size: 3 } }),
     style.graph({
-      overlay: [
+      overpaint: [
         {
           gradient: 'radial',
           stops: [
@@ -337,22 +337,22 @@ const effects: Stylesheet = {
         { image: 'data:image/png;base64,iVBORw0KGgo=', fit: 'tile', size: 96, alpha: 0.12, fallback: 'transparent' },
       ],
     }),
-    // A hovered shape drops its overlay.
-    style.geom({ overlay: 'none' }, { state: 'hovered' }),
+    // A hovered shape drops its overpaint.
+    style.geom({ overpaint: 'none' }, { state: 'hovered' }),
   ],
 };
 ```
 
-`overlay` works on geoms and the graph. A geom overlay is masked by the layer's shapes and follows their opacity. A graph overlay covers the whole frame; only the paint's own transparency thins it.
+`overpaint` works on geoms and the graph. A geom overpaint covers everything a built-in geom or a theme repaint draws and the main shapes of a package geom, and follows their opacity. A graph overpaint covers the whole frame; only the paint's own transparency thins it.
 
 How the built-in themes use them:
 
-| Theme                        | Implementation                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Phosphor                     | `shadow` and `textShadow` for glow; pattern and gradient overlays for scanlines and dark corners. No repaint. |
-| Comic                        | Dot-pattern overlay on every geom; lines set `overlay: 'none'`.                                               |
-| Blueprint                    | Pattern overlays for hatching on bars and tiles.                                                              |
-| Chalkboard, Botanical, Shiny | Graph image overlays for the wooden frame, the taped page and the foil border.                                |
+| Theme                        | Implementation                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Phosphor                     | `shadow` and `textShadow` for glow; pattern and gradient overpaints for scanlines and dark corners. No repaint. |
+| Comic                        | Dot-pattern overpaint on every geom; lines set `overpaint: 'none'`.                                             |
+| Blueprint                    | Pattern overpaints for hatching on bars and tiles.                                                              |
+| Chalkboard, Botanical, Shiny | Graph image overpaints for the wooden frame, the taped page and the foil border.                                |
 
 Use a repaint for geometry that style properties cannot express.
 
@@ -469,6 +469,49 @@ export const outlined: Theme = {
 ```
 
 A shape left out keeps its default. Botanical and Chalkboard replace `Circle`; Watercolor replaces `Circle` and `Line`.
+
+### Drawing in pixels
+
+A shape receives its positions as panel percentages (`'42.5%'`), or as unit coordinates when the geom paints in a `UnitSpaceSvg`. A theme shape whose drawing depends on pixels, such as hatching a set distance apart, reads the panel's pixel size with `useGeomPanelSize()` and converts with `readShapePixels(position, extent)` or `readShapePixelRect(rect, panel)`.
+
+```tsx
+import { useId } from 'react';
+
+import { DefaultGeomRect, type GeomRectProps, readShapePixelRect, useGeomPanelSize } from '@graphysdk/react';
+
+const HATCH_SPACING_PX = 4;
+
+// Hatches every shared rect with lines 4px apart, whatever the panel's size. The hatching is a pattern fill on a
+// second DefaultGeomRect, so it springs with the rect. A rect too narrow for two lines is drawn plain.
+const HatchedRect = (props: GeomRectProps) => {
+  const patternId = useId();
+  const panel = useGeomPanelSize();
+  const box = panel && readShapePixelRect(props, panel);
+  if (!box || box.width < HATCH_SPACING_PX * 2) return <DefaultGeomRect {...props} />;
+
+  return (
+    <g>
+      <defs>
+        <pattern id={patternId} width={HATCH_SPACING_PX} height={HATCH_SPACING_PX} patternUnits="userSpaceOnUse">
+          <line
+            x1={HATCH_SPACING_PX / 2}
+            y1={0}
+            x2={HATCH_SPACING_PX / 2}
+            y2={HATCH_SPACING_PX}
+            stroke={props.fill ?? 'currentColor'}
+          />
+        </pattern>
+      </defs>
+      <DefaultGeomRect {...props} fillOpacity={0.2} />
+      <DefaultGeomRect {...props} fill={`url(#${patternId})`} fillOpacity={1} stroke={undefined} />
+    </g>
+  );
+};
+```
+
+- `useGeomPanelSize()` is `null` outside a geom layer and inside a `UnitSpaceSvg`. Inside a `UnitBoxSvg` it is the box's size, since the shape's percentages resolve against the box.
+- `readShapePixels` returns `null` for a unit coordinate, and `readShapePixelRect` returns `null` when any side is one. Draw the default shape then.
+- `readShapePixelRect` returns a `Rect` in pixels from the panel's (or box's) top-left, not the graph container's. Do not offset it by `layout.panel`.
 
 ## Motion
 

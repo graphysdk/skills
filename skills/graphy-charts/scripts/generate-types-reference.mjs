@@ -195,7 +195,7 @@ const GROUPS = [
   {
     title: 'Plugins — renderer side',
     pkg: 'react-renderer',
-    symbols: ['defineGeomRenderer', 'GeomRendererDefinition', 'createGraphyKit', 'GraphyKit'],
+    symbols: ['defineGeomRenderer', 'GeomRendererDefinition', 'GeomOverpaintProps', 'createGraphyKit', 'GraphyKit'],
   },
 ];
 
@@ -274,7 +274,7 @@ const EXPAND_STOP = new Set([
   'ResolvedObservationPoint',
   'StyleExplanation',
   'TooltipContract',
-  'InteractiveOverlayApi',
+  'LiveGeomApi',
   // Output side of the compile pipeline — consumed by renderers, not authored.
   'CompiledSpec',
   'CompiledLayer',

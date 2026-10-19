@@ -226,4 +226,5 @@ export const sketchyBar = defineGeomRenderer('bar', {
 - Install `roughjs` (`npm install roughjs`). Everything else imports from `@graphysdk/react`.
 - `defineGeomRenderer('bar', contract)` registers no compile definition, so there is no kit and no new geom name. The name is limited to the built-in geoms. Stacked, dodged and flipped bars keep working; polar bars keep the built-in paint, because this contract binds `coord: 'cartesian'` only.
 - Paint reads `styleReaders.get('fill', observation)` and `styleReaders.get('alpha', observation)`, so `style.geom.bar({ fill })` overrides, the color scale and the bar's built-in default all reach the paint. `toPaintColor` reduces a gradient or pattern to one color, which is all rough.js can stroke.
+- A theme's or the spec's overpaint lands over the whole sketchy canvas, so the pattern keeps its panel-pixel size.
 - On hover the base layer dims through the stylesheet's `dimmed` state and the bolder hover paint is drawn above it.

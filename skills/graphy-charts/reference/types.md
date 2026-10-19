@@ -9,7 +9,7 @@ Generated from `@graphysdk/viz-engine@1.8.0` and `@graphysdk/react-renderer@1.8.
 > Check precise signatures, option keys, and accepted values here; see
 > [spec.md](spec.md) for how the pieces compose. Supporting types follow the
 > main sections; React and standard-library types remain external. Legacy
-> GraphConfig alternatives are omitted. The only opaque names are compiled/internal shapes an author never constructs: CreateSpecBuilderOptions, Dataset, FormattedAxis, FormattedHeadline, FormattedLegend, GeomCompilerInput, GeomDefsOf, GeomStyleReaders, GeomSummaries, GraphHandle, HeadlineMeasurer, InteractiveOverlayApi, LayerIntroPlan, NodeBuilder, Observation, RegistryEntries, RegistryVocabularies, ResolvedLayerSpec, ResolvedPaint, STYLE_TARGETS, SceneLayer, SceneLayerOf, SpecBuilder, StatCompilerInput, StyleReadersForLayer, StyleReadersOf, TextMeasurer, TooltipContract, TransformStrategy, vars.
+> GraphConfig alternatives are omitted. The only opaque names are compiled/internal shapes an author never constructs: CreateSpecBuilderOptions, Dataset, FormattedAxis, FormattedHeadline, FormattedLegend, GeomCompilerInput, GeomDefsOf, GeomStyleReaders, GeomSummaries, GraphHandle, HeadlineMeasurer, LayerIntroPlan, LiveGeomApi, NodeBuilder, Observation, RegistryEntries, RegistryVocabularies, ResolvedLayerSpec, ResolvedPaint, STYLE_TARGETS, SceneLayer, SceneLayerOf, SpecBuilder, StatCompilerInput, StyleReadersForLayer, StyleReadersOf, TextMeasurer, TooltipContract, TransformStrategy, vars.
 
 ## Core & data
 
@@ -1140,6 +1140,14 @@ interface GeomRendererDefinition extends ResolvedGeomRenderer {
     readonly definition: Geom<unknown>;
 }
 
+interface GeomOverpaintProps {
+    /** The geom's readers; the overpaint is read from them. */
+    styleReaders: Pick<GeomStyleReaders, 'get'>;
+    state?: StyleState;
+    /** The shapes the overpaint covers. */
+    children: ReactNode;
+}
+
 /**
  * Builds a {@link GraphyKit} from `plugins` and a `theme`, passed once. For a headless compile, use
  * `createSpecBuilder` and `<GraphProvider plugins theme>` directly. The `const` type parameter keeps
@@ -1487,7 +1495,7 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     color: StyleColorValue;
     paint: AuthoredStylePaint;
-    overlay: AuthoredStyleOverlay;
+    overpaint: AuthoredStyleOverpaint;
     shadow: StyleShadowValue<StyleColorValue>;
     padding: StylePaddingValue;
     margin: StylePaddingValue;
@@ -1495,10 +1503,10 @@ interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
 
 /**
  * What is drawn over a target's own fill: `'none'`, one paint or several with the first on top. A
- * geom's overlay is drawn as strongly as the layer under it, so it fades with a fill that is faint.
- * The graph's overlay is drawn at full strength over the frame, whatever the graph's fill or alpha.
+ * geom's overpaint is drawn as strongly as the layer under it, so it fades with a fill that is faint.
+ * The graph's overpaint is drawn at full strength over the frame, whatever the graph's fill or alpha.
  */
-type AuthoredStyleOverlay = 'none' | AuthoredStylePaint | readonly AuthoredStylePaint[];
+type AuthoredStyleOverpaint = 'none' | AuthoredStylePaint | readonly AuthoredStylePaint[];
 
 /** A paint as authored, compiled (tokens inlined) and resolved (every color one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
@@ -1582,9 +1590,6 @@ interface AxisTicksConfig {
  */
 const BUILT_IN_GEOMS: readonly [BarGeom, PointGeom, LineGeom, AreaGeom, RuleGeom, TileGeom];
 
-/** A bar's rounding: a token scaled to the bar or a number of pixels. */
-type BarCornerRadius = BorderRadiusToken | number;
-
 /**
  * Represents each observation as a rectangular bar spanning from a baseline (`yMin = 0`) to the
  * y value (`yMax`), centered on its x band.
@@ -1594,7 +1599,6 @@ class BarGeom extends Geom<BarGeomParams> {
     readonly styleTarget: {
         readonly observation: {
             readonly vocabulary: {
-                readonly cornerRadius: "barRadius";
                 readonly strokeWidth: "pixels";
             };
             readonly aesthetics: {
@@ -2377,6 +2381,23 @@ interface GeomCompileResult {
     data: Dataset;
     /** Any mapping overrides produced by the geom */
     mapping: AesMapping;
+}
+
+/** A geom's rounding: a token or a number of pixels. `'full'` rounds the shorter side into a semicircle. */
+type GeomCornerRadius = BorderRadiusToken | number;
+
+/** What a geom draws with beyond its paint: a drop shadow and how it composites with what lies under it. */
+interface GeomEffects extends GeomFilters {
+    shadow: StyleShadowValue<string>;
+    blendMode: StyleBlendMode;
+}
+
+/** The color filters a geom draws through; each a multiple with `1` unchanged, `blur` in pixels. */
+interface GeomFilters {
+    saturation?: number;
+    brightness?: number;
+    contrast?: number;
+    blur?: number;
 }
 
 /** Context a geom's `validateMapping` hook receives to assert a bespoke mapping requirement. */
@@ -3517,7 +3538,7 @@ type PropertyDomainMap = {
     [Property in StyleProperty]: RegistryVocabularies extends infer Vocab ? Vocab extends Record<Property, infer Domain extends StyleDomain> ? Domain : never : never;
 };
 
-/** The domains a property takes across the registry: `cornerRadius` is `'barRadius' | 'pixels'`. */
+/** The domains a property takes across the registry: `cornerRadius` is `'geomRadius' | 'boxRadius' | 'pixels'`. */
 type PropertyDomains<Property extends StyleProperty> = PropertyDomainMap[Property];
 
 interface QuantitativeScaleMethods {
@@ -3945,11 +3966,12 @@ type RuleLabelPosition = 'start' | 'end';
 /** The paint every geom speaks, a plugin geom's observations included. */
 const SHARED_GEOM_VOCABULARY: {
     readonly fill: "paint";
-    readonly overlay: "overlay";
     readonly stroke: "color";
     readonly alpha: "unitInterval";
     readonly fillAlpha: "unitInterval";
     readonly strokeAlpha: "unitInterval";
+    readonly cornerRadius: "geomRadius";
+    readonly overpaint: "overpaint";
     readonly saturation: "multiplier";
     readonly blur: "pixels";
     readonly brightness: "multiplier";
@@ -3983,7 +4005,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "overlay", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overpaint", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -4001,7 +4023,7 @@ const STYLE_TEXT_TRANSFORMS: readonly ["none", "uppercase", "lowercase", "capita
 interface ScalarStyleDomainValues {
     unitInterval: number;
     pixels: number;
-    barRadius: BarCornerRadius;
+    geomRadius: GeomCornerRadius;
     dashArray: DashArray;
     fontFamily: string;
     fontWeight: number;
@@ -4398,7 +4420,7 @@ interface StyleGradientStop<Color> {
 /**
  * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
  * The fallback always paints behind the image; `alpha` affects only the image.
- * Use `fallback: 'transparent'` for overlays that should preserve the underlying colors.
+ * Use `fallback: 'transparent'` for an overpaint that should preserve the underlying colors.
  */
 interface StyleImage<Color> {
     image: string;
@@ -4600,7 +4622,6 @@ class TileGeom extends Geom<Record<string, never>> {
     readonly styleTarget: {
         readonly observation: {
             readonly vocabulary: {
-                readonly cornerRadius: "pixels";
                 readonly strokeWidth: "pixels";
             };
             readonly aesthetics: {
@@ -4760,7 +4781,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'OVERLAY_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'LIVE_RENDER_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * Constant mapping - a literal value applied to every observation.
@@ -5085,6 +5106,8 @@ interface GeomCircleProps {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
+    /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
+    effects?: GeomEffects;
     /** Whether a change of center or radius springs to the new one. Snaps when false. */
     shouldAnimateTransitions: boolean;
     /** A geom's own test hook, since the primitive owns the painted element. */
@@ -5101,21 +5124,22 @@ interface GeomLineProps {
     strokeWidth?: number;
     strokeDasharray?: string;
     strokeLinecap?: 'butt' | 'round' | 'square';
+    /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
+    effects?: GeomEffects;
     /** Whether a change of either endpoint springs to the new one. Snaps when false. */
     shouldAnimateTransitions: boolean;
     'data-testid'?: string;
 }
 
-/** An overlay-hosted geom's paint function — receives the guaranteed overlay wiring on `input.overlay`. */
-type GeomOverlayRenderFn<G extends GeomName | string = string, C extends CoordKind = CoordKind> = (input: GeomOverlayRenderInput<G, C>) => ReactNode;
+/** A live geom's paint function — receives the guaranteed wiring on `input.live`. */
+type GeomLiveRenderFn<G extends GeomName | string = string, C extends CoordKind = CoordKind> = (input: GeomLiveRenderInput<G, C>) => ReactNode;
 
 /**
- * The input an overlay-hosted render (`{ fn, options: { overlay: true } }`) receives: the standard render
- * input plus a guaranteed {@link InteractiveOverlayApi}. The renderer always supplies it, so the geom's
- * render uses `overlay` unconditionally — it never decides where it is mounted, only what it paints.
+ * The input a live render (`{ fn, options: { live: true } }`) receives: the standard render
+ * input plus a guaranteed {@link LiveGeomApi}.
  */
-interface GeomOverlayRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInput<G, C> {
-    overlay: InteractiveOverlayApi;
+interface GeomLiveRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInput<G, C> {
+    live: LiveGeomApi;
 }
 
 interface GeomPathProps {
@@ -5133,6 +5157,8 @@ interface GeomPathProps {
     strokeOpacity?: number;
     strokeWidth?: number;
     strokeDasharray?: string;
+    /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
+    effects?: GeomEffects;
     /** Whether a change of shape morphs to the new one. Snaps when false. */
     shouldAnimateTransitions: boolean;
     'data-testid'?: string;
@@ -5149,20 +5175,32 @@ interface GeomRectProps {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
+    /** A token or pixels, as `cornerRadius` reads from the geom's style. `'full'` rounds the shorter side. */
+    cornerRadius?: GeomCornerRadius;
+    /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
+    effects?: GeomEffects;
     /** Whether a change of origin or size springs to the new one. Snaps when false. */
     shouldAnimateTransitions: boolean;
     'data-testid'?: string;
 }
 
+/** The rect a theme's `Rect` draws, its corner radius resolved to the user units it is placed in. */
+type GeomRectShapeProps = Omit<GeomRectProps, 'cornerRadius'> & {
+    /**
+     * Corner radii in user units, clamped to half the rect's shorter side on screen when its size is known. They differ
+     * inside a `UnitSpaceSvg`, whose units stretch to the panel, so the corner stays round.
+     */
+    rx?: number;
+    ry?: number;
+};
+
 /**
- * A geom's `render`: either a plain panel-SVG paint function, or an overlay-hosted one paired with
- * `options` — so a geom that must paint into the interactive overlay declares
- * `{ fn, options: { overlay: true } }` without a second render entry point. The
- * renderer decides where each is mounted; the geom only decides what it paints. `render` is the single
- * paint declaration either way.
+ * A geom's `render`: either a plain paint function, or a live one paired with `options`, so a geom
+ * that owns its pointer events declares `{ fn, options: { live: true } }` without a second render
+ * entry point.
  */
 type GeomRender<G extends GeomName | string = string, C extends CoordKind = CoordKind> = GeomRenderFn<G, C> | {
-    fn: GeomOverlayRenderFn<G, C>;
+    fn: GeomLiveRenderFn<G, C>;
     options: GeomRenderOptions;
 };
 
@@ -5189,9 +5227,16 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
      */
     guideMode?: HoverGuideMode | null;
     /**
-     * The geom's paint. A plain function paints into the panel SVG; the `{ fn, options: { overlay: true } }`
-     * form paints into a screen-aligned portal above the central capture layer for a live/drag-driven geom
-     * that owns its pointer events (force-directed), with the wiring on `input.overlay`.
+     * Where a geom `overpaint` lands. `'layer'`, the default, lays it over everything each hook draws.
+     * `'manual'` leaves it to the geom, which wraps its main shapes in `GeomOverpaint` itself so what it draws
+     * before or after them stays clear (a boxplot's whiskers and medians). A manual geom with no wrapper draws
+     * no overpaint.
+     */
+    overpaintPlacement?: OverpaintPlacement;
+    /**
+     * The geom's paint. A plain function paints with the other geoms; the `{ fn, options: { live: true } }`
+     * form paints above the central capture layer for a live or drag-driven geom that owns its pointer events
+     * (force-directed), with the wiring on `input.live`.
      */
     render: GeomRender<G, C>;
     /**
@@ -5255,17 +5300,14 @@ interface GeomRenderInputBase {
     styleReaders: GeomStyleReaders;
 }
 
-/**
- * Hosting options for an overlay render. The presence of the object form already declares overlay hosting;
- * `overlay: true` makes the call site read explicitly (and leaves room for further hosting options later).
- */
+/** Options for the object form of `render`. */
 interface GeomRenderOptions {
     /**
-     * Mount this render's output in a screen-aligned portal above the central capture layer, rather than in
-     * the panel SVG — for a live or drag-driven geom that must own its pointer events (force-directed). The
-     * renderer then supplies {@link GeomOverlayRenderInput.overlay}.
+     * Paint this render above the central capture layer rather than with the other geoms, for a live or
+     * drag-driven geom that must own its pointer events (force-directed). It still paints in the panel SVG, in
+     * the same units as every other geom. The renderer then supplies {@link GeomLiveRenderInput.live}.
      */
-    overlay: true;
+    live: true;
 }
 
 /**
@@ -5275,7 +5317,7 @@ interface GeomRenderOptions {
 interface GeomShapes {
     Circle?: ComponentType<GeomCircleProps>;
     Line?: ComponentType<GeomLineProps>;
-    Rect?: ComponentType<GeomRectProps>;
+    Rect?: ComponentType<GeomRectShapeProps>;
     Path?: ComponentType<GeomPathProps>;
 }
 
@@ -5363,6 +5405,9 @@ interface OverlayAnchorInput<G extends GeomName | string = string, C extends Coo
     coordSystem: CoordSystemFor<C>;
     observation: Observation;
 }
+
+/** Where a geom `overpaint` lands: over everything a hook draws, or where the geom wraps it itself. */
+type OverpaintPlacement = 'layer' | 'manual';
 
 /** Fires on each deduped size change — the shape of `GraphRenderer`'s `onResize` callback. */
 type ResizeObserverOnResize = (state: ResizeObserverState) => void;

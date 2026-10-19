@@ -98,25 +98,21 @@ const roundedBars = defineGeomRenderer('bar', {
   guideMode: 'band',
   render: ({ layer, coordSystem, styleReaders }) => {
     const mainAxis = coordSystem.type === 'cartesian' ? coordSystem.mainAxis : 'x';
-    return (
-      <>
-        {[...layer.data].map((observation, index) => {
-          const rect = getBarRectBounds(mainAxis, observation);
-          if (rect === null) return null;
-          return (
-            <rect
-              key={index}
-              x={toPercent(rect.x)}
-              y={toPercent(rect.y)}
-              width={toPercent(rect.width)}
-              height={toPercent(rect.height)}
-              rx={6}
-              fill={toPaintColor(styleReaders.get('fill', observation) ?? '#4e79a7')}
-            />
-          );
-        })}
-      </>
-    );
+    return [...layer.data].map((observation, index) => {
+      const rect = getBarRectBounds(mainAxis, observation);
+      if (rect === null) return null;
+      return (
+        <rect
+          key={index}
+          x={toPercent(rect.x)}
+          y={toPercent(rect.y)}
+          width={toPercent(rect.width)}
+          height={toPercent(rect.height)}
+          rx={6}
+          fill={toPaintColor(styleReaders.get('fill', observation) ?? '#4e79a7')}
+        />
+      );
+    });
   },
   renderHover: () => null,
   renderHoverCompanions: () => null,
@@ -124,6 +120,8 @@ const roundedBars = defineGeomRenderer('bar', {
 
 export const kit = createGraphyKit({ plugins: [roundedBars] });
 ```
+
+A theme's or the spec's overpaint lands over everything the repaint draws (see [Draw the overpaint](#draw-the-overpaint)).
 
 One contract paints one coordinate system. Bind a second contract with `coord: 'polar'` for pies and polar bars, or leave it out and the built-in polar paint stays.
 
@@ -225,7 +223,7 @@ The internal column names are exported as `POSITION_VARIABLES` (`x`, `y`, `xMin`
 | Field                   | Required                      | What it does                                                                                                                                                                                                   |
 | ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `coord`                 | yes                           | `'cartesian'` or `'polar'`. One contract per coord.                                                                                                                                                            |
-| `render`                | yes                           | Paints the layer into the panel SVG. Or `{ fn, options: { overlay: true } }` for a live geom.                                                                                                                  |
+| `render`                | yes                           | Paints the layer into the panel SVG. Or `{ fn, options: { live: true } }` for a live geom.                                                                                                                     |
 | `renderHover`           | yes                           | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip.                                  |
 | `renderHoverCompanions` | yes                           | Paints companions in this layer when another layer is hovered. Receives `layer`, `coordSystem`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `panelRect` or `group`. Usually `() => null`. |
 | `renderHighlight`       | no                            | Repaints only matched observations when a highlight is active. Receives the render input plus `sourceLayer`, the full layer. Falls back to `render`.                                                           |
@@ -261,7 +259,7 @@ Every reader takes an observation from `layer.data`. Position readers, `getSize`
 
 ## Read the stylesheet in a plugin
 
-`styleReaders` on the render input is the cascade for this layer: overrides, then data-driven values, then defaults. Read one property per observation with `get`. A custom geom has the shared geom vocabulary: `fill`, `stroke`, `alpha`, `fillAlpha`, `strokeAlpha`, `saturation`, `blur`, `brightness`, `contrast`, `shadow`, and `blendMode`.
+`styleReaders` on the render input is the cascade for this layer: overrides, then data-driven values, then defaults. Read one property per observation with `get`. A custom geom has the shared geom vocabulary: `fill`, `stroke`, `alpha`, `fillAlpha`, `strokeAlpha`, `saturation`, `blur`, `brightness`, `contrast`, `shadow`, `blendMode`, and `overpaint`.
 
 ```ts
 import { toPaintColor } from '@graphysdk/react';
@@ -300,6 +298,42 @@ A geom that declares `styleTarget` with `defineGeomStyleTarget({ observation, pa
 Related hooks: `useStyleReaderTree()` returns the whole tree including chrome targets, `useGeomReaderTree()` the geom subtree, `useStyleResolver()` the provider's resolver, and `useResolvedStyle(read, ...args)` memoizes a module-level style read. Outside React, `createStyleResolver({ colorScheme }).readers(scene)` builds the same tree from a compiled scene.
 
 `get(property, observation?, state?)` takes an optional observation and an optional state, `'hovered'` or `'dimmed'`. Without an observation it answers for the layer as a whole. Geom entries take `where`, `state`, and `layer` options. Inside a component that is not the render function, `useGeomStyleReader(layer)` returns the same readers.
+
+## Draw the overpaint
+
+An `overpaint` is paint a stylesheet lays over a geom's shapes: scanlines, grain, hatching, a tint or an image. By default the renderer lays it over everything each render hook draws, in the hovered state over the hover repaint, so a geom whose every shape is a main shape does nothing.
+
+A geom with detail that should stay clear (stems, whiskers, connectors, a median, a label) sets `overpaintPlacement: 'manual'` and wraps its main shapes in `GeomOverpaint` in every render hook that paints them. The wrapper covers what it wraps; shapes drawn before it lie under the overpaint and shapes drawn after it are drawn over it. Draw thin strokes before it, and anything that sits on a main shape after it.
+
+```tsx
+import { defineGeomRenderer, GeomOverpaint } from '@graphysdk/react';
+
+defineGeomRenderer(new LollipopGeom(), {
+  coord: 'cartesian',
+  overpaintPlacement: 'manual',
+  render: ({ styleReaders }) => (
+    <>
+      {stems}
+      <GeomOverpaint styleReaders={styleReaders}>{heads}</GeomOverpaint>
+      {labels}
+    </>
+  ),
+  // In renderHover: the hovered state.
+  renderHover: ({ styleReaders, primary }) => (
+    <GeomOverpaint styleReaders={styleReaders} state="hovered">
+      {hoveredHead}
+    </GeomOverpaint>
+  ),
+  renderHoverCompanions: () => null,
+});
+```
+
+- In a manual geom, pass `state="hovered"` only in the hover repaint. An overpaint takes no `where`: the compiler drops one with a warning.
+- The pattern is laid out in panel pixels. A manual geom that draws inside a nested `<svg viewBox>` wraps that `<svg>`, not the shapes inside it, or the pattern stretches with the view box.
+- The overpaint is masked by the alpha of what the wrapper holds, so it follows the shapes' opacity. A shape from `Theme.shapes` inside the wrapper is covered too.
+- A geom that should never take an overpaint sets `'manual'` and draws no wrapper, and keeps the rest of the shared paint. Leaving `overpaint` out of its vocabulary is not enough, since the shared paint adds it back. Only a geom that declines the shared paint with `sharedPaint: false`, as an error bar does, goes without one that way.
+- Wrap only under `'manual'`. Under the default `'layer'` the renderer already overpaints the hook, so a `GeomOverpaint` there paints its shapes twice.
+- To overpaint a part on its own, declare `overpaint` in the part's vocabulary and wrap it in a second `GeomOverpaint` with `styleReaders.part('<part>')`, beside the geom's wrapper, not inside it. A chart-wide `style.geom(...)` never reaches a part.
 
 ## Hover, tooltip, and legend
 
@@ -343,7 +377,7 @@ For complete examples, see [treemap](../recipes/plugins/treemap.md), [Sankey](..
 
 For a pixel-dependent layout, compute the geometry from `panelRect` in `render`, `hitTest`, and `renderHover`, so all three lay out from the same input. `hitTest` receives the same `panelRect` as `render`, and `renderHover` finds the hovered shape by `primary.pointIndex`. Keep the layout on the contract: a tester registered from a component with `useGeomHitTest` is not visible to the diagnostics, so a `'render-hit-test'` layer without a contract `hitTest` warns `MISSING_RENDER_HIT_TEST`. The [beeswarm recipe](../recipes/plugins/beeswarm.md) shows this path.
 
-## Live geoms in an overlay
+## Live geoms
 
 A moving or draggable geom can own its pointer events by declaring:
 
@@ -351,18 +385,18 @@ A moving or draggable geom can own its pointer events by declaring:
 import type { GeomRenderContract } from '@graphysdk/react';
 
 const render: GeomRenderContract['render'] = {
-  fn: ({ overlay }) => <svg width={overlay.panelRect.width} height={overlay.panelRect.height} />,
-  options: { overlay: true },
+  fn: ({ panelRect, live }) => <g>{/* shapes with pointer handlers */}</g>,
+  options: { live: true },
 };
 ```
 
-Add the shapes and pointer handlers inside this overlay SVG. The renderer hosts its output in a screen-aligned portal above the hover capture layer. `overlay` is an `InteractiveOverlayApi`:
+The renderer paints this render after the hover capture layer, so its shapes receive pointer events first. It paints in the panel SVG, in the same units as every other geom, and scales with the graph. `live` is a `LiveGeomApi`:
 
-- `panelRect` is the panel's on-screen rect in client pixels, distinct from the regular render input's layout pixels.
 - `pushHover(key, { clientX, clientY })` resolves an observation by `identityKey` and anchors its tooltip at the cursor.
-- `pushHover(null)` clears this layer's hover. Other layers' hover survives, and unmounting clears the overlay's own hover.
+- `pushHover(null)` clears this layer's hover. Other layers' hover survives, and unmounting clears the layer's own hover.
+- `readPanelPoint(event)` converts a pointer's client coordinates to panel units. Use it to move a dragged shape; subtracting a client rect is off on a graph drawn at another size.
 
-Use `spatialKind = 'render-hit-test'` and an explicit identity here too. Choose either overlay push events or the contract's `hitTest` factory. When both are supplied, the overlay is used and the renderer warns. `useGeomHover(layer.id)` exposes the same push function to other components. The [force-directed recipe](../recipes/plugins/force-directed.md) includes a complete simulation with dragging and cleanup.
+Give the group `pointerEvents: 'none'` and enable it on the shapes that take the pointer, so gaps fall through to the chart's own hover. Use `spatialKind = 'render-hit-test'` and an explicit identity here too. Choose either the live render's push events or the contract's `hitTest` factory. When both are supplied, the live render is used and the renderer warns. `useGeomHover(layer.id)` exposes the same push function to other components. The [force-directed recipe](../recipes/plugins/force-directed.md) includes a complete simulation with dragging and cleanup.
 
 ## Custom stats and transforms
 
@@ -436,7 +470,7 @@ Plugin problems surface as diagnostics. Errors go to the provider's `onError` an
 - `MISSING_GEOM_RENDERER` is an error at registration when a custom geom's compile half has no render half at all, and a warning at scene time when none is bound for the active coord, so that layer is not painted.
 - `DUPLICATE_REGISTERED_TYPE` is a warning when two definitions share a name, or two render-only overrides share a `(geom, coord)` pair. The last in the array is used.
 - `RENDER_HIT_TEST_IDENTITY` is a warning for a layout geom left on a position-derived identity, or whose `{ variable }` identity names a column `compile` did not emit.
-- `MISSING_RENDER_HIT_TEST` when a `'render-hit-test'` geom has neither `hitTest` nor an overlay render; `CONFLICTING_RENDER_HIT_TEST` when it has both, and the overlay is used; `OVERLAY_REQUIRES_RENDER_HIT_TEST` when an overlay render sits on another spatial kind.
+- `MISSING_RENDER_HIT_TEST` when a `'render-hit-test'` geom has neither `hitTest` nor a live render; `CONFLICTING_RENDER_HIT_TEST` when it has both, and the live render is used; `LIVE_RENDER_REQUIRES_RENDER_HIT_TEST` when a live render sits on another spatial kind.
 - `MISSING_DATA_LABEL_PLACEMENT` when a geom declares `dataLabelCoordTypes` without `getDataLabelPlacements`; its layers paint no data labels.
 - `SPATIAL_KIND_COORD_UNSUPPORTED` for `'cells'` under polar, and `MISSING_ANCHOR_CAPABILITY` for a `'render-hit-test'` geom without `resolveAnchorPosition`. All warnings.
 
