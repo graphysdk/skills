@@ -551,10 +551,11 @@ class SetLayerStatCommand implements Command<SetLayerStatParams> {
  * Command that binds a layer to the primary or secondary y axis — the dual-axis control on a combo
  * chart, where a revenue line reads against the left axis and a margin line against the right.
  * Targets a specific layer by ID, or falls back to the spec's first layer, and moves that layer
- * alone; siblings keep their own binding. The scale the second axis is drawn from moves with the
- * binding ({@link resolveSecondaryScale}).
- * Produces a revert command that restores the previous binding and the scales as they stood, and
- * returns `null` when the layer already reads against the requested axis.
+ * with its companion layers, such as a line's points; siblings keep their own binding. The scale
+ * the second axis is drawn from moves with the binding ({@link resolveSecondaryScale}).
+ * Produces a revert command that puts the layer and its companions back on the layer's previous axis
+ * and restores the scales as they stood, and returns `null` when the layer already reads against
+ * the requested axis.
  */
 class SetLayerYScaleTypeCommand implements Command<SetLayerYScaleTypeParams> {
     readonly type: "set-layer-y-scale-type";
@@ -1859,7 +1860,7 @@ interface ContinuousControlProps<Value> extends ControlBaseProps {
  * Every press is its own undo entry, so there is no transient run to commit here — a button has no
  * gesture to hold open the way a drag or a run of keystrokes does.
  */
-const Button: ({ label, icon, onClick, variant, isDisabled, ariaLabel, ariaLabelledBy, id, }: ButtonControlProps) => JSX.Element;
+const Button: ({ label, icon, onClick, variant, isExpanded, isDisabled, ariaLabel, ariaLabelledBy, id, }: ButtonControlProps) => JSX.Element;
 
 /**
  * An action rather than a value: pressing it is the whole gesture, so there is nothing to read
@@ -1957,7 +1958,7 @@ interface RadioGridControlProps extends ContinuousControlProps<string> {
     columns?: number;
     /**
      * `tile` (default) captions each icon; `swatch` drops the caption for a dense grid of pure
-     * pictures — color chips a name would only clutter — naming each through `aria-label` instead;
+     * pictures — color chips a name would only clutter — naming each in a tooltip and through `aria-label` instead;
      * `icon` drops the tile too, names each in a tooltip and thickens the checked stroke for a 24-unit viewBox;
      * `track` sets the pictures on a toggle group's sunken track, the checked one raised, each named through `aria-label`.
      */
@@ -9358,9 +9359,11 @@ interface ButtonBaseProps extends ControlBaseProps {
     onClick: () => void;
     /**
      * `default` is a row: the icon before the label, on the section's own width. `tile` stacks the
-     * icon above the label in a taller cell, for a grid of add-affordances read as pictures.
+     * icon above the label in a taller cell, for a grid of add-affordances read as pictures; `icon` is an icon alone.
      */
-    variant?: 'default' | 'tile';
+    variant?: 'default' | 'tile' | 'icon';
+    /** Whether what the button opens is open, for a button that discloses the content below it. */
+    isExpanded?: boolean;
 }
 
 /**

@@ -143,7 +143,7 @@ If the URL uses `@latest`, resolve that tag once with `npm view @graphysdk/react
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792149244850/dist/index.browser.mjs"
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792399585685/dist/index.browser.mjs"
         }
       }
     </script>
@@ -206,7 +206,7 @@ Vendor the files next to the HTML, then rewrite those imports to relative filena
    - `vendor/react-dom.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm`
    - `vendor/react-dom-client.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm`
    - `vendor/scheduler.mjs` from `https://cdn.jsdelivr.net/npm/scheduler@0.27.0/+esm`
-   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792149244850/dist/index.browser.mjs`
+   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792399585685/dist/index.browser.mjs`
 2. In the React files, replace every `from"/npm/<package>@<version>/+esm"` (and any `/npm/<package>@<version>/<path>/+esm`) with a relative path to the matching local file. `graphy.mjs` imports `react`, `react-dom`, and `react/jsx-runtime` as bare specifiers, so leave it alone.
 3. Point the import map at the local files:
 
