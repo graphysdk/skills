@@ -145,10 +145,12 @@ Start with the HTML page in [setup](setup.md). Add the theme to the import map's
 }
 ```
 
-The theme bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime` through that map, so it shares the page's engine and React. Load its fonts in `<head>`. The file sits at the package root. Spreadsheet has none.
+The theme bundle imports `@graphysdk/react`, `react` and `react/jsx-runtime` through that map, so it shares the page's engine and React. Load its fonts in `<head>`. Each theme's `fonts.css` is one Google Fonts import; the file sits at the package root and names the families. Link that Google Fonts URL directly rather than the package file: artifact sandboxes allow stylesheets from Google Fonts only, and a blocked `fonts.css` leaves the theme on system faces. Spreadsheet has no fonts.
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@graphysdk/theme-watercolor@latest/fonts.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" />
 ```
 
 Import the theme in the module script and pass it to the provider:
@@ -472,12 +474,12 @@ A shape left out keeps its default. Botanical and Chalkboard replace `Circle`; W
 
 ### Drawing in pixels
 
-A shape receives its positions as panel percentages (`'42.5%'`), or as unit coordinates when the geom paints in a `UnitSpaceSvg`. A theme shape whose drawing depends on pixels, such as hatching a set distance apart, reads the panel's pixel size with `useGeomPanelSize()` and converts with `readShapePixels(position, extent)` or `readShapePixelRect(rect, panel)`.
+A shape receives its positions as panel percentages (`'42.5%'`) or panel pixels, or as unit coordinates when the geom paints in a `UnitSpaceSvg`. A theme shape whose drawing depends on pixels, such as hatching a set distance apart, reads the panel's pixel size with `useGeomPanelSize()` and converts with `readPositionPixels(position, extent)` or `readRectPixels(rect, panel)`.
 
 ```tsx
 import { useId } from 'react';
 
-import { DefaultGeomRect, type GeomRectProps, readShapePixelRect, useGeomPanelSize } from '@graphysdk/react';
+import { DefaultGeomRect, type GeomRectProps, readRectPixels, useGeomPanelSize } from '@graphysdk/react';
 
 const HATCH_SPACING_PX = 4;
 
@@ -486,7 +488,7 @@ const HATCH_SPACING_PX = 4;
 const HatchedRect = (props: GeomRectProps) => {
   const patternId = useId();
   const panel = useGeomPanelSize();
-  const box = panel && readShapePixelRect(props, panel);
+  const box = panel && readRectPixels(props, panel);
   if (!box || box.width < HATCH_SPACING_PX * 2) return <DefaultGeomRect {...props} />;
 
   return (
@@ -510,8 +512,9 @@ const HatchedRect = (props: GeomRectProps) => {
 ```
 
 - `useGeomPanelSize()` is `null` outside a geom layer and inside a `UnitSpaceSvg`. Inside a `UnitBoxSvg` it is the box's size, since the shape's percentages resolve against the box.
-- `readShapePixels` returns `null` for a unit coordinate, and `readShapePixelRect` returns `null` when any side is one. Draw the default shape then.
-- `readShapePixelRect` returns a `Rect` in pixels from the panel's (or box's) top-left, not the graph container's. Do not offset it by `layout.panel`.
+- `readPositionPixels` returns a number unchanged, since it is already pixels wherever `useGeomPanelSize()` gives a size. It returns `null` for a string that holds no percentage, and `readRectPixels` returns `null` when any side does. Draw the default shape then.
+- A geom paints shared shapes in unit coordinates inside a `UnitSpaceSvg`, never a hand-written `<svg viewBox>`. Under a bare view box the panel still reads as pixels, so a theme shape misreads the shape's coordinates.
+- `readRectPixels` returns a `Rect` in pixels from the panel's (or box's) top-left, not the graph container's. Do not offset it by `layout.panel`.
 
 ## Motion
 

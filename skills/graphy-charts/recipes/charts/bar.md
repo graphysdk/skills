@@ -2,30 +2,25 @@
 
 Use a bar graph to compare values across bands: products, regions, months treated as labels.
 
-## Data
-
-One row per observation. A band column for x and a numeric column for y.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const revenueData: Data = {
-  columns: [{ key: 'product' }, { key: 'revenue' }],
-  rows: [
-    { product: 'Product A', revenue: 1200 },
-    { product: 'Product B', revenue: 1800 },
-    { product: 'Product C', revenue: 2400 },
-    { product: 'Product D', revenue: 1600 },
-    { product: 'Product E', revenue: 3200 },
-    { product: 'Product F', revenue: 2800 },
-  ],
-};
-```
-
 ## Basic
 
+One row per observation: a band column for x and a numeric column for y.
+
 ```tsx
-import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import {
+  config,
+  coord,
+  createSpec,
+  geom,
+  GraphProvider,
+  GraphRenderer,
+  mapping,
+  pipe,
+  scale,
+  style,
+  styles,
+  transform,
+} from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const revenueData: Data = {
@@ -56,8 +51,6 @@ export function RevenueBars() {
 Flip the coordinate system. The x band runs down the left side.
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(createSpec({ x: 'product', y: 'revenue' }), geom.bar(), scale.x(), scale.y(), coord.flip());
 ```
 
@@ -66,9 +59,6 @@ const spec = pipe(createSpec({ x: 'product', y: 'revenue' }), geom.bar(), scale.
 Wide data (one column per group) needs a reshape first. Map the new key column to color and set the position to dodge.
 
 ```ts
-import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const regionData: Data = {
   columns: [{ key: 'quarter' }, { key: 'North' }, { key: 'South' }, { key: 'West' }],
   rows: [
@@ -104,8 +94,6 @@ If the data is already long (one row per quarter and region), skip the reshape a
 Same data and mapping as grouped. Change the position.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.bar({ position: 'stack' });
 ```
 
@@ -114,8 +102,6 @@ const layer = geom.bar({ position: 'stack' });
 Every bar fills the full height and segments show shares.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.bar({ position: 'fill' });
 ```
 
@@ -124,8 +110,6 @@ const layer = geom.bar({ position: 'fill' });
 Width is a fraction of the band, default 0.7. Corner rounding and borders are style declarations, not geom params.
 
 ```ts
-import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'product', y: 'revenue' }),
   geom.bar({ params: { width: 0.5 } }),
@@ -140,8 +124,6 @@ Corner radius tokens run from `'none'` through `'xl'`, plus `'full'` for pills. 
 ### Data labels
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.bar({ position: 'stack', dataLabels: { showDataLabels: true, showStackTotals: true } });
 ```
 
@@ -152,8 +134,6 @@ Use `format: 'percentage'` on a filled stack to label shares instead of values.
 Sort the observations before the geom reads them.
 
 ```ts
-import { createSpec, geom, pipe, scale, transform } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'product', y: 'revenue' }),
   transform.sort({ variableName: 'revenue', direction: 'desc' }),
@@ -168,9 +148,6 @@ const spec = pipe(
 When each row is one event, the count stat tallies rows per band. No y mapping is needed.
 
 ```ts
-import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const ordersData: Data = {
   columns: [{ key: 'orderType' }],
   rows: [
@@ -198,28 +175,13 @@ Nothing special. Bars grow down from zero.
 
 ### Single bar
 
-One observation draws one bar.
-
-```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
-const singleBarData: Data = {
-  columns: [{ key: 'item' }, { key: 'amount' }],
-  rows: [{ item: 'Revenue', amount: 42000 }],
-};
-
-const spec = pipe(createSpec({ x: 'item', y: 'amount' }), geom.bar(), scale.x(), scale.y());
-```
+One observation draws one bar. The spec is the basic one.
 
 ### Month names without a year
 
 Short month names are read as dates. A bar keeps x as a band, but each color group gets its own synthetic year, counted from the group's first row. A group that starts in `Dec` puts its `Jan` in the next year and gets a separate `Jan` band from a group that starts in `Jan`. Pin the column as text to keep the labels as plain bands in row order.
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const productData: Data = {
   columns: [{ key: 'month', valueFormat: { type: 'text' } }, { key: 'revenue' }, { key: 'product' }],
   rows: [

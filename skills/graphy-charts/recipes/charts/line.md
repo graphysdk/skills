@@ -2,30 +2,25 @@
 
 Use a line graph to show how a value changes over an ordered x, usually time.
 
-## Data
+## Basic
 
 One row per observation. Short month names, dates and ISO strings are read as dates, so x becomes a time axis. Plain labels such as `'Q1'` become bands.
 
-```ts
-import type { Data } from '@graphysdk/react';
-
-const revenueData: Data = {
-  columns: [{ key: 'month' }, { key: 'revenue' }],
-  rows: [
-    { month: 'Jan', revenue: 1200 },
-    { month: 'Feb', revenue: 1800 },
-    { month: 'Mar', revenue: 2400 },
-    { month: 'Apr', revenue: 1600 },
-    { month: 'May', revenue: 3200 },
-    { month: 'Jun', revenue: 2800 },
-  ],
-};
-```
-
-## Basic
-
 ```tsx
-import { createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import {
+  config,
+  coord,
+  createSpec,
+  geom,
+  GraphProvider,
+  GraphRenderer,
+  mapping,
+  pipe,
+  scale,
+  style,
+  styles,
+  transform,
+} from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const revenueData: Data = {
@@ -58,9 +53,6 @@ export function RevenueLine() {
 Wide data has one column per group. Reshape it to long form inside the spec, map the key column to color, and add a point layer for markers.
 
 ```ts
-import { config, createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const regionData: Data = {
   columns: [{ key: 'month' }, { key: 'North' }, { key: 'South' }, { key: 'East' }],
   rows: [
@@ -94,8 +86,6 @@ const spec = pipe(
 Map the group to `lineType` and give the scale an explicit domain and range.
 
 ```ts
-import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec(
     transform.reshape({ keep: ['month'], reshape: ['North', 'South', 'East'], keyName: 'region', valueName: 'sales' }),
@@ -112,8 +102,6 @@ const spec = pipe(
 ### Smooth curve
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.line({ params: { curve: 'smooth' } });
 ```
 
@@ -122,8 +110,6 @@ const layer = geom.line({ params: { curve: 'smooth' } });
 The wash is a style declaration on the line geom. It fades from the line color to transparent at the baseline.
 
 ```ts
-import { createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'month', y: 'revenue' }),
   geom.line(),
@@ -138,8 +124,6 @@ const spec = pipe(
 Rows with `null` on y can leave a gap (the default), connect across, or drop to zero.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const gap = geom.line({ params: { missingValues: 'gap' } });
 const connect = geom.line({ params: { missingValues: 'connect' } });
 const zero = geom.line({ params: { missingValues: 'zero' } });
@@ -150,9 +134,6 @@ const zero = geom.line({ params: { missingValues: 'zero' } });
 Date values and ISO strings give a time axis, and ticks follow the calendar. `scale.x()` infers datetime; `scale.x.datetime()` says so explicitly.
 
 ```ts
-import { createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const dailyData: Data = {
   columns: [{ key: 'day' }, { key: 'visits' }],
   rows: [
@@ -169,16 +150,12 @@ const spec = pipe(createSpec({ x: 'day', y: 'visits' }), geom.line(), scale.x.da
 ### Horizontal
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.line(), scale.x(), scale.y(), coord.flip());
 ```
 
 ### Fixed y domain
 
 ```ts
-import { scale } from '@graphysdk/react';
-
 const yScale = scale.y({ domainMin: 0 });
 ```
 

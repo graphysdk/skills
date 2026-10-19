@@ -104,12 +104,10 @@ Prints each bar's figure: the change for a step, the running total for a total. 
 The bars are the observations. Each kind and the connector is a part. A chart-wide `style.geom()` does not recolour the bars.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'item', y: 'amount' }),
   kit.geom.waterfall({ aes: { measure: 'measure' } }),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.waterfall({ fillAlpha: 0.85 }),
       kit.style.geom.waterfall.increase({ fill: '#7fb685' }),

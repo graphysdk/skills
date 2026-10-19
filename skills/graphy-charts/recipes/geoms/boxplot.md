@@ -123,12 +123,10 @@ Under the default stat, mapping any summary aesthetic is an error (`CONFLICTING_
 The boxes are the observations. Each other piece is a part. Every piece takes its group's color from the scale unless an entry names one.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'service', y: 'ms' }),
   kit.geom.boxplot(),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.boxplot({ fillAlpha: 0.85, stroke: 'transparent' }),
       kit.style.geom.boxplot.median({ stroke: '#3a3833', strokeWidth: 2.5 }),

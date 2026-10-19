@@ -1,30 +1,15 @@
-// Generates reference/types.md from the published .d.ts of the editing surface:
-// @graphysdk/viz-engine (commands, annotations, anchors), @graphysdk/react-renderer
-// (handle & hooks) and @graphysdk/react-renderer/editable (panel, sections,
-// controls) — the exact public shape, with JSDoc, so a codegen agent never has
-// to grep the bundles.
+// Generate reference/types.md from the built .d.ts files for commands,
+// annotations, handles, hooks, and editor components. Preserve JSDoc.
 //
-// How it works (same machinery as graphy-charts/scripts/generate-types-reference.mjs,
-// different curation):
-// - GROUPS lists curated ROOT symbols per section. Only roots are maintained by
-//   hand; a renamed/removed root fails generation loudly.
-// - Every type a root's declaration references is pulled in automatically
-//   (transitive closure) and emitted in a per-package "Supporting types"
-//   appendix — the doc never contains a dangling type name.
-// - EXPAND_STOP names types that are deliberately NOT expanded (internal or
-//   output-side graphs); they appear in the doc as opaque references.
-// - dts-bundler renames (`Plugin` -> `Plugin_2`) are resolved through the
-//   d.ts export aliases and mapped back everywhere they appear.
+// GROUPS lists the symbols to document in each section. Missing or duplicate
+// symbols fail generation. Referenced types are added under "Supporting types"
+// unless EXPAND_STOP excludes them. Export aliases restore names renamed by
+// the declaration bundler, such as Plugin_2 -> Plugin.
 //
-// Known upstream gap: dist/editable.d.ts imports `EditorPanel`, `PanelRootProps`
-// and `PANEL_ROOT_ATTRIBUTE` from dangling relative paths, so they cannot be
-// extracted here; reference/panel.md documents their shape in prose.
-//
-// Usage:  node scripts/generate-types-reference.mjs [--check] [--packages <dir>]
-//         Reads dist/*.d.ts of @graphysdk/viz-engine and @graphysdk/react-renderer, resolved from
-//         this skill's node_modules, or from <dir>/<package>/dist when --packages names a checkout
-//         of the monorepo's packages folder.
-//         --check: exit 1 if reference/types.md is out of date instead of writing.
+// Usage: node scripts/generate-types-reference.mjs [--check] [--packages <dir>]
+// By default, resolve @graphysdk/viz-engine and @graphysdk/react-renderer from
+// this skill's dependencies. Use --packages for a monorepo packages directory.
+// --check exits with code 1 if reference/types.md needs regeneration.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -44,8 +29,8 @@ if (packagesFlag !== -1 && (!packagesDir || packagesDir.startsWith('--'))) {
   process.exit(1);
 }
 
-// The published packages don't export package.json, so resolve the entry point
-// and take the sibling .d.ts in dist/ (and package.json one level up).
+// The packages do not export package.json. Resolve it and the .d.ts file
+// relative to the package entry point.
 function findPackage(pkg, dtsFile = 'index.d.ts') {
   if (packagesDir) {
     const root = resolve(packagesDir, pkg);
@@ -58,7 +43,7 @@ function findPackage(pkg, dtsFile = 'index.d.ts') {
   return { dts, version };
 }
 
-// Keys are internal ids; `label` is what the doc prints.
+// Keys identify packages within this script; labels appear in the reference.
 const PACKAGES = {
   'viz-engine': { ...findPackage('viz-engine'), label: '@graphysdk/viz-engine' },
   'react-renderer': {
@@ -71,9 +56,7 @@ const PACKAGES = {
   },
 };
 
-// Cross-package import resolution: which sibling package a module specifier in
-// one package's d.ts refers to. Relative specifiers never match (the dangling
-// EditorPanel imports land in `unresolved`, by design).
+// Resolve imports between these packages. Relative imports remain unresolved.
 const SIBLINGS = {
   'viz-engine': ['react-renderer'],
   'react-renderer': ['viz-engine'],
@@ -84,8 +67,7 @@ const SPECIFIER_OF = {
   'react-renderer': '@graphysdk/react-renderer',
 };
 
-// Each group becomes a `##` section; `symbols` are the curated roots. Order is
-// preserved. Types the roots reference are appended automatically.
+// Each group becomes a section in this order. Referenced types are added later.
 const GROUPS = [
   {
     title: 'Handle & hooks — @graphysdk/react-renderer',
@@ -105,6 +87,10 @@ const GROUPS = [
       'useHandleScene',
       'pruneSelection',
       'GraphProviderProps',
+      'GRAPH_MODES',
+      'useTargetBoundary',
+      'TargetBoundary',
+      'SideSpans',
     ],
   },
   {
@@ -121,7 +107,10 @@ const GROUPS = [
       'CommandStackSnapshot',
       'EditTarget',
       'areEditTargetsEqual',
+      'readEditTargetKey',
+      'ObservationsTarget',
       'updateSpec',
+      'toSpec',
     ],
   },
   {
@@ -132,6 +121,11 @@ const GROUPS = [
       'readChartType',
       'canBecomeHeatmap',
       'isComboChartType',
+      'canBecomeCombo',
+      'COMBO_TYPES',
+      'SetMappingCommand',
+      'SetMappingParams',
+      'readMappableAesthetics',
       'AddLayerCommand',
       'AddLayerOptions',
       'LayerDraft',
@@ -161,6 +155,7 @@ const GROUPS = [
     pkg: 'viz-engine',
     symbols: [
       'SetScaleDomainCommand',
+      'SetScaleRangeCommand',
       'SetScaleReverseCommand',
       'SetScaleTransformCommand',
       'SetCoordLimitsCommand',
@@ -201,6 +196,10 @@ const GROUPS = [
     pkg: 'viz-engine',
     symbols: [
       'SetStyleRuleCommand',
+      'StyleRuleEdit',
+      'SetObservationsColorCommand',
+      'readObservationsColorRoute',
+      'readColorChoices',
       'AddHighlightCommand',
       'AddHighlightOptions',
       'RemoveHighlightCommand',
@@ -221,7 +220,13 @@ const GROUPS = [
       'AnnotationPatch',
       'MoveAnnotationCommand',
       'RemoveAnnotationCommand',
+      'SetDifferenceArrowStyleCommand',
     ],
+  },
+  {
+    title: 'Commands — sequence',
+    pkg: 'viz-engine',
+    symbols: ['SequenceCommand', 'SequenceParams'],
   },
   {
     title: 'Annotation model & anchors',
@@ -236,6 +241,11 @@ const GROUPS = [
       'PanelTranslation',
       'createObservationAnchorBuilder',
       'areAnchorsEqual',
+      'areObservationAnchorsEqual',
+      'findObservationAttachment',
+      'OBSERVATION_ATTACHMENT_KINDS',
+      'buildObservationsTarget',
+      'readReachableLevels',
       'RichTextContent',
     ],
   },
@@ -244,6 +254,11 @@ const GROUPS = [
     pkg: 'editable',
     symbols: [
       'EditableGraphRenderer',
+      'EditableGraphRendererProps',
+      'PalettePresets',
+      'EditorPanel',
+      'PanelRootProps',
+      'PANEL_ROOT_ATTRIBUTE',
       'IntlProvider',
       'AxesPanel',
       'ElementsPanel',
@@ -252,6 +267,7 @@ const GROUPS = [
       'SectionLayout',
       'ToggledSection',
       'Row',
+      'Separator',
       'RowLayout',
       'OverridableSectionProps',
       'usePanelGraph',
@@ -265,6 +281,8 @@ const GROUPS = [
       'GraphTypeSection',
       'GraphOptionsSection',
       'GraphOptionsSectionProps',
+      'MappingSection',
+      'ComboSection',
       'AxisSection',
       'AxisSectionProps',
       'PolarSection',
@@ -305,6 +323,7 @@ const GROUPS = [
       'NumberFieldControlProps',
       'RadioGrid',
       'RadioGridControlProps',
+      'RadioGridOption',
       'Select',
       'SelectControlProps',
       'Slider',
@@ -318,6 +337,10 @@ const GROUPS = [
       'ControlRegistry',
       'ResolvedControlRegistry',
       'useControls',
+      'ControlRegistryProvider',
+      'ControlRegistryProviderProps',
+      'ControlTooltip',
+      'ControlTooltipProps',
     ],
   },
 ];
@@ -331,7 +354,7 @@ function removeSkipped(text) {
       .replace(new RegExp(`\\s*\\|\\s*${name}\\b`, 'g'), '')
       .replace(new RegExp(`\\b${name}\\s*\\|\\s*`, 'g'), '');
   }
-  // Remaining mentions sit in JSDoc: drop the sentences that contain them.
+  // Remove JSDoc sentences that refer to omitted types.
   return text
     .replace(/\/\*\*[\s\S]*?\*\/\n?/g, (comment) => {
       if (![...SKIPPED].some((name) => comment.includes(name))) return comment;
@@ -352,12 +375,10 @@ function removeSkipped(text) {
     .replace(/^\n+/, '');
 }
 
-// References that are deliberately not expanded. Unlike the graphy-charts
-// generator, `Command` and `CommandStep` ARE expanded here — they are this
-// skill's subject. The authoring-side spec graph is stopped instead: the
-// graphy-charts skill's types.md carries it in full.
+// Omit compiler internals and types covered by the graphy-charts reference.
+// Keep Command and CommandStep because this skill covers editing.
 const EXPAND_STOP = new Set([
-  // Output side of the compile pipeline — consumed, not authored.
+  // Compiler output types are not needed to write edits.
   'CompiledSpec',
   'CompiledLayer',
   'CompiledGeom',
@@ -373,8 +394,7 @@ const EXPAND_STOP = new Set([
   'Compiler',
   'LastCompileSnapshot',
   'RendererContext',
-  // The resolved spec and its authoring-side graph — commands take and return
-  // it, but its shape is graphy-charts territory.
+  // The graphy-charts reference covers spec and authoring types.
   'Spec',
   'SpecInput',
   'Dataset',
@@ -401,8 +421,7 @@ const EXPAND_STOP = new Set([
   'ThemeOverrides',
   'GraphSlots',
   'VizDiagnostic',
-  // The i18n dictionary graph behind IntlProvider — thousands of lines of
-  // phrase keys nobody authors against. IntlProviderProps stays; its innards go.
+  // Include IntlProviderProps without expanding its internal dictionary types.
   'Dictionary',
   'dictionaries',
   'EN_GB',
@@ -421,7 +440,7 @@ const EXPAND_STOP = new Set([
   'LooseValue',
   'TextDirection',
   'CoreIntlProviderProps',
-  // Engine internals reachable from the command/handle contracts.
+  // Engine internals referenced by commands and handles.
   'CommandGate',
   'CommandStackManager',
   'CommandStackEvent',
@@ -433,7 +452,7 @@ const EXPAND_STOP = new Set([
   'DrainedDiagnostics',
 ]);
 
-// Type names never looked up (TS/DOM/React lib space).
+// Built-in TypeScript, DOM, and React types do not need local definitions.
 const AMBIENT_NAMES = new Set([
   'Array',
   'ReadonlyArray',
@@ -490,10 +509,9 @@ const AMBIENT_NAMES = new Set([
 ]);
 
 /**
- * Parse one package's d.ts into:
- * - declarations: canonical name -> { text, refs } (overloads merged, bundler
- *   rename suffixes mapped back to the exported names everywhere)
- * - importedFrom: local name -> package specifier (for cross-package references)
+ * Parse declarations and imports from one package's .d.ts file.
+ * - declarations maps exported names to { text, refs }, with overloads merged.
+ * - importedFrom maps local names to package specifiers.
  */
 function parsePackage(filePath) {
   const text = readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n');
@@ -540,7 +558,7 @@ function parsePackage(filePath) {
     }
   }
 
-  // local -> exported rename map, applied to every emitted block and reference.
+  // Use exported names in all declarations and references.
   const localToExported = new Map([...exportedToLocal].map(([exported, local]) => [local, exported]));
   const canonical = (name) => localToExported.get(name) ?? name;
   const renameAll = (blockText) => {
@@ -551,8 +569,8 @@ function parsePackage(filePath) {
     return result;
   };
 
-  // Collect the type names a statement references (type refs, heritage,
-  // typeof), excluding the generic parameters the statement itself declares.
+  // Collect referenced types, including base types and typeof expressions.
+  // Exclude generic parameters declared by the statement.
   const collectRefs = (statement) => {
     const refs = new Set();
     const typeParameters = new Set();
@@ -583,8 +601,8 @@ function parsePackage(filePath) {
     for (const statement of statements) {
       const fullText = statement.getFullText(sourceFile);
       const declText = statement.getText(sourceFile);
-      // Leading trivia (JSDoc) sits between fullText start and the declaration;
-      // keep it, then drop the `export declare` / `declare` modifier prefix.
+      // Preserve leading comments and remove the declaration's
+      // `export declare` or `declare` prefix.
       const jsDoc = fullText
         .slice(0, fullText.length - declText.length)
         .replace(/^\s+/, '')
@@ -617,7 +635,7 @@ function resolveSymbol(pkg, name) {
   return null;
 }
 
-// Validate roots: unique across groups, all resolvable.
+// Each listed symbol must exist and appear in only one group.
 const rootNames = new Set();
 const missing = [];
 const duplicates = [];
@@ -637,8 +655,8 @@ if (duplicates.length > 0 || missing.length > 0) {
   process.exit(1);
 }
 
-// Transitive closure: BFS from the roots; referenced types not already emitted
-// as roots land in the per-package supporting sets.
+// Follow references from the listed symbols and group additional types
+// by package for the supporting sections.
 const supporting = Object.fromEntries(Object.keys(PACKAGES).map((pkg) => [pkg, new Map()]));
 const unresolved = new Set();
 const stopped = new Set();
@@ -674,7 +692,6 @@ while (queue.length > 0) {
   }
 }
 
-// Render.
 const sections = [];
 for (const group of GROUPS) {
   const blocks = group.symbols.map((name) => resolveSymbol(group.pkg, name).entry.text);
@@ -684,13 +701,13 @@ for (const [pkg, entries] of Object.entries(supporting)) {
   if (entries.size === 0) continue;
   const blocks = [...entries.keys()].sort().map((name) => entries.get(name).text);
   sections.push(
-    `## Supporting types — ${PACKAGES[pkg].label}\n\nTypes referenced by the sections above, included so no name dangles.\n\n\`\`\`ts\n${blocks.join('\n\n')}\n\`\`\``
+    `## Supporting types — ${PACKAGES[pkg].label}\n\nAdditional types referenced by the sections above.\n\n\`\`\`ts\n${blocks.join('\n\n')}\n\`\`\``
   );
 }
 
 const stoppedNote =
   stopped.size > 0
-    ? ` The only opaque names are compiled/internal shapes and the authoring-side spec graph (documented in the graphy-charts skill's types.md): ${[...stopped].sort().join(', ')}.`
+    ? ` Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): ${[...stopped].sort().join(', ')}.`
     : '';
 
 const versions = [
@@ -704,18 +721,12 @@ const header = `<!-- GENERATED FILE — do not edit. -->
 
 Generated from ${versions}.
 
-> The exact public editing API, extracted verbatim (with JSDoc) from the built
-> \`.d.ts\` files: the command system and annotation model from
-> \`@graphysdk/viz-engine\`, the handle & hooks from \`@graphysdk/react-renderer\`,
-> and the panel, sections and controls from \`@graphysdk/react-renderer/editable\`.
-> Check precise signatures, option keys, and accepted values here; the other
-> reference files cover how the pieces compose. Every type these declarations
-> reference is defined in this file, most under "Supporting types" at the
-> end.${stoppedNote}
->
-> Not extractable from the published d.ts (upstream bundling gap): \`EditorPanel\`,
-> \`PanelRootProps\`, \`PANEL_ROOT_ATTRIBUTE\` — their shapes are documented in
-> \`panel.md\`.
+> Signatures, option keys, and accepted values from the built \`.d.ts\` files,
+> with JSDoc. Includes commands and annotations from \`@graphysdk/viz-engine\`,
+> handles and hooks from \`@graphysdk/react-renderer\`, and editor components
+> from \`@graphysdk/react-renderer/editable\`. Referenced types appear under
+> "Supporting types" where available; external and built-in types are omitted.
+> See the other references for usage.${stoppedNote}
 `;
 
 const output = `${header}\n${sections.join('\n\n')}\n`;

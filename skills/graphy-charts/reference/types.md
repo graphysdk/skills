@@ -5431,8 +5431,8 @@ interface ResolvedGeomRenderer extends GeomRenderContract {
 }
 
 /**
- * A position in the space the geom paints in: a panel percentage (`'42.5%'`) or a user coordinate
- * inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
+ * A position in the space the geom paints in: a panel percentage (`'42.5%'`), panel-local pixels, or a user
+ * coordinate inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
  */
 type ShapePosition = string | number;
 

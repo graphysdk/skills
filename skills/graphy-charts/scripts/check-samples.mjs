@@ -11,6 +11,7 @@
 //
 //   Phase 1  Graphy entry-point names and named exports are recognised
 //   Phase 2  each fenced ts/tsx block is typechecked
+//   Phase 3  every Graphy name a block uses is imported somewhere in its file
 // Each fenced ts/tsx block is compiled on its own, prefixed with a preamble that
 // binds every export of both packages and of the editable entry, so fragments
 // still resolve their builders.
@@ -80,8 +81,11 @@ function starExportsOf(fromPath, specifier, seen) {
       const base = resolve(dirname(fromPath), specifier);
       return exportsOf(base.endsWith('.d.ts') ? base : `${base}.d.ts`, seen);
     }
-    const entry = require.resolve(specifier, { paths: [REPO] });
-    return exportsOf(resolve(dirname(entry), 'index.d.ts'), seen);
+    // A subpath such as '@graphysdk/react-renderer/editable' has its own declaration file next to index.d.ts.
+    const segments = specifier.split('/');
+    const packageName = segments.slice(0, 2).join('/');
+    const subpath = segments.slice(2).join('/');
+    return exportsOf(dts(packageName, `${subpath || 'index'}.d.ts`), seen);
   } catch {
     return empty; // an unresolvable target is the resolver's problem, not a missing-export report
   }
@@ -184,7 +188,7 @@ const THEME_NAMES = [
 ];
 const THEME_PACKAGES = THEME_NAMES.map((name) => `@graphysdk/theme-${name}`);
 // The geom packages the skill documents. Each ships `@graphysdk/geom-<name>` with one plugin export.
-const GEOM_NAMES = ['boxplot', 'candlestick', 'dumbbell', 'funnel', 'lollipop', 'waterfall'];
+const GEOM_NAMES = ['boxplot', 'candlestick', 'dumbbell', 'funnel', 'lollipop', 'mekko', 'sankey', 'waterfall'];
 const GEOM_PACKAGES = GEOM_NAMES.map((name) => `@graphysdk/geom-${name}`);
 const VALID = new Set([
   ...DATA_IMPORT,
@@ -313,7 +317,68 @@ try {
     for (const e of preambleErrors) console.log(`  ${e}`);
   }
   console.log(`\n${units.length} sample blocks typechecked — ${total} API-shape error(s).`);
-  process.exitCode = importProblems + total + preambleErrors.size ? 1 : 0;
+
+  // Phase 3 — the preamble lets a fragment use any Graphy name, so a block that uses `coord` or
+  // `styles` typechecks even when no block in its file imports it. A reader copying that fragment
+  // into the file's component gets code that fails to compile. Every name a block resolves against
+  // the preamble must be imported by some block of the same file.
+  // Reference pages show fragments by design, so only recipes and demos are held to this.
+  console.log(`\nPhase 3 — import coverage:`);
+  const COVERED = /(^|\/)(recipes|demos)\//;
+  const checker = program.getTypeChecker();
+  const isPreamble = (sf, node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line < PREAMBLE_LINES;
+  const importedByFile = new Map();
+  for (const unit of units) {
+    const sf = program.getSourceFile(unit.name);
+    const names = importedByFile.get(unit.file) ?? new Set();
+    importedByFile.set(unit.file, names);
+    for (const st of sf.statements) {
+      if (!ts.isImportDeclaration(st) || !st.importClause || isPreamble(sf, st)) continue;
+      const { name, namedBindings } = st.importClause;
+      if (name) names.add(name.text);
+      if (namedBindings && ts.isNamespaceImport(namedBindings)) names.add(namedBindings.name.text);
+      if (namedBindings && ts.isNamedImports(namedBindings))
+        namedBindings.elements.forEach((el) => names.add(el.name.text));
+    }
+  }
+  const uncovered = new Map();
+  for (const unit of units) {
+    if (!COVERED.test(relative(SKILL, unit.file))) continue;
+    const sf = program.getSourceFile(unit.name);
+    const names = importedByFile.get(unit.file);
+    (function visit(node) {
+      if (isPreamble(sf, node) && !ts.isSourceFile(node)) return;
+      if (ts.isIdentifier(node)) {
+        const parent = node.parent;
+        const isUse =
+          !(ts.isPropertyAccessExpression(parent) && parent.name === node) &&
+          !(ts.isPropertyAssignment(parent) && parent.name === node) &&
+          !ts.isImportSpecifier(parent) &&
+          !ts.isImportClause(parent) &&
+          !(ts.isJsxAttribute(parent) && parent.name === node);
+        if (isUse && node.text !== 'React' && !names.has(node.text)) {
+          const symbol = checker.getSymbolAtLocation(node);
+          const declaration = symbol?.declarations?.[0];
+          if (declaration && declaration.getSourceFile() === sf && isPreamble(sf, declaration)) {
+            const key = relative(REPO, unit.file);
+            if (!uncovered.has(key)) uncovered.set(key, new Map());
+            const line = unit.offset + sf.getLineAndCharacterOfPosition(node.getStart(sf)).line - PREAMBLE_LINES + 1;
+            if (!uncovered.get(key).has(node.text)) uncovered.get(key).set(node.text, line);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    })(sf);
+  }
+  let uncoveredTotal = 0;
+  for (const [file, byName] of [...uncovered].sort()) {
+    const list = [...byName].sort((a, b) => a[1] - b[1]);
+    uncoveredTotal += list.length;
+    console.log(`\n${file}`);
+    for (const [name, line] of list) console.log(`  :${line}  uses \`${name}\` but no block in this file imports it`);
+  }
+  console.log(`\n${uncoveredTotal} Graphy name(s) used in a recipe or demo without an import.`);
+  process.exitCode = importProblems + total + preambleErrors.size + uncoveredTotal ? 1 : 0;
 } finally {
   rmSync(TMP, { recursive: true, force: true });
 }

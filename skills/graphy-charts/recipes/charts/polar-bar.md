@@ -2,36 +2,25 @@
 
 Use a polar bar graph (rose, coxcomb or radial bar) for cyclic bands such as weekdays or months, or for a compact ranked track.
 
-## Data
+## Basic
 
 Long form: one row per band and group.
-
-```ts
-import type { Data } from '@graphysdk/react';
-
-const signupsData: Data = {
-  columns: [{ key: 'day' }, { key: 'signups' }, { key: 'channel' }],
-  rows: [
-    { day: 'Mon', signups: 5, channel: 'Organic' },
-    { day: 'Mon', signups: 3, channel: 'Referral' },
-    { day: 'Tue', signups: 7, channel: 'Organic' },
-    { day: 'Tue', signups: 4, channel: 'Referral' },
-    { day: 'Wed', signups: 6, channel: 'Organic' },
-    { day: 'Wed', signups: 5, channel: 'Referral' },
-    { day: 'Thu', signups: 9, channel: 'Organic' },
-    { day: 'Thu', signups: 3, channel: 'Referral' },
-    { day: 'Fri', signups: 8, channel: 'Organic' },
-    { day: 'Fri', signups: 6, channel: 'Referral' },
-  ],
-};
-```
-
-## Basic
 
 A rose: each band is a wedge, and the value grows the radius. Dodge splits a wedge into one petal per group.
 
 ```tsx
-import { config, coord, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import {
+  config,
+  coord,
+  createSpec,
+  geom,
+  GraphProvider,
+  GraphRenderer,
+  pipe,
+  scale,
+  style,
+  styles,
+} from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const signupsData: Data = {
@@ -76,8 +65,6 @@ export function SignupsRose() {
 Groups stack outward along the radius.
 
 ```ts
-import { geom } from '@graphysdk/react';
-
 const layer = geom.bar({ position: 'stack' });
 ```
 
@@ -86,8 +73,6 @@ const layer = geom.bar({ position: 'stack' });
 Swap theta to y. Each band becomes a concentric track and the value sweeps the angle. An inner radius clears the center.
 
 ```ts
-import { coord, createSpec, geom, pipe, scale } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'day', y: 'signups', color: 'channel' }),
   geom.bar({ position: 'stack' }),
@@ -101,8 +86,6 @@ const spec = pipe(
 ### Wedge width and corner rounding
 
 ```ts
-import { coord, createSpec, geom, pipe, scale, style, styles } from '@graphysdk/react';
-
 const spec = pipe(
   createSpec({ x: 'day', y: 'signups', color: 'channel' }),
   geom.bar({ position: 'stack', params: { width: 0.6 } }),
@@ -119,8 +102,6 @@ Width is a fraction of the band: angular for a rose, radial for a track. Under p
 ### Hide the axes
 
 ```ts
-import { config } from '@graphysdk/react';
-
 const noAxes = config({ axes: { x: { isVisible: false }, y: { isVisible: false } } });
 ```
 

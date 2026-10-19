@@ -1,83 +1,134 @@
-# Design-system adoption
+# Use your design system
 
-Make the pre-built panel look and feel like your product, one layer at a time: swap individual
-controls via the registry (sections keep working unchanged), then add a custom section of your
-own. Nothing here forks the SDK — omitted registry members keep the built-ins, so adoption is
-incremental.
+Customize the editor with CSS variables, replacement controls and custom sections. These APIs work with the standard SDK. Controls you omit from the registry keep their built-in implementations.
 
-## 1. Swap controls with a `ControlRegistry`
+## 1. Editor tokens
 
-The two contracts to honor (`reference/panel.md` for the full rules): **discrete** controls commit
-per change; **continuous** controls stream `onChange` during the gesture and call `onCommit` once
-at its end — that call is what seals a drag into a single undo entry.
+The panel and point and edit menu use these CSS variables when set, otherwise their defaults. Set shared values on `:root`. Popups have `data-graphy-color-scheme`, which lets you style menus for dark charts separately.
+
+```css
+:root {
+  --graphy-editor-accent: #0f62fe;
+  --graphy-editor-surface: #ffffff;
+  --graphy-editor-text: #161616;
+  --graphy-editor-font-family: 'Inter', sans-serif;
+}
+[data-graphy-color-scheme='dark'] {
+  --graphy-editor-menu-background: #262626;
+  --graphy-editor-menu-text: #f4f4f4;
+}
+```
+
+## 2. Swap controls
+
+Discrete controls commit each change. Continuous controls call `onChange` during a gesture and `onCommit` once at its end, creating one undo step for the gesture.
 
 ```tsx
-import type {
-  ControlRegistry, SliderControlProps, SwitchControlProps,
-} from '@graphysdk/react-renderer/editable';
+import type { ControlRegistry, SliderControlProps, SwitchControlProps } from '@graphysdk/react/editable';
 
-// Continuous: stream onChange, commit on pointer-up AND blur (focus can leave mid-drag).
+// Commit when pointer or keyboard interaction ends, or focus leaves the control.
 const HouseSlider = ({
-  value, onChange, onCommit, min, max, step, suffix, formatValue, isDisabled, ariaLabel, ariaLabelledBy,
+  value,
+  onChange,
+  onCommit,
+  min,
+  max,
+  step,
+  suffix,
+  showValue = true,
+  formatValue,
+  isDisabled,
+  ariaLabel,
+  ariaLabelledBy,
 }: SliderControlProps) => (
   <div className="house-slider">
     <input
-      type="range" min={min} max={max} step={step} value={value} disabled={isDisabled}
-      aria-label={ariaLabel} aria-labelledby={ariaLabelledBy}
-      onChange={(e) => onChange(e.target.valueAsNumber)}
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      disabled={isDisabled}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      onChange={(event) => onChange(event.target.valueAsNumber)}
       onPointerUp={() => onCommit?.()}
       onKeyUp={() => onCommit?.()}
       onBlur={() => onCommit?.()}
     />
-    {suffix !== undefined && <span>{formatValue ? formatValue(value) : `${value}${suffix}`}</span>}
+    {showValue && <span>{formatValue ? formatValue(value) : `${value}${suffix ?? ''}`}</span>}
   </div>
 );
 
-// Discrete: every flip is its own undo entry; note the prop is isChecked, not value.
+// Each toggle creates one undo step. Switch controls use isChecked.
 const HouseSwitch = ({ isChecked, onChange, isDisabled, ariaLabel, ariaLabelledBy, id }: SwitchControlProps) => (
   <input
-    type="checkbox" role="switch" id={id} checked={isChecked} disabled={isDisabled}
-    aria-label={ariaLabel} aria-labelledby={ariaLabelledBy}
-    onChange={(e) => onChange(e.target.checked)}
+    type="checkbox"
+    role="switch"
+    id={id}
+    checked={isChecked}
+    disabled={isDisabled}
+    aria-label={ariaLabel}
+    aria-labelledby={ariaLabelledBy}
+    onChange={(event) => onChange(event.target.checked)}
   />
 );
 
 export const houseControls: ControlRegistry = {
   Slider: HouseSlider,
   Switch: HouseSwitch,
-  // TextField, NumberField, Select, ToggleGroup, RadioGrid, Button: built-ins until you're ready.
+  // Other controls keep their built-in implementations.
 };
 ```
 
+Wrap the chart and panels in `ControlRegistryProvider` to use the replacement controls in both menus and panels:
+
 ```tsx
-<EditorPanel.Root controls={houseControls}>
-  <BarSection />
-  <GridSection />
-</EditorPanel.Root>
+import { GraphProvider } from '@graphysdk/react';
+import {
+  BarSection,
+  ControlRegistryProvider,
+  EditableGraphRenderer,
+  EditorPanel,
+  GridSection,
+} from '@graphysdk/react/editable';
+
+<ControlRegistryProvider controls={houseControls}>
+  <GraphProvider spec={spec} data={data} onSpecChange={setSpec}>
+    <EditableGraphRenderer mode="point-and-edit" />
+    <EditorPanel.Root>
+      <BarSection />
+      <GridSection />
+    </EditorPanel.Root>
+  </GraphProvider>
+</ControlRegistryProvider>;
 ```
 
-Every section now renders your slider and switch wherever it used the built-ins — sections resolve
-controls through `useControls()`, never a UI library directly.
+For one panel only, pass `controls={houseControls}` to that `EditorPanel.Root` instead.
 
-## 2. Add a custom section
+## 3. Add a custom section
 
-A section is `Section` + `Row` + resolved controls + the panel's graph handle. Read state from the
-compiled spec, write it as commands:
+Build a section with `Section`, `Row`, controls from the registry and the panel's graph handle. Read values from the compiled chart and update them through commands.
 
 ```tsx
 import { useSyncExternalStore } from 'react';
 import {
-  EditorPanel, Section, Row, useControls, usePanelGraph, BarSection, GridSection,
-} from '@graphysdk/react-renderer/editable';
-import { SetContentSourceCommand } from '@graphysdk/viz-engine';
+  BarSection,
+  EditorPanel,
+  GridSection,
+  Row,
+  Section,
+  useControls,
+  usePanelGraph,
+} from '@graphysdk/react/editable';
+import { SetContentSourceCommand } from '@graphysdk/react/editable';
 
 const SourceLinkSection = () => {
   const graph = usePanelGraph(); // throws outside EditorPanel.Root
   const { TextField } = useControls();
 
-  // Subscribe to the compiled spec and read the field you need from it.
-  const compiled = useSyncExternalStore(graph.subscribe, graph.getScene);
-  const source = compiled?.spec.config.content?.source ?? undefined;
+  const scene = useSyncExternalStore(graph.subscribe, graph.getScene);
+  const source = scene?.spec.config.content?.source ?? undefined;
 
   return (
     <Section title="Source link" layout="collapsible" preview={source?.label ?? 'None'}>
@@ -85,10 +136,8 @@ const SourceLinkSection = () => {
         <TextField
           value={source?.label ?? ''}
           onChange={(label) =>
-            graph.commands.dispatch(
-              new SetContentSourceCommand({ source: { ...source, label } }),
-              { transient: true },
-            )}
+            graph.commands.dispatch(new SetContentSourceCommand({ source: { ...source, label } }), { transient: true })
+          }
           onCommit={graph.commands.commit}
           placeholder="e.g. Company filings"
         />
@@ -97,10 +146,8 @@ const SourceLinkSection = () => {
         <TextField
           value={source?.url ?? ''}
           onChange={(url) =>
-            graph.commands.dispatch(
-              new SetContentSourceCommand({ source: { ...source, url } }),
-              { transient: true },
-            )}
+            graph.commands.dispatch(new SetContentSourceCommand({ source: { ...source, url } }), { transient: true })
+          }
           onCommit={graph.commands.commit}
           placeholder="https://…"
         />
@@ -118,17 +165,10 @@ export const Panel = () => (
 );
 ```
 
-What to notice:
+Details:
 
-- **Read where you write.** The section reads the value off the compiled spec and its command
-  writes that same field, so the input always shows what an edit would change — and edits arriving
-  from anywhere else (canvas, agent, undo) flow back into it through the subscription.
-- **One undo entry per burst of typing.** Each keystroke dispatches with `{ transient: true }`;
-  blur (`onCommit`) seals the run — matching the built-in sections.
-- **`title` is identity.** "Source link" must not collide with another section's title in the same
-  root, and it's the string `defaultExpandedSection` and `usePanelExpansion().expandSection` take.
-- **Custom sections and swapped controls compose** — the section resolves `TextField` through the
-  registry too, so it picks up your design system the moment you add one.
-- Styling: target CSS at `[data-graphy-editor-panel]` (`PANEL_ROOT_ATTRIBUTE`), or pass
-  `className` on the root — including the `lightTheme`/`darkTheme` classes from
-  `@graphysdk/react-renderer` to take over theming.
+- Read the field that the command updates from the compiled chart. This keeps the control in sync with menu edits, agent commands and undo.
+- Each keystroke dispatches a transient change; blur commits the typing session as one undo step.
+- Section titles identify sections. Use a unique title within each `EditorPanel.Root`.
+- Custom sections use replacement controls when they read them through `useControls`.
+- Target panel styles with `[data-graphy-editor-panel]` or pass `className` to the root.

@@ -1,25 +1,27 @@
-# Programmatic editing — code and agents as first-class editors
+# Programmatic editing
 
-Drive a chart's edits from outside its UI: a toolbar above the provider, a script, or an agent
-streaming serialized commands over the wire. Everything lands on the same undo history and the same
-`onChange` stream as the user's own clicks.
+Edit through commands from a toolbar outside the provider, a script or an agent. These edits use the same undo history and `onSpecChange` callback as edits made in the chart.
 
 ```tsx
 import { useRef, useState } from 'react';
-import { GraphProvider, type GraphHandle } from '@graphysdk/react-renderer';
-import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
+import { GraphProvider, type Data, type GraphHandle, type Spec } from '@graphysdk/react';
+import { EditableGraphRenderer } from '@graphysdk/react/editable';
 import {
+  AddHighlightCommand,
+  SequenceCommand,
+  SetBarWidthCommand,
+  SetContentTitleCommand,
+  SetLegendPositionCommand,
+  SetStatLineCommand,
   commandRegistry,
-  SetContentTitleCommand, SetStatLineCommand, SetLegendPositionCommand,
-  SetBarWidthCommand, AddHighlightCommand,
-  type Data, type Spec, type SerializedCommand,
-} from '@graphysdk/viz-engine';
+  type SerializedCommand,
+} from '@graphysdk/react/editable';
 
 export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
 
-  // A host toolbar dispatching through the handle — no editing UI imports needed.
+  // Dispatching separately creates four undo steps.
   const polish = () => {
     const handle = handleRef.current;
     if (!handle) return;
@@ -27,73 +29,82 @@ export function DrivenChart({ data, initialSpec }: { data: Data; initialSpec: Sp
     dispatch(new SetContentTitleCommand({ title: 'Revenue by quarter' }));
     dispatch(new SetLegendPositionCommand({ position: 'bottom' }));
     dispatch(new SetStatLineCommand({ line: 'average', label: 'Average' }));
-    dispatch(new AddHighlightCommand({
-      predicate: { variable: 'quarter', eq: 'Q4' },
-      scope: 'x-value',
-    }));
-    // Four separate undo entries — the user can peel each one back.
+    dispatch(new AddHighlightCommand({ predicate: { variable: 'quarter', eq: 'Q4' }, scope: 'x-value' }));
   };
 
-  // A gesture your code drives (an animation, a scrubber) dispatches the same
-  // way the built-in controls do: stream transiently, then seal once.
+  // Group commands to create one undo step.
+  const polishAtOnce = () => {
+    handleRef.current?.commands.dispatch(
+      new SequenceCommand({
+        commands: [
+          new SetContentTitleCommand({ title: 'Revenue by quarter' }),
+          new SetLegendPositionCommand({ position: 'bottom' }),
+        ],
+      })
+    );
+  };
+
+  // Send transient changes, then commit once for one undo step.
   const animateBarWidth = (frames: number[]) => {
     const handle = handleRef.current;
     if (!handle) return;
     for (const width of frames) {
       handle.commands.dispatch(new SetBarWidthCommand({ width }), { transient: true });
     }
-    handle.commands.commit(); // one undo entry, one onChange
+    handle.commands.commit();
   };
 
-  // Agent-driven: apply serialized commands received over the wire.
+  // Apply serialized commands received from an agent.
   const applyFromWire = (payloads: SerializedCommand[]) => {
     const handle = handleRef.current;
     if (!handle) return;
     for (const payload of payloads) {
-      handle.commands.dispatch(commandRegistry.deserialize(payload)); // throws on unknown type
+      handle.commands.dispatch(commandRegistry.deserialize(payload));
     }
   };
 
-  // Producing that wire format (e.g. inside the agent):
+  // Serialize a command for transmission, for example from an agent.
   const wire: SerializedCommand = commandRegistry.serialize(
-    new SetContentTitleCommand({ title: 'Q4 update' }, { author: 'agent' }),
+    new SetContentTitleCommand({ title: 'Q4 update' }, { author: 'agent' })
   );
-  void wire; void polish; void animateBarWidth; void applyFromWire;
+  void wire;
+  void polish;
+  void polishAtOnce;
+  void animateBarWidth;
+  void applyFromWire;
 
   return (
-    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-      <EditableGraphRenderer mode="editable" />
-    </GraphProvider>
+    <div style={{ height: 400 }}>
+      <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
+        <EditableGraphRenderer mode="readonly" />
+      </GraphProvider>
+    </div>
   );
 }
 ```
 
-Reading state back — a surface outside the tree pairs `subscribe` with `getCompiled`
-(`useSyncExternalStore`'s contract), or uses the hook:
+Read chart state outside the provider:
 
 ```tsx
-import { useHandleScene, type GraphHandle } from '@graphysdk/react-renderer';
+import { useHandleScene, type GraphHandle } from '@graphysdk/react';
 
 const LayerList = ({ handle }: { handle: GraphHandle }) => {
-  const compiled = useHandleScene(handle); // null before the first compile
-  if (!compiled) return null;
-  return <ul>{compiled.layers.map((layer) => <li key={layer.id}>{layer.geom}</li>)}</ul>;
+  const scene = useHandleScene(handle); // null before the first compile
+  if (!scene) return null;
+  return (
+    <ul>
+      {scene.layers.map((layer) => (
+        <li key={layer.id}>{layer.geom}</li>
+      ))}
+    </ul>
+  );
 };
 ```
 
-What to notice:
+Details:
 
-- **One history for everyone.** The agent's `SetContentTitleCommand` and the user's inline title
-  edit are indistinguishable to undo. `metadata.author` (and `description`) show in
-  `useGraphHistory()`'s stack entries, so a history UI can attribute steps.
-- **Replays are exact.** Add-commands generate their ids at construction and serialize them filled
-  in — replaying a payload lands on the same object instead of creating a second. Only forward
-  commands travel; reverts are recomputed when applied.
-- **Repeats cost nothing.** A command whose value is already set does nothing inside the provider:
-  no recompile, no history entry, no `onChange`. An agent script can safely re-send commands
-  without checking current state first.
-- **Failure keeps the chart.** A command whose result fails to compile is reported through
-  `onError` and the last good chart stays up — unlike a bad external `input`, which replaces the
-  chart with the error panel.
-- **Commands work even in read-only mode.** `mode` only controls the on-canvas gestures — a
-  "polish my chart" agent action works on a read-only embed too, undo history included.
+- Agent commands and user edits share one history. `useGraphHistory()` stack entries include `metadata.author` and `description`.
+- Add commands generate IDs when constructed. Replaying a serialized command uses the same object ID rather than creating another object.
+- A command does nothing if its value is already set, so agents can resend commands without checking that value first.
+- If a command produces a result that fails to compile, `onError` reports the failure and the last valid chart remains visible.
+- Commands work in `readonly` mode. `mode` controls canvas interactions; use `point-and-edit` to let users edit by clicking the chart.

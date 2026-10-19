@@ -545,12 +545,12 @@ Other notes:
 
 ## Unsupported chart types
 
-Mekko and table are not chart types in this SDK. Say they are unsupported and stop. Do not write a plugin or a geom for them. Waterfall and funnel are packages, `@graphysdk/geom-waterfall` and `@graphysdk/geom-funnel`; see [recipes/geoms](../recipes/geoms/).
+A table is not a chart type in this SDK. Say it is unsupported and stop. Do not write a plugin or a geom for it. Waterfall, funnel, mekko and sankey are `@graphysdk/geom-<name>` packages; see [recipes/geoms](../recipes/geoms/).
 
 ## Pitfalls
 
 - The x and y scales are never inferred into existence. Add `scale.x()` and `scale.y()` to every spec. A blank graph with no warning usually means a missing scale. `ySecondary` and `color` are added for you when missing.
-- Only six built-in geoms exist. There is no text or pie geom. Pie is `geom.bar` under `coord.polar({ theta: 'y' })`. Boxplot, candlestick, dumbbell, funnel, lollipop, and waterfall are `@graphysdk/geom-<name>` packages. A new geom is a plugin, except mekko and table, which are unsupported.
+- Only six built-in geoms exist. There is no text or pie geom. Pie is `geom.bar` under `coord.polar({ theta: 'y' })`. Boxplot, candlestick, dumbbell, funnel, lollipop, mekko, sankey, and waterfall are `@graphysdk/geom-<name>` packages. A new geom is a plugin, except a table, which is unsupported.
 - `createSpec` and `pipe` return new objects. Keep the result, they never mutate.
 - Wide data (one column per group) needs `transform.reshape` before the mapping can name `color`. Put `mapping()` after the transform.
 - A `rule` draws one line per layer. Several reference lines are several `geom.rule` calls.

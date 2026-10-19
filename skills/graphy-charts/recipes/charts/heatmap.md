@@ -2,32 +2,24 @@
 
 Use a heatmap to show one value across two bands. Each cell is a tile, and the value sets its color.
 
-## Data
+## Basic
 
 One row per cell, in long form: an x band, a y band, and the value.
 
-```ts
-import type { Data } from '@graphysdk/react';
-
-const shippedData: Data = {
-  columns: [{ key: 'team' }, { key: 'quarter' }, { key: 'shipped' }],
-  rows: [
-    { team: 'Alpha', quarter: 'Q1', shipped: 5 },
-    { team: 'Alpha', quarter: 'Q2', shipped: 8 },
-    { team: 'Alpha', quarter: 'Q3', shipped: 6 },
-    { team: 'Alpha', quarter: 'Q4', shipped: 11 },
-    { team: 'Beta', quarter: 'Q1', shipped: 2 },
-    { team: 'Beta', quarter: 'Q2', shipped: 3 },
-    { team: 'Beta', quarter: 'Q3', shipped: 6 },
-    { team: 'Beta', quarter: 'Q4', shipped: 7 },
-  ],
-};
-```
-
-## Basic
-
 ```tsx
-import { config, createSpec, geom, GraphProvider, GraphRenderer, pipe, scale } from '@graphysdk/react';
+import {
+  config,
+  createSpec,
+  geom,
+  GraphProvider,
+  GraphRenderer,
+  mapping,
+  pipe,
+  scale,
+  style,
+  styles,
+  transform,
+} from '@graphysdk/react';
 import type { Data } from '@graphysdk/react';
 
 const shippedData: Data = {
@@ -74,8 +66,6 @@ Tiles show their value as a data label by default. Turn it off with `geom.tile({
 Only when the brief gives the colors. The bare call above takes the theme's sequential list, else the engine's brick ramp. Values that cross zero take the diverging variant below. A `range` is two or more stops and decides over the theme.
 
 ```ts
-import { scale } from '@graphysdk/react';
-
 const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
 ```
 
@@ -84,8 +74,6 @@ const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
 Pin the neutral color to zero. The theme's diverging list, else the engine's blue, gray, brick ramp, supplies the colors. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
 
 ```ts
-import { scale } from '@graphysdk/react';
-
 const colorScale = scale.color.continuous({ domainMid: 0 });
 ```
 
@@ -94,9 +82,6 @@ const colorScale = scale.color.continuous({ domainMid: 0 });
 One column per x band needs a reshape before the mapping.
 
 ```ts
-import { createSpec, geom, mapping, pipe, scale, transform } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const revenueData: Data = {
   columns: [{ key: 'product' }, { key: 'North' }, { key: 'South' }, { key: 'East' }, { key: 'West' }],
   rows: [
@@ -136,9 +121,6 @@ Only rows that exist paint a tile. A missing cell stays empty, which keeps absen
 The same tile geom with a band on the color scale. Each cell is one percentage point, and the grid indices are hidden.
 
 ```ts
-import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
-import type { Data } from '@graphysdk/react';
-
 const channels = [
   { channel: 'Organic', share: 38, color: '#4c78a8' },
   { channel: 'Direct', share: 24, color: '#f58518' },
@@ -168,8 +150,6 @@ const spec = pipe(
 ### Cell corner radius and borders
 
 ```ts
-import { style, styles } from '@graphysdk/react';
-
 const cellStyles = styles({ defaults: [style.geom.tile({ cornerRadius: 4, stroke: '#ffffff', strokeWidth: 2 })] });
 ```
 

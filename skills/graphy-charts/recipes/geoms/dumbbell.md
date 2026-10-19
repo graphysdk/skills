@@ -107,12 +107,10 @@ Under the default `position: 'auto'` each label sits on the far side of its dot 
 The dots are the observations. The connector is a part.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'role', y: 'salary', color: 'sex' }),
   kit.geom.dumbbell(),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.dumbbell({ size: 14, strokeWidth: 2 }),
       kit.style.geom.dumbbell.connector({ strokeWidth: 6, stroke: '#d9d4c7' }),

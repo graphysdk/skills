@@ -4,18 +4,12 @@
 
 Generated from `@graphysdk/viz-engine@1.8.0` and `@graphysdk/react-renderer@1.8.0` (root and `/editable` entries).
 
-> The exact public editing API, extracted verbatim (with JSDoc) from the built
-> `.d.ts` files: the command system and annotation model from
-> `@graphysdk/viz-engine`, the handle & hooks from `@graphysdk/react-renderer`,
-> and the panel, sections and controls from `@graphysdk/react-renderer/editable`.
-> Check precise signatures, option keys, and accepted values here; the other
-> reference files cover how the pieces compose. Every type these declarations
-> reference is defined in this file, most under "Supporting types" at the
-> end. The only opaque names are compiled/internal shapes and the authoring-side spec graph (documented in the graphy-charts skill's types.md): AesMapping, AnnotationSpecByKind, Data, Dataset, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, VizDiagnostic, WhenClause.
->
-> Not extractable from the published d.ts (upstream bundling gap): `EditorPanel`,
-> `PanelRootProps`, `PANEL_ROOT_ATTRIBUTE` — their shapes are documented in
-> `panel.md`.
+> Signatures, option keys, and accepted values from the built `.d.ts` files,
+> with JSDoc. Includes commands and annotations from `@graphysdk/viz-engine`,
+> handles and hooks from `@graphysdk/react-renderer`, and editor components
+> from `@graphysdk/react-renderer/editable`. Referenced types appear under
+> "Supporting types" where available; external and built-in types are omitted.
+> See the other references for usage. Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): AesMapping, AnnotationSpecByKind, ConfigSpec, Data, Dataset, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, VizDiagnostic, WhenClause.
 
 ## Handle & hooks — @graphysdk/react-renderer
 
@@ -235,6 +229,66 @@ interface GraphProviderProps {
     colorScheme?: ColorScheme;
     children: ReactNode;
 }
+
+/**
+ * Chart display and interaction mode.
+ * - 'readonly': Normal chart display with full interactivity but no editing (default)
+ * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
+ * - 'point-and-edit': A press on the chart selects what it hit: an observation, its band, or the chart
+ */
+const GRAPH_MODES: {
+    readonly readonly: "readonly";
+    readonly editable: "editable";
+    readonly pointAndEdit: "point-and-edit";
+};
+
+/**
+ * Subscribes to the target boundary, from inside a `<GraphProvider>`: the one box round what is selected,
+ * which a host places a menu of its own beside. The editor measures it when the selection, the scene or the
+ * frame's size changes, and moves its `client` box with the page. `null` while nothing is selected, where the
+ * chart draws nothing for what is, and on a chart no editor is mounted on.
+ *
+ * `clientSpans` is `client`'s counterpart for the four side spans, so a menu placed by one lines up with the other.
+ * `frame` and `frameSpans` are the same two in the chart's own layout pixels.
+ *
+ * @example
+ * ```tsx
+ * const boundary = useTargetBoundary();
+ * if (boundary === null) return null;
+ * // Beside the right side, level with the part of the selection that reaches it. Client pixels are the viewport's.
+ * const left = boundary.client.x + boundary.client.width + 8;
+ * return <MyMenu style={{ position: 'fixed', left, top: boundary.clientSpans.right.from }} />;
+ * ```
+ */
+const useTargetBoundary: () => TargetBoundary | null;
+
+/** The target boundary: the one box round the selected target, which a menu is placed beside. */
+interface TargetBoundary {
+    /** The box in pixels from the chart frame's top left, at the chart's own layout scale. */
+    frame: Rect;
+    /** The same box on screen, in client pixels, which a host places a menu of its own against. */
+    client: Rect;
+    /**
+     * The stretch of each of `frame`'s sides the selection reaches, in the same pixels. A menu lined up with the
+     * span of the side it stands on stands beside the part of the selection reaching that side, rather than beside
+     * whatever set the corner of the box.
+     */
+    frameSpans: SideSpans;
+    /** The same four stretches on screen, in the client pixels `client` is in, which a host lines its own menu up by. */
+    clientSpans: SideSpans;
+}
+
+/** A selection's four side spans. `left` and `right` are two y values; `top` and `bottom` are two x values. */
+interface SideSpans {
+    /** The stretch of the top side, as two x values, which a menu above lines up with. */
+    top: SideSpan;
+    /** The stretch of the right side, as two y values, which a menu to the right lines up with. */
+    right: SideSpan;
+    /** The stretch of the bottom side, as two x values, which a menu below lines up with. */
+    bottom: SideSpan;
+    /** The stretch of the left side, as two y values, which a menu to the left lines up with. */
+    left: SideSpan;
+}
 ```
 
 ## Command contract
@@ -423,11 +477,39 @@ type EditTarget = {
 const areEditTargetsEqual: (left: EditTarget | null, right: EditTarget | null) => boolean;
 
 /**
+ * The edit target key of `target`, for keying a map or a React element by what is edited. Each kind lists the
+ * fields its identity is made of, so the order a builder set them in plays no part, as it would in a
+ * serialization of the object.
+ */
+const readEditTargetKey: (target: EditTarget) => string;
+
+/**
+ * One observation, a whole series, or every observation sharing an x value. The same `predicate` and
+ * `scope` a highlight carries, so the breadth is stated in the type and the selection and the paint speak
+ * one vocabulary.
+ */
+interface ObservationsTarget {
+    kind: 'observations';
+    layerId: string;
+    scope: MatchScope;
+    predicate: Predicate;
+    /**
+     * The row of `layer.data` a `data-point` target was pressed on, telling it apart from rows holding the same
+     * values. A recompile can move rows, so the target takes that row only while the predicate still matches it,
+     * and every match otherwise. Ignored at other scopes.
+     */
+    observationIndex?: number;
+}
+
+/**
  * Returns a new object with `updates` applied via structural sharing: untouched subtrees keep their
  * original references, and a patch with no changes returns the same reference. Generic over the tree
  * shape, so it applies equally to a compiled `ResolvedSpec`, a `Spec`, or any nested plain-object config.
  */
 function updateSpec<T extends object>(target: T, updates: DeepPartial<T>): T;
+
+/** Convert a {@link ResolvedSpec} back into a {@link Spec}, restoring the stylesheet tag. All other fields pass through. */
+function toSpec(spec: ResolvedSpec, { themeConfig }?: ToSpecOptions): Spec;
 ```
 
 ## Commands — chart & layers
@@ -464,6 +546,55 @@ const canBecomeHeatmap: (spec?: ResolvedSpec) => boolean;
  * cartesian, its halves separated onto y axes polar coords have no room for.
  */
 const isComboChartType: (summary: ChartTypeSummary) => summary is ComboChartTypeSummary;
+
+/**
+ * Whether the chart has the halves a combo needs: two layers already, or a variable to draw a second
+ * from. A picker offers the type only where it holds — a chart spending every variable it has on the
+ * half it draws is one half of nothing.
+ */
+const canBecomeCombo: (spec?: ResolvedSpec) => boolean;
+
+/**
+ * How a combo chart draws its series. The bar half's arrangement names the type, since the series
+ * drawn last is always the line; `'lines'` keeps the split without the bars, so both halves can still
+ * be bound to y axes of their own.
+ */
+const COMBO_TYPES: readonly ["grouped-bars", "stacked-bars", "lines"];
+
+/**
+ * Points one aesthetic at a column of the data.
+ *
+ * The scales come with it ({@link resolveScalesFor}).
+ *
+ * Only the chart-wide mapping. A layer's own mapping overrides it, and that stays the author's.
+ */
+class SetMappingCommand implements Command<SetMappingParams> {
+    readonly type: "set-mapping";
+    readonly metadata: CommandMetadata;
+    readonly params: SetMappingParams;
+    readonly target: EditTarget;
+    constructor(params: SetMappingParams, metadata?: Partial<CommandMetadata>);
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+
+/** The column to read an aesthetic from, or — on a revert — the mapping as it stood. */
+type SetMappingParams = {
+    aesthetic: AestheticKey;
+} & ({
+    variable: VariableName | null;
+} | {
+    previous: MappingState;
+});
+
+/**
+ * Which of `aesthetics` this chart reads, in the order they were asked for, each with the columns it
+ * can be pointed at.
+ *
+ * Read off what the geoms declare rather than the chart's type, so a geom that honors `size` offers
+ * it wherever it is drawn. Which to ask about is the caller's: a panel lists the handful it has room
+ * for, another host may want every aesthetic a geom honors.
+ */
+const readMappableAesthetics: <Key extends AestheticKey>(spec: ResolvedSpec, aesthetics: readonly Key[]) => Array<MappableAesthetic<Key>>;
 
 /**
  * Adds a layer to the spec — the on direction of "show a trend line", "show an average", "add a
@@ -853,6 +984,20 @@ class SetScaleDomainCommand implements Command<SetScaleDomainParams> {
     readonly metadata: CommandMetadata;
     readonly params: SetScaleDomainParams;
     constructor(params: SetScaleDomainParams, metadata?: Partial<CommandMetadata>);
+    get target(): EditTarget;
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+
+/**
+ * Command that sets the range of a discrete scale, such as the colors a color scale hands its groups.
+ * Targets a scale by scale aesthetic key.
+ * Produces a revert command that restores the previous range for undo support.
+ */
+class SetScaleRangeCommand implements Command<SetScaleRangeParams> {
+    readonly type: "set-scale-range";
+    readonly metadata: CommandMetadata;
+    readonly params: SetScaleRangeParams;
+    constructor(params: SetScaleRangeParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
@@ -1266,6 +1411,27 @@ class SetStyleRuleCommand implements Command<SetStyleRuleParams> {
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
 
+/** A {@link StyleRule} whose `declarations` may be `null`, which removes the entry at that address. */
+type StyleRuleEdit = WithNullablePaint<StyleRule>;
+
+/**
+ * Colors a selection by writing the style rules {@link readObservationsColorRoute} names.
+ * One write returns that write's revert. More than one returns a {@link SequenceCommand}, so undo is one step.
+ */
+class SetObservationsColorCommand implements Command<SetObservationsColorParams> {
+    readonly type: "set-observations-color";
+    readonly metadata: CommandMetadata;
+    readonly params: SetObservationsColorParams;
+    constructor(params: SetObservationsColorParams, metadata?: Partial<CommandMetadata>);
+    get target(): EditTarget;
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+
+const readObservationsColorRoute: (spec: ResolvedSpec, target: ObservationsTarget) => readonly ObservationsColorRule[] | null;
+
+/** The colors a color row offers: the ones the color scale hands its groups. */
+const readColorChoices: (scale: SceneScale | undefined) => readonly string[];
+
 /**
  * Adds a predicate-driven highlight to the spec.
  *
@@ -1465,6 +1631,49 @@ class RemoveAnnotationCommand implements Command<RemoveAnnotationParams> {
     get target(): EditTarget;
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
+
+/**
+ * Writes one difference arrow's paint — the line entry and the label entry addressed to it in
+ * `overrides` — as one history step, so a size that sets both undoes as one. Each entry is replaced
+ * whole, like {@link SetStyleRuleCommand}; the revert carries what each held before.
+ */
+class SetDifferenceArrowStyleCommand implements Command<SetDifferenceArrowStyleParams> {
+    readonly type: "set-difference-arrow-style";
+    readonly metadata: CommandMetadata;
+    readonly params: SetDifferenceArrowStyleParams;
+    constructor(params: SetDifferenceArrowStyleParams, metadata?: Partial<CommandMetadata>);
+    get target(): EditTarget;
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+```
+
+## Commands — sequence
+
+```ts
+/**
+ * Applies several commands as one step, so an edit that makes several writes undoes in one go.
+ *
+ * Each command applies to the spec the one before it produced. The revert
+ * applies the commands' reverts in reverse order. A command that does nothing is skipped, and the
+ * sequence does nothing when every command in it does, or when together they leave the spec as it was.
+ *
+ * Its target is its first command's, which is what the user would say the sequence is about.
+ */
+class SequenceCommand implements Command<SequenceParams> {
+    readonly type: "sequence";
+    readonly metadata: CommandMetadata;
+    readonly params: SequenceParams;
+    readonly target: EditTarget;
+    private readonly commands;
+    constructor(params: {
+        readonly commands: readonly Command[];
+    }, metadata?: Partial<CommandMetadata>);
+    apply(spec: ResolvedSpec): CommandApplyResult | null;
+}
+
+type SequenceParams = {
+    readonly commands: readonly SerializedCommand[];
+};
 ```
 
 ## Annotation model & anchors
@@ -1535,6 +1744,54 @@ const createObservationAnchorBuilder: (layer: SceneLayer) => ((observation: Obse
 const areAnchorsEqual: (first: ResolvedObservationAnchorSpec, second: ResolvedObservationAnchorSpec) => boolean;
 
 /**
+ * Whether two anchors name the same observation. `align` is not compared: it picks a point on the
+ * matched observation's box rather than choosing which observation is matched.
+ *
+ * Values are compared as the anchors spell them, so a value carried back from a host's storage in a
+ * shape its column would parse to something else reads as a different observation. A caller with the
+ * compiled layer brings both into its shapes first; see {@link findObservationAttachment}'s `readAnchor`.
+ */
+const areObservationAnchorsEqual: (left: ResolvedObservationAnchorSpec, right: ResolvedObservationAnchorSpec) => boolean;
+
+/**
+ * The attachment already hanging off `anchor`'s observation, whichever kind it is, or `null` when
+ * that observation carries none. Kinds are searched in {@link OBSERVATION_ATTACHMENT_KINDS} order,
+ * which only matters for a spec that already broke the one-per-observation rule.
+ *
+ * `readAnchor` brings both sides into the shape the layer stores before they are compared, so a caller
+ * holding the compiled layer matches a persisted spelling against a freshly minted anchor. Without one —
+ * a command applying to the spec alone — anchors are read by {@link readStoredAnchor}, which settles the
+ * one reshaping every spec goes through, so the rule holds whoever writes it.
+ */
+const findObservationAttachment: (annotations: ResolvedAnnotationsSpec, anchor: ResolvedObservationAnchorSpec, readAnchor?: (anchor: ResolvedObservationAnchorSpec) => ResolvedObservationAnchorSpec) => LocatedAnnotation | null;
+
+/**
+ * The annotation kinds that hang off a single observation rather than off the panel. An observation
+ * carries at most one of them, so adding a second replaces the first — see
+ * {@link findObservationAttachment}.
+ *
+ * `image` belongs to the family by intent, but its region anchor has no observation variant, so
+ * {@link readAttachedObservation} finds nothing to compare and an image neither displaces nor is
+ * displaced until one exists.
+ */
+const OBSERVATION_ATTACHMENT_KINDS: readonly ["sticker", "pinnedNumber", "comment", "image"];
+
+/**
+ * The target a press on the observation at `observationIndex` selects at `scope`. `null` where the
+ * layer cannot name it; nothing is offered rather than a target matching an observation's siblings.
+ *
+ * Every target is read back before it is offered and must still name the observation it was built from.
+ * Rows value-identical to it share its predicate at every scope, and a `data-point` target carries the row it
+ * was built from to take that one alone. A value the column's format rewrites on the way back leaves the
+ * observation unnameable. The read-back scans no rows where the observation's own value reads back, so the
+ * pointer can ask this every frame.
+ */
+const buildObservationsTarget: ({ layer, observationIndex, scope, parsingLocale, }: BuildObservationsTargetInput) => ObservationsTarget | null;
+
+/** The levels a selection can move between, left to right as shown, each naming observations no other one does. */
+const readReachableLevels: ({ layer, observationIndex, parsingLocale, scales, }: ReadReachableLevelsInput) => readonly MatchScope[];
+
+/**
  * TipTap-compatible rich text node (no tiptap dependency).
  */
 interface RichTextContent {
@@ -1576,11 +1833,67 @@ interface RichTextContent {
  */
 const EditableGraphRenderer: ({ slots, mode, palettePresets, editMenus, ...rest }: EditableGraphRendererProps) => JSX.Element;
 
+/** Props for {@link EditableGraphRenderer}: the renderer's own, plus what only the editor reads. */
+interface EditableGraphRendererProps extends GraphRendererProps {
+    /**
+     * Named color lists the Chart menu's Palette row offers after the theme's. A pick writes the list as the
+     * color scale's `range`, so the spec keeps its colors whatever the host offers later. With none, no row.
+     */
+    palettePresets?: PalettePresets;
+    /**
+     * A host's edit menus, searched before Graphy's. `null` removes that menu, and a missing entry leaves Graphy's.
+     */
+    editMenus?: EditMenus;
+}
+
+/** Color lists keyed by the name the Chart menu's Palette row gives each. */
+type PalettePresets = Readonly<Record<string, readonly string[]>>;
+
 /**
- * The translation context editor UI needs, already carrying the editing surface's wording. Mount it
- * around a panel a host places outside the chart; `EditableGraphRenderer` mounts its own.
+ * Compose a chart editing panel from these parts, with any mix of built-in and custom sections.
+ */
+const EditorPanel: {
+    Root: (props: PanelRootProps) => JSX.Element;
+    Controls: {
+        List: ({ children }: ListProps) => JSX.Element;
+        Grid: ({ children }: GridProps) => JSX.Element;
+    };
+};
+
+/** What every ready-made panel forwards, so a panel is a section list over the same root. */
+interface PanelRootProps {
+    /**
+     * The graph this panel edits. Omit it to edit the `<GraphProvider>` the panel sits inside;
+     * retarget the panel by passing a different handle.
+     */
+    handle?: GraphHandle;
+    /**
+     * The sections to show, in order. Passing them rather than having the panel choose is what lets a
+     * host drop a section, reorder them, or slot one of its own between two of ours.
+     */
+    children: ReactNode;
+    /**
+     * Replacements for individual leaf controls, for this editor panel alone. Omitted members keep the ones
+     * above it, a `ControlRegistryProvider`'s or ours, so a host adopts its own design system one control at a
+     * time rather than all at once.
+     */
+    controls?: ControlRegistry;
+    /** Title of the section open on first render. Omit to start with all of them closed. */
+    defaultExpandedSection?: string;
+    className?: string;
+}
+
+/**
+ * Marks the panel root in the DOM. Hosts use it to scope their own styles; the react-renderer build
+ * uses it to prove panel markup never reaches the read-only entry.
+ */
+const PANEL_ROOT_ATTRIBUTE = "data-graphy-editor-panel";
+
+/**
+ * Provides editor translations. `EditableGraphRenderer` and `EditorPanel.Root` include this provider.
+ * Add it to set a locale, override translations, or translate custom editing UI.
  *
- * It owns the phrase sets, so a caller cannot name one and silently leave the editor untranslated.
+ * Includes both editor and chart dictionaries so callers cannot omit required translations.
  */
 const IntlProvider: ({ children, ...rest }: Omit<IntlProviderProps, "dictionaries">) => JSX.Element;
 
@@ -1639,6 +1952,9 @@ const ToggledSection: ({ title, isChecked, onToggle, isDisabled, preview, childr
  */
 const Row: ({ label, layout, icon, children }: SettingRowProps) => JSX.Element;
 
+/** A hairline between two runs of rows, for rows that cover different settings. */
+const Separator: () => JSX.Element;
+
 type RowLayout = 'stack' | 'grid';
 
 /**
@@ -1680,6 +1996,15 @@ interface GraphOptionsSectionProps extends OverridableSectionProps {
     /** Whose labels to edit. Defaults to the first layer; a combo's bars and line each carry their own. */
     layerId?: string;
 }
+
+/** Which column of the data feeds each of the chart's aesthetics. */
+const MappingSection: ({ title, layout }: OverridableSectionProps) => JSX.Element | null;
+
+/**
+ * Which arrangement a combo's halves take: bars under the line, or lines throughout. Shown only for a
+ * chart that is already a combo — the type picker is what makes one.
+ */
+const ComboSection: ({ title, layout, preview }: OverridableSectionProps) => JSX.Element | null;
 
 /**
  * One axis, and the scale it carries.
@@ -1965,6 +2290,14 @@ interface RadioGridControlProps extends ContinuousControlProps<string> {
     itemLayout?: 'tile' | 'swatch' | 'icon' | 'track';
 }
 
+/** A choice in a `RadioGrid`, which can sit somewhere other than its turn in the arrow keys' order. */
+interface RadioGridOption extends ControlOption {
+    /** The grid row it sits on, counting from 1; without one it takes the next free place. */
+    gridRow?: number;
+    /** The grid column it sits in, counting from 1. */
+    gridColumn?: number;
+}
+
 /** A single-choice dropdown, for a set too long or too wordy for a segmented row. */
 const Select: ({ options, value, onChange, placeholder, isDisabled, hasError, ariaLabel, ariaLabelledBy, id, }: SelectControlProps) => JSX.Element;
 
@@ -2098,11 +2431,41 @@ type ResolvedControlRegistry = Required<ControlRegistry>;
 
 /** The controls the nearest provider resolves, or ours outside any. */
 const useControls: () => ResolvedControlRegistry;
+
+/**
+ * Swaps in a host's own controls, laid over the provider above it rather than over ours, so one provider reaches
+ * every editor panel in its React tree and an editor panel's own `controls` win inside it.
+ */
+const ControlRegistryProvider: ({ controls, children }: ControlRegistryProviderProps) => JSX.Element;
+
+/** What a `ControlRegistryProvider` takes: the controls it swaps and the tree they reach. */
+interface ControlRegistryProviderProps {
+    /**
+     * Replacements for individual controls, each defined outside render; an omitted or `undefined` member keeps
+     * the provider above's, or ours where none swapped it.
+     */
+    controls?: ControlRegistry;
+    /** The tree whose editor panels draw these controls. */
+    children: ReactNode;
+}
+
+/** Names an option that shows only an icon, on hover and focus the Base UI way, and at once in a hovered row or menu head. */
+const ControlTooltip: ({ label, isChecked, children }: ControlTooltipProps) => JSX.Element;
+
+/** What a host's own control passes to name an option that shows only an icon, as Graphy's controls do. */
+interface ControlTooltipProps {
+    /** The option's name: the words the tooltip shows, and the option's accessible name unless it carries its own. */
+    label: string;
+    /** The option the control holds, which names itself while its row or the menu head is hovered. */
+    isChecked?: boolean;
+    /** The option's element, which must pass the props and ref it is given on to one DOM element, as a `<button>` does. */
+    children: ReactElement;
+}
 ```
 
 ## Supporting types — @graphysdk/viz-engine
 
-Types referenced by the sections above, included so no name dangles.
+Additional types referenced by the sections above.
 
 ```ts
 /**
@@ -2772,18 +3135,18 @@ type BrandMarkPlacement = 'footer' | 'header';
  */
 type BrandMarkVariant = 'full' | 'mini';
 
+interface BuildObservationsTargetInput {
+    layer: SceneLayer;
+    observationIndex: number;
+    scope: MatchScope;
+    parsingLocale: Locale;
+}
+
 /**
  * Color interpolation space for a ramp's stops. `'lab'` is the engine default and near uniform to the
  * eye; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's.
  */
 const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
-
-/**
- * How a combo chart draws its series. The bar half's arrangement names the type, since the series
- * drawn last is always the line; `'lines'` keeps the split without the bars, so both halves can still
- * be bound to y axes of their own.
- */
-const COMBO_TYPES: readonly ["grouped-bars", "stacked-bars", "lines"];
 
 /** Every {@link CoordType}, for validation and diagnostics. */
 const COORD_TYPES: readonly ["cartesian", "polar", "flip"];
@@ -3316,8 +3679,14 @@ interface DiagnosticsSink {
     addError: (issue: UserInputIssue) => void;
 }
 
+/** The paint vocabulary of a difference arrow's line and arrowhead. */
+type DifferenceArrowAnnotationStyleDeclarations = VocabularyDeclarations<(typeof STYLE_TARGETS.annotation.children.differenceArrow)['vocabulary']>;
+
 /** What a difference arrow's label measures: the raw gap, the relative change, or one value as a share of the other. */
 type DifferenceArrowLabelKind = 'absolute-difference' | 'relative-difference' | 'proportion';
+
+/** The vocabulary of a difference arrow's label. */
+type DifferenceArrowLabelStyleDeclarations = VocabularyDeclarations<(typeof STYLE_TARGETS.annotation.children.differenceArrow.children.label)['vocabulary']>;
 
 /**
  * User-facing difference-arrow input. `labelCrossPosition` is defaulted by the resolver. Its paint
@@ -4127,6 +4496,21 @@ interface LookupValueFormat {
  */
 type MainAxis = 'x' | 'y';
 
+interface MappableAesthetic<Key extends AestheticKey = AestheticKey> {
+    aesthetic: Key;
+    /** The columns this aesthetic can read, in the order the data declares them. */
+    variables: VariableName[];
+    /** Whether the chart has nothing to draw with the aesthetic unmapped. */
+    isRequired: boolean;
+}
+
+/** The mapping and everything resolved from it, restored verbatim by a revert. */
+interface MappingState {
+    mapping: AesMapping;
+    scales: ResolvedScaleSpecBase[];
+    layers: ResolvedLayerSpec[];
+}
+
 /**
  * How far a match reaches from the observations a predicate hits.
  *
@@ -4259,22 +4643,13 @@ type ObservationVocabularyOf<Target> = ObservationOf<Target> extends infer Obser
     sharedPaint: false;
 } ? VocabularyOf<Observation> : Flatten_2<Omit<typeof SHARED_GEOM_VOCABULARY, keyof VocabularyOf<Observation>> & VocabularyOf<Observation>> : never;
 
-/**
- * One observation, a whole series, or every observation sharing an x value. The same `predicate` and
- * `scope` a highlight carries, so the breadth is stated in the type and the selection and the paint speak
- * one vocabulary.
- */
-interface ObservationsTarget {
-    kind: 'observations';
+/** One style rule a selection's color is written to. */
+interface ObservationsColorRule {
     layerId: string;
-    scope: MatchScope;
-    predicate: Predicate;
-    /**
-     * The row of `layer.data` a `data-point` target was pressed on, telling it apart from rows holding the same
-     * values. A recompile can move rows, so the target takes that row only while the predicate still matches it,
-     * and every match otherwise. Ignored at other scopes.
-     */
-    observationIndex?: number;
+    geomKind: string;
+    property: 'fill' | 'stroke';
+    /** Absent when the rule colors the whole layer. */
+    where?: Predicate;
 }
 
 type OptionsOf<Part> = Part extends {
@@ -4650,6 +5025,16 @@ interface RangeTooltipField {
     readonly range: readonly [from: string, to: string];
     /** Heads the tooltip with this range instead of a row. */
     readonly heading?: boolean;
+}
+
+/** What {@link readReachableLevels} reads: the observation a press landed on and the layer it sits in. */
+interface ReadReachableLevelsInput {
+    layer: SceneLayer;
+    /** The row of `layer.data` the press landed on. */
+    observationIndex: number;
+    parsingLocale: Locale;
+    /** The chart's scales, whose main axis decides whether a band can be offered. */
+    scales: SceneScales;
 }
 
 /**
@@ -8160,6 +8545,14 @@ type SetDataLabelsFormatParams = {
     format: ResolvedDataLabelsSpec['format'];
 };
 
+type SetDifferenceArrowStyleParams = {
+    annotationId: string;
+    /** The line entry's declarations; `null` removes the entry; absent leaves it alone. */
+    arrow?: DifferenceArrowAnnotationStyleDeclarations | null;
+    /** The label entry's declarations; `null` removes the entry; absent leaves it alone. */
+    label?: DifferenceArrowLabelStyleDeclarations | null;
+};
+
 /** Serialized parameters of {@link SetGridLineStyleCommand}. Only the style fields given are written. */
 type SetGridLineStyleParams = {
     axis: GridAxisTarget;
@@ -8282,6 +8675,13 @@ type SetNumberFormatDecimalsParams = {
     decimals: NumberFormatConfig['decimals'];
 };
 
+/** Serialized parameters of {@link SetObservationsColorCommand}. */
+type SetObservationsColorParams = {
+    target: ObservationsTarget;
+    /** A hex color, or `null` to remove the color. */
+    color: string | null;
+};
+
 type SetPointSizeParams = {
     layerId: string;
     /** Point diameter in px, or `null` to fall back to the stylesheet. */
@@ -8329,6 +8729,13 @@ type SetScaleDomainParams = {
     domainMin?: ResolvedContinuousScaleSpec['domainMin'];
     /** New upper bound; omit to leave the existing maximum unchanged. */
     domainMax?: ResolvedContinuousScaleSpec['domainMax'];
+};
+
+type SetScaleRangeParams = {
+    /** Which scale to change, identified by the aesthetic it drives (e.g. color). */
+    scaledAesthetic: ScaledAestheticKey;
+    /** The values the groups take in order, such as colors; `null` hands the scale back to the theme's list. */
+    range: ResolvedDiscreteScaleSpec['range'];
 };
 
 type SetScaleReverseParams = {
@@ -8747,9 +9154,6 @@ type StyleReadersForLayer<L extends SceneLayer> = L extends SceneLayerFor<infer 
 /** Which cascade tier answered a geom read. `'default'` covers both authored defaults and the built-in stylesheet. */
 type StyleResolutionTier = 'override' | 'data' | 'default' | 'unresolved';
 
-/** A {@link StyleRule} whose `declarations` may be `null`, which removes the entry at that address. */
-type StyleRuleEdit = WithNullablePaint<StyleRule>;
-
 /** A drop shadow. Offsets and blur are pixels; `color` takes the same forms as other color properties. */
 interface StyleShadow<ColorValue> {
     offsetX: number;
@@ -8891,6 +9295,12 @@ interface TextAnnotationSpec {
 type TextContent = string | RichTextContent;
 
 /**
+ * The config a theme may set: all of it but `content`, which holds what one graph says (its title,
+ * its source) and the brand mark, none of them a theme's to decide.
+ */
+type ThemeConfig = Omit<ConfigSpec, 'content'>;
+
+/**
  * Represents each observation as a rectangular cell filling its `(x, y)` band on both axes — the heatmap
  * mark (ggplot2's `geom_tile`). The value rides on `color`, not on a length.
  */
@@ -8983,6 +9393,12 @@ class TileGeom extends Geom<Record<string, never>> {
  * rounding, and the hover outline — lives in the stylesheet (`style.geom.tile`).
  */
 type TileGeomParams = Record<string, never>;
+
+/** What the compile the spec came from was given beside the spec, which the spec leaves out again. */
+interface ToSpecOptions {
+    /** The theme's config. A value the resolved config took from it is left out, so the spec stays free of the theme. */
+    themeConfig?: ThemeConfig;
+}
 
 type ToggleCategoryLabelsParams = {
     /** Layer to target; when omitted, the spec's first layer is used. */
@@ -9177,6 +9593,9 @@ interface VariableMapping {
 /** A type alias for variable names. */
 type VariableName = string;
 
+/** What an entry on a node may author: its vocabulary's properties in their authored shapes. */
+type VocabularyDeclarations<Vocab extends StyleVocabulary> = DeclarationsIn<Vocab, AuthoredStyleDomainValues>;
+
 type VocabularyOf<Part> = Part extends {
     vocabulary: infer Vocab extends StyleVocabulary;
 } ? Vocab : Record<never, never>;
@@ -9251,21 +9670,9 @@ type YScaleType = 'primary' | 'secondary';
 
 ## Supporting types — @graphysdk/react-renderer
 
-Types referenced by the sections above, included so no name dangles.
+Additional types referenced by the sections above.
 
 ```ts
-/**
- * Chart display and interaction mode.
- * - 'readonly': Normal chart display with full interactivity but no editing (default)
- * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
- * - 'point-and-edit': A press on the chart selects what it hit: an observation, its band, or the chart
- */
-const GRAPH_MODES: {
-    readonly readonly: "readonly";
-    readonly editable: "editable";
-    readonly pointAndEdit: "point-and-edit";
-};
-
 interface GeomCircleProps {
     cx: ShapePosition;
     cy: ShapePosition;
@@ -9366,10 +9773,18 @@ interface GeomShapes {
 }
 
 /**
- * A position in the space the geom paints in: a panel percentage (`'42.5%'`) or a user coordinate
- * inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
+ * A position in the space the geom paints in: a panel percentage (`'42.5%'`), panel-local pixels, or a user
+ * coordinate inside a unit-space nested SVG. Both sides of a transition must be in the same units to spring.
  */
 type ShapePosition = string | number;
+
+/** The stretch of one side of the target boundary the selection reaches, in that side's own axis. */
+interface SideSpan {
+    /** The smaller end, where a menu on that side starts, except below or above on a right-to-left page. */
+    from: number;
+    /** The larger end, where a menu below or above starts on a right-to-left page. */
+    to: number;
+}
 
 /**
  * A theme as a host applies it: what the compiler reads, plus the shapes the renderer draws with.
@@ -9386,7 +9801,7 @@ interface Theme extends Theme_2 {
 
 ## Supporting types — @graphysdk/react-renderer/editable
 
-Types referenced by the sections above, included so no name dangles.
+Additional types referenced by the sections above.
 
 ```ts
 interface ButtonBaseProps extends ControlBaseProps {
@@ -9439,31 +9854,6 @@ interface EditMenus {
     grid?: TargetEditMenu<'grid'> | null;
     graph?: TargetEditMenu<'graph'> | null;
 }
-
-/** Props for {@link EditableGraphRenderer}: the renderer's own, plus what only the editor reads. */
-interface EditableGraphRendererProps extends GraphRendererProps {
-    /**
-     * Named color lists the Chart menu's Palette row offers after the theme's. A pick writes the list as the
-     * color scale's `range`, so the spec keeps its colors whatever the host offers later. With none, no row.
-     */
-    palettePresets?: PalettePresets;
-    /**
-     * A host's edit menus, searched before Graphy's. `null` removes that menu, and a missing entry leaves Graphy's.
-     */
-    editMenus?: EditMenus;
-}
-
-/**
- * Chart display and interaction mode.
- * - 'readonly': Normal chart display with full interactivity but no editing (default)
- * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
- * - 'point-and-edit': A press on the chart selects what it hit: an observation, its band, or the chart
- */
-const GRAPH_MODES: {
-    readonly readonly: "readonly";
-    readonly editable: "editable";
-    readonly pointAndEdit: "point-and-edit";
-};
 
 /** No `layout`: a toggled section is always collapsible. */
 type GoalSectionProps = Omit<OverridableSectionProps, 'layout'>;
@@ -9535,6 +9925,11 @@ type GraphSizing = {
     aspectRatio: number;
 };
 
+interface GridProps {
+    /** Controls, laid out two per row. */
+    children: ReactNode;
+}
+
 /** The edit targets a press on a guide takes: the legend, an axis, the grid lines of an axis. */
 type GuideEditTarget = Extract<EditTarget, {
     kind: 'legend' | 'axis' | 'grid';
@@ -9567,11 +9962,12 @@ type IntroTrigger = 'mount' | 'inView';
 /** One geom's edit menus, keyed by the chart's coord and then by the layer's position. */
 type LayerEditMenus = Partial<Record<CoordType, Partial<Record<PositionAdjustment, ObservationsEditMenu | null>>>>;
 
+interface ListProps {
+    children: ReactNode;
+}
+
 /** The rows the overlay menu draws under its title for a selection of observations. */
 type ObservationsEditMenu = ComponentType<ResolvedObservations> & EditMenuRows<ObservationsTarget>;
-
-/** Color lists keyed by the name the Chart menu's Palette row gives each. */
-type PalettePresets = Readonly<Record<string, readonly string[]>>;
 
 interface PanelExpansion {
     expandSection: (title: string) => void;
@@ -9586,39 +9982,8 @@ interface PanelProps extends Omit<PanelRootProps, 'children'> {
     children?: ReactNode;
 }
 
-/** What every ready-made panel forwards, so a panel is a section list over the same root. */
-interface PanelRootProps {
-    /**
-     * The graph this panel edits. Omit it to edit the `<GraphProvider>` the panel sits inside;
-     * retarget the panel by passing a different handle.
-     */
-    handle?: GraphHandle;
-    /**
-     * The sections to show, in order. Passing them rather than having the panel choose is what lets a
-     * host drop a section, reorder them, or slot one of its own between two of ours.
-     */
-    children: ReactNode;
-    /**
-     * Replacements for individual leaf controls, for this editor panel alone. Omitted members keep the ones
-     * above it, a `ControlRegistryProvider`'s or ours, so a host adopts its own design system one control at a
-     * time rather than all at once.
-     */
-    controls?: ControlRegistry;
-    /** Title of the section open on first render. Omit to start with all of them closed. */
-    defaultExpandedSection?: string;
-    className?: string;
-}
-
 /** One surface's phrases, per locale. */
 type PhraseSource = Partial<Record<I18nLocale, object>>;
-
-/** A choice in a `RadioGrid`, which can sit somewhere other than its turn in the arrow keys' order. */
-interface RadioGridOption extends ControlOption {
-    /** The grid row it sits on, counting from 1; without one it takes the next free place. */
-    gridRow?: number;
-    /** The grid column it sits in, counting from 1. */
-    gridColumn?: number;
-}
 
 /** Fires on each deduped size change — the shape of `GraphRenderer`'s `onResize` callback. */
 type ResizeObserverOnResize = (state: ResizeObserverState) => void;

@@ -23,7 +23,7 @@ Exact declarations: [types.md](types.md), Plugins sections. Complete implementat
 
 ## Geoms that ship as packages
 
-Six geoms are published packages. Use the package. Do not write a plugin for these.
+Eight geoms are published packages. Use the package. Do not write a plugin for these.
 
 | Geom        | Package                       | Recipe                                         |
 | ----------- | ----------------------------- | ---------------------------------------------- |
@@ -32,6 +32,8 @@ Six geoms are published packages. Use the package. Do not write a plugin for the
 | Dumbbell    | `@graphysdk/geom-dumbbell`    | [dumbbell](../recipes/geoms/dumbbell.md)       |
 | Funnel      | `@graphysdk/geom-funnel`      | [funnel](../recipes/geoms/funnel.md)           |
 | Lollipop    | `@graphysdk/geom-lollipop`    | [lollipop](../recipes/geoms/lollipop.md)       |
+| Mekko       | `@graphysdk/geom-mekko`       | [mekko](../recipes/geoms/mekko.md)             |
+| Sankey      | `@graphysdk/geom-sankey`      | [sankey](../recipes/geoms/sankey.md)           |
 | Waterfall   | `@graphysdk/geom-waterfall`   | [waterfall](../recipes/geoms/waterfall.md)     |
 
 Each peer-depends on `@graphysdk/react` and React. Each exports one plugin, named after the geom.
@@ -49,7 +51,15 @@ const spec = kit.pipe(
 );
 ```
 
-After wiring, `kit.geom.<name>()` and `kit.style.geom.<name>` exist. Mekko and table have no package and no geom. Say they are unsupported and stop.
+After wiring, `kit.geom.<name>()` and `kit.style.geom.<name>` exist. A table has no package and no geom. Say it is unsupported and stop.
+
+New geoms ship as packages between skill releases. Before writing a plugin for a named chart type, list what is published:
+
+```bash
+npm search @graphysdk/geom --parseable | cut -f1
+```
+
+The search index can lag a new package by days. An exact name answers directly: `npm view @graphysdk/geom-<name>` prints its versions, and `npm view @graphysdk/geom-<name> readme` prints its README, with the install line, the mappings it takes and its style builders. Read the README and follow it when the skill has no recipe for that geom.
 
 ## What a plugin is
 
@@ -373,7 +383,7 @@ For geometry that does not fit the built-in spatial indices, such as treemaps or
 
 `UnitSpaceSvg` stretches a `viewBox="0 0 1 1"` over the panel. Paths and rectangles can use unit coordinates directly. Use `vectorEffect="non-scaling-stroke"` for pixel-width strokes. Circles and text stretch too: put those in the outer panel SVG or in `UnitBoxSvg`, which places a nested SVG over a unit-space box (`x0`, `y0`, `x1`, `y1`) with pixel units inside. `UnitBoxSvg` clips its children to the box. Both helpers use a top-left origin; convert scaled data-up y positions with `toViewBoxY`.
 
-For complete examples, see [treemap](../recipes/plugins/treemap.md), [Sankey](../recipes/plugins/sankey.md), [Voronoi](../recipes/plugins/voronoi.md), and [unit-box](../recipes/plugins/unit-box.md).
+For complete examples, see [treemap](../recipes/plugins/treemap.md), [Voronoi](../recipes/plugins/voronoi.md), and [unit-box](../recipes/plugins/unit-box.md).
 
 For a pixel-dependent layout, compute the geometry from `panelRect` in `render`, `hitTest`, and `renderHover`, so all three lay out from the same input. `hitTest` receives the same `panelRect` as `render`, and `renderHover` finds the hovered shape by `primary.pointIndex`. Keep the layout on the contract: a tester registered from a component with `useGeomHitTest` is not visible to the diagnostics, so a `'render-hit-test'` layer without a contract `hitTest` warns `MISSING_RENDER_HIT_TEST`. The [beeswarm recipe](../recipes/plugins/beeswarm.md) shows this path.
 
@@ -457,11 +467,11 @@ export const spec = kit.pipe(
 
 Geom authoring, render types, value readers, SVG helpers, and interaction hooks are exported by `@graphysdk/react`. Import engine-only APIs such as `TransformStrategy`, `IdentityKey`, `PositionRole`, `SpatialKind`, `createSpecBuilder`, and `createCompiler` from `@graphysdk/viz-engine`. See [types.md](types.md) for full declarations.
 
-The six packaged geoms have recipes under [recipes/geoms](../recipes/geoms/). Plugin recipes by complexity:
+The packaged geoms have recipes under [recipes/geoms](../recipes/geoms/). Plugin recipes by complexity:
 
 - Minimal examples: [panel-rect](../recipes/plugins/panel-rect.md), [unit-box](../recipes/plugins/unit-box.md).
 - Repaint a built-in: [sketchy-bar](../recipes/plugins/sketchy-bar.md).
-- Custom layouts: [beeswarm](../recipes/plugins/beeswarm.md), [voronoi](../recipes/plugins/voronoi.md), [treemap](../recipes/plugins/treemap.md), [sankey](../recipes/plugins/sankey.md), [force-directed](../recipes/plugins/force-directed.md).
+- Custom layouts: [beeswarm](../recipes/plugins/beeswarm.md), [voronoi](../recipes/plugins/voronoi.md), [treemap](../recipes/plugins/treemap.md), [force-directed](../recipes/plugins/force-directed.md).
 
 ## Registration warnings
 

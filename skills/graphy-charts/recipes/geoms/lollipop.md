@@ -104,12 +104,10 @@ Under the default `position: 'auto'` each label continues the stem past the head
 The heads are the observations. The stem is a part.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'country', y: 'share' }),
   kit.geom.lollipop(),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.lollipop({ size: 14, strokeWidth: 2 }),
       kit.style.geom.lollipop.stem({ strokeWidth: 1, stroke: '#b5b0a3', dashArray: [2, 3] }),

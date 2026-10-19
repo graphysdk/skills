@@ -80,12 +80,10 @@ const wideBodies = kit.geom.candlestick({
 The color comes from a part per direction. The bodies' other properties and the wick have builders of their own.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'date' }),
   kit.geom.candlestick({ aes: { open: 'open', high: 'high', low: 'low', close: 'close' } }),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.candlestick.rising({ fill: 'transparent', stroke: '#1f7a6d' }),
       kit.style.geom.candlestick.falling({ fill: '#3a3833', stroke: '#3a3833' }),

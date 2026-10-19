@@ -1,19 +1,32 @@
-# Canvas-only annotation editing
+# Annotation editing with no panel
 
-Direct manipulation with no panel at all: seed a chart with annotations, let the user drag the
-free-flowing ones and use the `(+)` menu, and add your own annotations by command.
+Use `mode="editable"` to let users drag free annotations and add annotations from the (+) menu. This example also adds and removes annotations through toolbar commands.
 
 ```tsx
 import { useRef, useState } from 'react';
 import {
-  GraphProvider, useGraphSelection, useGraphHistoryShortcuts, type GraphHandle,
-} from '@graphysdk/react-renderer';
-import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
+  GraphProvider,
+  annotation,
+  config,
+  createSpec,
+  geom,
+  pipe,
+  scale,
+  style,
+  styles,
+  useGraphHistoryShortcuts,
+  useGraphSelection,
+  type Data,
+  type GraphHandle,
+  type Spec,
+} from '@graphysdk/react';
+import { EditableGraphRenderer } from '@graphysdk/react/editable';
 import {
-  createSpec, pipe, mapping, geom, scale, config, annotation, style, styles,
-  AddAnnotationCommand, RemoveAnnotationCommand, TEXT_ANNOTATION_DEFAULTS,
-  type Data, type Spec, type RichTextContent,
-} from '@graphysdk/viz-engine';
+  AddAnnotationCommand,
+  RemoveAnnotationCommand,
+  TEXT_ANNOTATION_DEFAULTS,
+  type RichTextContent,
+} from '@graphysdk/react/editable';
 
 const data: Data = {
   columns: [{ key: 'quarter' }, { key: 'revenue' }],
@@ -27,22 +40,23 @@ const data: Data = {
 
 const boldLine = (text: string): RichTextContent => ({
   type: 'doc',
-  content: [{ type: 'paragraph', attrs: { textAlign: 'center' },
-              content: [{ type: 'text', text, marks: [{ type: 'bold' }] }] }],
+  content: [
+    { type: 'paragraph', attrs: { textAlign: 'center' }, content: [{ type: 'text', text, marks: [{ type: 'bold' }] }] },
+  ],
 });
 
 const annotatedSpec: Spec = pipe(
-  createSpec(),
-  mapping({ x: 'quarter', y: 'revenue' }),
-  geom.bar({ position: 'identity' }),
+  createSpec({ x: 'quarter', y: 'revenue' }),
+  geom.bar(),
   scale.x(),
-  // Headroom above the bars gives free-flowing annotations room to live in.
+  // Leave room above the bars for free annotations.
   scale.y({ domainMin: 0, domainMax: 3200 }),
   config({ content: { title: 'Revenue by quarter' } }),
 
-  // Free-flowing: anchored at fractions of the plot area (from the top-left) — draggable.
+  // Panel anchors use fractions of the plot area and allow dragging.
   annotation.shape({
-    id: 'target-band', zOrder: 'background',
+    id: 'target-band',
+    zOrder: 'background',
     region: { anchorType: 'panel', x: 0, y: 0, width: 1, height: 0.25 },
   }),
   styles({
@@ -51,32 +65,39 @@ const annotatedSpec: Spec = pipe(
     ],
   }),
   annotation.text({
-    id: 'note', content: boldLine('Stretch zone'),
-    at: { anchorType: 'panel', x: 0.8, y: 0.1 }, width: 0.24,
+    id: 'note',
+    content: boldLine('Stretch zone'),
+    at: { anchorType: 'panel', x: 0.8, y: 0.1 },
+    width: 0.24,
   }),
-  // Pinned: an observation anchor — selectable and restylable, but no drag moves it.
+  // A data anchor allows selection and styling but prevents dragging.
   annotation.text({
-    id: 'q2-note', content: boldLine('Pricing change'),
-    at: { anchorType: 'observation', anchorValue: 'Q2' }, width: 0.2,
+    id: 'q2-note',
+    content: boldLine('Pricing change'),
+    at: { anchorType: 'observation', anchorValue: 'Q2' },
+    width: 0.2,
   }),
-  annotation.sticker({ id: 'cheer', at: { anchorType: 'observation', anchorValue: 'Q4' }, sticker: 'rocket' }),
+  annotation.sticker({ id: 'cheer', at: { anchorType: 'observation', anchorValue: 'Q4' }, sticker: 'rocket' })
 );
 
-// Inside the provider: show what's selected, offer removal, add by command.
+// Render inside GraphProvider so useGraphSelection can read the selection.
 const AnnotationToolbar = ({ handle }: { handle: React.RefObject<GraphHandle | null> }) => {
   const selection = useGraphSelection();
-  const selected = selection.length === 1 && selection[0].kind === 'annotation' ? selection[0] : null;
+  const [first] = selection;
+  const selected = selection.length === 1 && first?.kind === 'annotation' ? first : null;
 
   const addNote = () => {
-    handle.current?.commands.dispatch(new AddAnnotationCommand({
-      kind: 'text',
-      annotation: {
-        ...TEXT_ANNOTATION_DEFAULTS,
-        content: boldLine('New note'),
-        at: { anchorType: 'panel', x: 0.5, y: 0.08 },
-        width: 0.2,
-      },
-    }));
+    handle.current?.commands.dispatch(
+      new AddAnnotationCommand({
+        kind: 'text',
+        annotation: {
+          ...TEXT_ANNOTATION_DEFAULTS,
+          content: boldLine('New note'),
+          at: { anchorType: 'panel', x: 0.5, y: 0.08 },
+          width: 0.2,
+        },
+      })
+    );
   };
   const removeSelected = () => {
     if (selected) handle.current?.commands.dispatch(new RemoveAnnotationCommand({ id: selected.id }));
@@ -99,9 +120,9 @@ export function AnnotationCanvas() {
 
   return (
     <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, blockSize: 480 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 480 }}>
         <AnnotationToolbar handle={handleRef} />
-        <div style={{ flex: 1, minBlockSize: 0 }}>
+        <div style={{ flex: 1, minHeight: 0 }}>
           <EditableGraphRenderer mode="editable" />
         </div>
       </div>
@@ -110,21 +131,11 @@ export function AnnotationCanvas() {
 }
 ```
 
-What to notice:
+Details:
 
-- **The anchor decides mobility, not the kind.** `note` (panel anchor) drags; `q2-note`
-  (observation anchor) is selectable and deletable but immovable — it tracks Q2 through data and
-  layout changes. Same `text` kind, opposite behavior. The full per-kind table is
-  `reference/canvas.md`.
-- **One drag, one undo entry.** A drag previews in the overlay and commits a single command on
-  drop, so the ⌘Z the shortcuts hook binds steps whole gestures.
-- **The `(+)` menu needs no code.** Hovering a bar in editable mode shows the `(+)` button;
-  comments, pinned numbers, stickers, highlights and difference arrows land as commands on the same
-  history your toolbar uses.
-- **`zOrder: 'background'`** keeps the band behind the bars, so a click where a bar covers it
-  reaches the bar, not the shape.
-- **Delete and Escape** already work: `Delete` removes the selection; `Escape` cancels an active
-  drag first, then clears the selection. Your toolbar duplicates removal only to show the command
-  path.
-- **Read-only really is inert.** Drop `mode` (or set `'readonly'`) and nothing is selectable or
-  draggable — same seeded annotations, at rest.
+- The anchor determines whether an annotation can move. `note` is draggable. `q2-note` can be selected and deleted but stays on Q2 through data and layout changes.
+- A drag previews changes and commits one command on drop, creating one undo step.
+- Hovering a bar shows the built-in (+) menu. Comments, pinned numbers, stickers, highlights and difference arrows use the same command history as the toolbar.
+- `zOrder: 'background'` keeps the band behind the bars, so clicks reach the bars.
+- Delete removes the selection, and Escape clears it. The toolbar's remove button demonstrates the command API.
+- Annotations cannot be dragged in `readonly` or `point-and-edit` mode. `point-and-edit` does not draw annotations.

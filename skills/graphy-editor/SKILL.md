@@ -1,112 +1,84 @@
 ---
 name: graphy-editor
-description: Make Graphy charts editable and drive edits with @graphysdk/react-renderer/editable and the viz-engine command system. Covers embedding an editable chart, editing charts programmatically or from an agent (commands, per-layer control), undo/redo and command history, saving/persisting edited charts, point-and-click annotation editing, and the optional pre-built editor panel. Building charts from scratch is the graphy-charts skill.
+description: Add editing to existing Graphy charts with @graphysdk/react/editable. Use graphy-charts to create charts.
 ---
 
-# graphy-editor
+# Graphy editor
 
-Edit Graphy charts after they exist: point-and-click on the canvas, programmatically from code or
-an agent, or through the optional pre-built settings panel. This skill starts where a chart already
-renders — authoring the spec, styling and the annotation builders are the `graphy-charts`
-skill.
+Start with a working chart: a `GraphProvider` with `spec` and `data`, as shown in the graphy-charts skill.
 
-## Mental model
+## How editing works
 
-- **Every edit is a Command.** A canvas drag, a panel control and a line of your code all dispatch
-  the same serializable `Command` objects from `@graphysdk/viz-engine` against the provider's live
-  spec — so whatever made an edit, it lands on the same undo history and the same save callback.
-- **Importing enables; `mode` activates.** `EditableGraphRenderer` (from
-  `@graphysdk/react-renderer/editable`) is what makes editing *possible*; `mode="editable"` is what
-  makes it *current*. A plain `GraphRenderer` stays read-only whatever `mode` says. Toggle `mode`,
-  never swap components.
-- **One gesture, one undo entry.** During a drag or a burst of typing, dispatch each change with
-  `{ transient: true }` and call `seal()` when the gesture ends — the whole run becomes a single
-  undo entry and a single `onChange` call.
-- **Saving is a round-trip.** `GraphProvider onChange` hands you a plain-JSON `Spec` after
-  every finished gesture; store it, and pass it back as `input` to restore. Passing it back does
-  not re-trigger the callback. Data is never edited — commands change the spec only.
-- **Each surface reaches a different amount of the spec.** Canvas gestures reach the least, the
-  pre-built panel a curated subset, commands the most (including per-layer control). Anything
-  commands miss is edited by rebuilding the `Spec` with the authoring API from
-  `graphy-charts`. The panel is one optional UI over the commands, not the whole editor.
+- Menus, panel controls, and application code dispatch `Command` objects from `@graphysdk/react/editable`. They share one undo history and one `onSpecChange` callback.
+- Use `EditableGraphRenderer` from `@graphysdk/react/editable` to enable editing. Its `mode` prop controls the available interactions. `GraphRenderer` has no editing layer, regardless of `mode`.
+- `GraphProvider.onSpecChange` returns the edited `Spec` as plain JSON after each completed edit. Save it and pass it back as `spec` to restore the chart. Edits do not change the data. The spec does not include the theme, so also pass `theme` when restoring.
+- The point and edit menu offers quick edits. The panel supports more settings, and commands support more still. For changes commands do not support, build a new spec with the authoring API.
 
-## Minimal editable chart
+## Minimal point and edit chart
 
 ```tsx
 import { useRef, useState } from 'react';
-import { GraphProvider, useGraphHistoryShortcuts, type GraphHandle } from '@graphysdk/react-renderer';
-import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-import type { Data, Spec } from '@graphysdk/viz-engine';
+import { GraphProvider, useGraphHistoryShortcuts, type Data, type GraphHandle, type Spec } from '@graphysdk/react';
+import { EditableGraphRenderer } from '@graphysdk/react/editable';
 
-function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
+export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
   const [spec, setSpec] = useState(initialSpec);
   const handleRef = useRef<GraphHandle>(null);
-  useGraphHistoryShortcuts(handleRef); // ⌘/Ctrl+Z undo/redo shortcuts
+  useGraphHistoryShortcuts(handleRef); // Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Ctrl+Y
 
   return (
-    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-      <EditableGraphRenderer mode="editable" />
-    </GraphProvider>
+    <div style={{ height: 400 }}>
+      <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
+        <EditableGraphRenderer mode="point-and-edit" />
+      </GraphProvider>
+    </div>
   );
 }
 ```
 
-That alone is a working editor: canvas selection and drags, the `(+)` menu on hovered data points,
-in-place title and caption editing, undo/redo — no panel. `setSpec`'s latest value is what you
-persist.
+Click a bar, line, axis label, legend pill, grid line, or empty background to open its edit menu. The shortcut hook enables undo and redo, and `spec` tracks the latest edit.
+
+## The three modes
+
+| `mode`                 | The user can                                                                                                                                               | Use it for                      |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `'readonly'` (default) | Hover and read tooltips                                                                                                                                    | Viewing. Commands still work.   |
+| `'point-and-edit'`     | Click a part of the chart and change it from a menu. Hide an axis, the legend or grid lines.                                                               | Quick edits to the chart itself |
+| `'editable'`           | Add, drag, resize and type into annotations. Edit the title, subtitle and caption in place. Add highlights and stickers from the (+) menu on a data point. | Annotations and inline text     |
+
+Switch modes with the `mode` prop. Replacing `EditableGraphRenderer` with `GraphRenderer` remounts the chart and resets hover, animation, and editor state. Undo history stays in the provider and survives either change. Both editing modes hide tooltips. Point and edit also hides annotations. Switching between editing modes clears the selection.
 
 ## Where to look
 
-| I want to… | Read |
-|---|---|
-| Get an editable chart on screen; what extra to install; toggle edit mode | `reference/embedding.md` |
-| Save/persist edits; restore a saved chart; reset | `reference/embedding.md` |
-| Dispatch edits from code or an agent; the full command catalogue | `reference/commands.md` |
-| Control one layer: add/remove layers, trend/average lines, per-layer settings | `reference/commands.md` |
-| Undo/redo, history UI, keyboard shortcuts | `reference/commands.md` |
-| Serialize/replay commands (collaboration, agent-driven editing) | `reference/commands.md` |
-| Selection: what's selected, select programmatically | `reference/commands.md` |
-| Edit a chart from a toolbar/menu outside the provider tree (`GraphHandle`) | `reference/commands.md` |
-| Point-and-click on the canvas: drags, the `(+)` menu, inline text, keyboard | `reference/canvas.md` |
-| Add/move/restyle/remove annotations by command; anchors; movability | `reference/canvas.md` |
-| Add or remove highlights from an editing UI without creating duplicates | `reference/canvas.md` |
-| Mount the pre-built settings panel; what each section edits | `reference/panel.md` |
-| Swap panel controls for my design system; write a custom section | `reference/panel.md` |
-| Check an exact signature, param type or accepted value | `reference/types.md` |
-| Smallest full integration with persistence | `recipes/minimal-embed.md` |
-| Drive edits from code/an agent end to end | `recipes/programmatic-editing.md` |
-| Canvas-only annotation editing (no panel) | `recipes/annotation-canvas.md` |
-| A complete tabbed editor UI with the pre-built panel | `recipes/tabbed-editor.md` |
-| Adopt my design system in the panel | `recipes/design-system.md` |
-| Author the spec/styles/annotations themselves; install the SDK | the `graphy-charts` skill (`reference/setup.md` there for setup) |
+| Task                                                                                                   | Read                                                            |
+| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Selection, menu options, selection levels, visibility, keyboard controls, menu styling                 | [point and edit](reference/point-and-edit.md)                   |
+| Install, toggle modes, save and restore, keep read-only pages light, CDN                               | [embedding](reference/embedding.md)                             |
+| Dispatch edits from code or an agent, the command list, undo and redo, selection, serialize and replay | [commands](reference/commands.md)                               |
+| Choose commands for a request; replay commands without a browser                                       | [request to command](reference/request-to-command.md)           |
+| Annotations, drags, the (+) menu, inline text, annotation commands                                     | [annotations](reference/annotations.md)                         |
+| Mount the pre-built settings panel, what each section edits, swap controls, write a section            | [panel](reference/panel.md)                                     |
+| Exact signatures and accepted values                                                                   | [types](reference/types.md)                                     |
+| Troubleshoot editing problems                                                                          | [troubleshooting](reference/troubleshooting.md)                 |
+| Point and edit with persistence and a mode toggle                                                      | [recipes/point-and-edit](recipes/point-and-edit.md)             |
+| Dispatch edits from a toolbar or agent                                                                 | [recipes/programmatic-editing](recipes/programmatic-editing.md) |
+| Annotation editing with no panel                                                                       | [recipes/annotation-canvas](recipes/annotation-canvas.md)       |
+| A tabbed editor with the pre-built panel                                                               | [recipes/tabbed-editor](recipes/tabbed-editor.md)               |
+| The panel in your design system                                                                        | [recipes/design-system](recipes/design-system.md)               |
+| Your own rows inside the point and edit menu                                                           | [recipes/custom-edit-menu](recipes/custom-edit-menu.md)         |
+| Your own menu beside the selection                                                                     | [recipes/host-menu](recipes/host-menu.md)                       |
+| Point and edit, annotate and view on one page                                                          | [recipes/two-modes](recipes/two-modes.md)                       |
+| Point and edit in an HTML artifact with no bundler                                                     | [recipes/cdn-point-and-edit](recipes/cdn-point-and-edit.md)     |
+| Build the spec, styles and annotations; install the SDK                                                | the graphy-charts skill                                         |
 
-## Hard rules
+## Constraints
 
-- Commands come from `@graphysdk/viz-engine` (root); hooks and `GraphHandle` from
-  `@graphysdk/react-renderer` (root); components from `@graphysdk/react-renderer/editable`. With
-  the standard `@graphysdk/react` install, all of it comes from `@graphysdk/react` and
-  `@graphysdk/react/editable` instead. A host writing its own editing UI needs nothing from
-  `./editable`.
-- Read-only embeds must never import from `./editable` — it ships TipTap, the panel and the
-  rich-text editors. The 15 `@tiptap/*@^3` peers and React 19 are required (npm 7+/pnpm install
-  peers automatically; Yarn users add them).
-- Never import `'@graphysdk/react-renderer/editable.css'` — CSS self-injects; the subpath doesn't
-  exist. (A stale SDK doc comment still shows it.)
-- Toggle `mode` between `'readonly'` and `'editable'`; swapping renderer components remounts the
-  chart and loses history and hover state. Remount `GraphProvider` with a React `key` only when you
-  *want* a clean history (reset, dataset switch).
-- After dispatching with `{ transient: true }`, call `seal()` when the gesture ends (pointer up,
-  blur, key up) — without it, `onChange` is delayed until the next edit.
-- **The pre-built panel covers a subset of the spec.** Check the section catalog in
-  `reference/panel.md` before promising a setting exists; beyond it, dispatch commands, and beyond
-  those, rebuild the `Spec` (a new `input` from outside replaces the edited state and is not
-  an undo step).
-- A panel mounted outside the chart's React tree needs both a `handle` (from
-  `GraphProvider handleRef`) and the `./editable` entry's own `IntlProvider` — react-intl's is a
-  different context and raw phrase keys render without it.
-- Section titles are accordion identities — keep them distinct within one `EditorPanel.Root`.
-- The old editor API does not exist: no `@graphysdk/editor`, no `EditorProvider`, no `GraphPanel`,
-  no `EditorPanel.Section`, no `defaultExpanded` prop. The prop is `defaultExpandedSection`;
-  sections are separate named exports; only `AxesPanel` and `ElementsPanel` ship pre-assembled.
-- A command whose target is missing or whose value is already set does nothing (returns `null`) —
-  dispatching the current value is safe and adds nothing to the history.
+- Import editing components, commands, and helpers from `@graphysdk/react/editable`. Import the provider, hooks, and `GraphHandle` from `@graphysdk/react`. For the advanced install, use `@graphysdk/react-renderer` for the provider and hooks, `@graphysdk/react-renderer/editable` for editing components, and `@graphysdk/viz-engine` for commands.
+- Keep `/editable` imports out of read-only pages to avoid loading TipTap and the panel. When using `/editable`, install its optional `@tiptap/*@^3` peer dependencies.
+- Do not import `editable.css`; neither package exports that path. Each entry includes its own styles.
+- After dispatching with `{ transient: true }`, call `commit()` when the gesture ends. `onSpecChange` waits until then.
+- Commands with a missing target or an unchanged value do nothing.
+- A new external `spec` object replaces the edited state and clears undo history after it compiles. Keep `spec` stable between renders and use the value returned by `onSpecChange`. Passing new `data` preserves history. `theme` and `plugins` are read at mount; to change them, remount `GraphProvider` with a new `key`.
+- Check the panel section list before choosing it for a setting; it supports only part of the spec.
+- Use named section exports and the root prop `defaultExpandedSection`. The legacy APIs `@graphysdk/editor`, `EditorProvider`, `GraphPanel`, `EditorPanel.Section`, and `defaultExpanded` are unavailable.
+- For legacy code, replace `SetBarBorderRadiusCommand` with `SetBarCornerRadiusCommand`, `SetLineInterpolationCommand` with `SetLineCurveCommand`, `ToggleLinePointsVisibilityCommand` with `ToggleLinePointsCommand`, `convertSpecToInput` with `toSpec`. `SetScaleZeroCommand` is unavailable. The `observation` edit target is now `observations`.

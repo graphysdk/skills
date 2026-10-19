@@ -111,12 +111,10 @@ const coloredSpec = kit.pipe(
 The bars are the observations. The connector is a part. A chart-wide `style.geom()` reaches the bars.
 
 ```ts
-import { styles } from '@graphysdk/react';
-
 const styledSpec = kit.pipe(
   kit.createSpec({ x: 'stage', y: 'visitors' }),
   kit.geom.funnel(),
-  styles({
+  kit.styles({
     defaults: [
       kit.style.geom.funnel({ fill: '#3a3833' }),
       kit.style.geom.funnel.connector({ fill: '#d8d3c4', fillAlpha: 1, stroke: '#898373', strokeWidth: 1 }),

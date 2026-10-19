@@ -1,131 +1,102 @@
 # Embedding an editable chart
 
-How to get a chart on screen that can be edited — by the user pointing and clicking, by a panel,
-or by your own code. Chart *building* (authoring the spec this file assumes you have) is the
-`graphy-charts` skill.
+Embed an editable chart, save edits, and keep editing dependencies out of read-only pages. Use the graphy-charts skill to build the chart.
 
-## Importing enables, `mode` activates
+Contents: install, import and mode, props, CSS, read-only pages, saving and restoring, errors, what each surface reaches.
 
-Editing lives behind one entry point:
+## Install
 
-```tsx
-import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-```
+Use the standard install from the graphy-charts skill, with these details:
 
-`EditableGraphRenderer` is a `GraphRenderer` with the editing layer wired in: selection and
-dragging on the canvas, and in-place text editing for the title, subtitle, caption and text
-annotations. Its props are `GraphRendererProps`, plus `palettePresets` and `editMenus`.
+- The `@tiptap/*@^3` peers are optional, so no package manager installs them for you. Install them when you import `/editable`. The main entry needs none of them. The list is in the graphy-charts setup reference.
+- Command classes and the editing helpers come from `@graphysdk/react/editable`, the same entry as the renderer. Nothing else to install.
 
-With the standard `@graphysdk/react` install, the same entry is `@graphysdk/react/editable` —
-identical exports. This skill's samples use the advanced-mode specifiers
-(`@graphysdk/react-renderer`, `@graphysdk/viz-engine`); swap only the specifier.
-
-Two switches, deliberately separate:
-
-- **The import decides whether editing *can* happen.** A plain `GraphRenderer` — even with
-  `mode="editable"` — renders no editing layer and stays read-only.
-- **`mode` decides whether editing currently *is* happening.** `mode: 'readonly' | 'editable'`,
-  default `'readonly'`.
-
-Toggle `mode`, never swap components:
+## Renderer and mode
 
 ```tsx
-<EditableGraphRenderer mode={isEditing ? 'editable' : 'readonly'} />
+import { EditableGraphRenderer } from '@graphysdk/react/editable';
 ```
 
-Hover state, animation and the undo history all survive the toggle; swapping
-`EditableGraphRenderer` for `GraphRenderer` would remount the chart and lose them.
+`EditableGraphRenderer` adds an editing layer to `GraphRenderer`. Choose its behavior with `mode`:
 
-`GraphProvider` is the same provider in both modes — it needs **no extra props for editing**; only
-the renderer differs. `EditableGraphRenderer` takes two optional props of its own. `palettePresets`
-are named color lists (`{ Warm: ['#E03030', '#E08A30'] }`) the Chart menu's Palette row offers after
-the theme's colors in point and edit. Without them the row is hidden. `editMenus` are a host's edit
-menus, searched before Graphy's in point and edit. `null` removes that menu, and a missing entry
-leaves Graphy's in place. A complete editable chart:
+- `'readonly'` (default): view only. Commands from code still work.
+- `'point-and-edit'`: click a part of the chart and change it from a menu. See [point and edit](point-and-edit.md).
+- `'editable'`: annotations, drags, inline text, the (+) menu. See [annotations](annotations.md).
+
+A plain `GraphRenderer` with `mode="editable"` renders no editing layer, though the mode still hides tooltips. Switch modes through the `mode` prop:
 
 ```tsx
-import { useRef, useState } from 'react';
-import { GraphProvider, useGraphHistoryShortcuts, type GraphHandle } from '@graphysdk/react-renderer';
-import { EditableGraphRenderer } from '@graphysdk/react-renderer/editable';
-import type { Spec, Data } from '@graphysdk/viz-engine';
-
-function EditableChart({ data, initialSpec }: { data: Data; initialSpec: Spec }) {
-  const [spec, setSpec] = useState(initialSpec);
-  const handleRef = useRef<GraphHandle>(null);
-  useGraphHistoryShortcuts(handleRef); // ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z, Ctrl+Y
-
-  return (
-    <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-      <EditableGraphRenderer mode="editable" />
-    </GraphProvider>
-  );
-}
+<EditableGraphRenderer mode={isEditing ? 'point-and-edit' : 'readonly'} />
 ```
 
-That alone gives point-and-click editing on the canvas (selection, drags, the `(+)` menu, in-place
-text editing — `reference/canvas.md`) and working undo. No panel required; the pre-built panel is
-one optional add-on (`reference/panel.md`). `handleRef` fills a `GraphHandle` — the way toolbars
-and code outside the provider reach the chart (`reference/commands.md`); leave it off if you only
-need the canvas.
+Hover, animation and the editor's own state survive a mode change. Swapping components remounts the chart and loses them. The undo history lives in `GraphProvider`, so it survives both. Switching between the two editing modes clears the selection.
 
-## What extra to install
+`GraphProvider` needs no extra props for editing. The advanced install uses the same components from `@graphysdk/react-renderer` and `@graphysdk/react-renderer/editable`.
 
-Nothing. The base install — React 19, the 15 `@tiptap/*@^3` peer packages — is covered in
-`graphy-charts/reference/setup.md` and already includes everything editing needs. Two details
-worth knowing:
+## Props
 
-- The `@tiptap/*` packages are only *loaded* when `./editable` is imported. npm 7+ and pnpm install
-  them automatically; Yarn users add them by hand.
-- `@base-ui/react`, `motion`, `react-colorful` and `zustand` are regular dependencies of the
-  renderer — installed automatically, nothing to do.
+`EditableGraphRenderer` takes every `GraphRenderer` prop (`sizing`, `animation`, `showTooltips`, `slots`, `onResize`, `mode`) plus two of its own:
 
-## CSS: nothing to import
+- `palettePresets`: named color lists, `{ Warm: ['#E03030', '#E08A30'] }`. The Chart menu in point and edit offers them after the theme's colors. Without it the Palette row is hidden.
+- `editMenus`: your own point and edit menus, searched before Graphy's. `null` removes a menu. See [point and edit](point-and-edit.md).
 
-Each entry point injects its own stylesheet. Do **not** import
-`'@graphysdk/react-renderer/editable.css'` — an outdated comment in the SDK still shows it, but the
-path does not exist and the import fails.
+`EditableGraphRenderer` supplies the `EditorSurface` slot. Override it through `slots` to replace the editing layer. Use `EditorSurfaceSlotProps` from `@graphysdk/react` for your component.
 
-## Keep read-only pages read-only
+Both editing modes hide tooltips regardless of `showTooltips`. Point and edit also hides annotations and the chart's normal hover styling. Inline text editing and the (+) menu are available only in editable mode.
 
-A page that only displays charts should import from the package root alone — `./editable` adds
-TipTap, the panel and its styles to the bundle. If the editor is only sometimes shown, load the
-`./editable` imports behind your own code-split boundary.
+## CSS
 
-The same split exists with no bundler: the SDK's CDN build ships a read-only bundle and an
-editable one, loaded from a jsDelivr URL — `graphy-charts/reference/setup.md` has the URLs and the
-import map.
+No CSS import is needed. Each entry includes its stylesheet for bundlers, and CDN bundles inject styles at runtime. Neither package exports `editable.css`; importing `@graphysdk/react-renderer/editable.css` fails.
+
+## Keep read-only pages light
+
+A page that only shows charts imports from `@graphysdk/react` alone. The `/editable` entry adds TipTap, the panel and their styles. If the editor is only sometimes shown, put the `/editable` imports behind a code-split boundary.
+
+Without a bundler the same split exists on the CDN: `dist/editable.browser.mjs` is a superset of `dist/index.browser.mjs`. A page loads one of the two, never both. The import map and the URLs are in the graphy-charts skill's setup reference.
 
 ## Saving and restoring
 
-The save surface is one callback on `GraphProvider`:
+Save edits through `GraphProvider`:
 
 ```ts
-onChange?: (next: Spec) => void;
+onSpecChange?: (next: Spec) => void;
 ```
 
-- It fires **once per finished gesture** — a whole drag, a whole burst of typing into a title — not
-  per frame. Persist what it hands you (the `Spec` is plain JSON) and restore the chart later
-  by passing it back as `input`.
-- The round-trip `spec={spec} onChange={setSpec}` does not loop: the provider compares against
-  what it last compiled, so its own change never re-triggers the callback.
-- Data is never edited. Commands change the spec only; `data` stays whatever you pass.
+- It fires once per completed edit: a drag, a typing session, a menu click, an undo or a redo.
+- The `Spec` is plain JSON. Store it. Pass it back as `spec` to restore the chart.
+- The round trip `spec={spec} onSpecChange={setSpec}` does not loop. The provider compares against what it last compiled.
+- Data never changes. Commands change the spec only.
+- The theme stays out of the spec. A chart restored from a stored spec needs the same `theme` on `GraphProvider` again.
 
-**Reset or switch datasets by remounting**: give `GraphProvider` a React `key`. A remount starts
-the history clean rather than offering to undo into the previous chart. Note that an `input` you
-pass from outside *replaces* the edited state — a host that wants to keep the user's edits must
-feed back what `onChange` gave it, not the original spec.
+```tsx
+const [spec, setSpec] = useState(() => loadSpec() ?? defaultSpec);
+const save = (next: Spec) => {
+  setSpec(next);
+  localStorage.setItem('chart', JSON.stringify(next));
+};
+<GraphProvider spec={spec} data={data} onSpecChange={save}>
+  …
+</GraphProvider>;
+```
 
-## What each surface can reach
+A `spec` you pass from outside replaces the edited state and clears the undo history once it compiles. Always feed back what `onSpecChange` gave you, and keep the object stable between renders. The provider compares by reference: the same object is left alone, a different one replaces the edits. A spec rebuilt on every render leaves nothing undoable, and passing the original spec object again after an edit drops the user's edits.
 
-Editing surfaces reach the spec unevenly. From narrowest to widest:
+History behavior:
 
-1. **Canvas gestures** — what a click or drag can reach: annotations, in-place text, the `(+)` menu
-   (`reference/canvas.md`).
-2. **The pre-built panel** — a curated subset of chart settings, one section per topic
-   (`reference/panel.md`; the catalog there says exactly what each section edits).
-3. **Commands** — the full catalogue, including per-layer control the panel does not expose
-   (`reference/commands.md`). Everything the canvas and panel do is commands underneath, so your
-   code can do anything they can.
-4. **Rebuild the `Spec`** — anything no command covers yet. Build a new input with the
-   authoring API (the `graphy-charts` skill) and pass it as `input`. This bypasses the undo
-   history, so prefer a command when one exists.
+- New `data` and a `colorScheme` change keep it. The steps still address the spec they were built from.
+- A `spec` that fails to compile keeps it. The chart behind the error panel is still the last good one.
+- `theme` and `plugins` are read once at mount. Change them by remounting `GraphProvider` with a new React `key`, which also starts a clean history.
+- History holds 100 steps. Additional steps remove the oldest entries.
+
+## Errors
+
+A command whose result fails to compile is reported through `onError` on the provider, the last good chart stays up and the history is untouched. The error panel replaces the chart only for inputs from outside: a `spec`, `data` or `colorScheme` that fails to compile, a plugin that fails to register, or a render that throws.
+
+## Editing options
+
+Each option supports a broader set of edits:
+
+1. The point and edit menu: colors, line style, axis title and range, grid style, legend position, data labels, palette.
+2. The pre-built panel: the supplied sections. The list in [panel](panel.md) is complete.
+3. Commands: everything the menu and the panel do, plus layers, mapping, scales, styles, annotations and highlights. See [commands](commands.md).
+4. A new spec built with the authoring API, passed as `spec`. This clears the undo history, so prefer a command when one exists.
