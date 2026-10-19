@@ -2,7 +2,7 @@
 
 > Graphy is a React charting SDK built on a grammar of graphics. You compose charts from orthogonal primitives — geoms, aesthetic mappings, scales, stats, transforms, coords — instead of picking a chart type from a menu: a pie chart is `bar` + `position: 'fill'` + polar coords; a horizontal bar chart is `coord.flip()`; a heatmap is `tile` with the value on `color`; a trendline is `stat.smooth`. The spec is declarative and serializable, and it owns styling, highlights, and annotations too. Charts are also editable after they render: every edit — point-and-click on the canvas, a settings panel, or code — is a serializable command on one shared undo history.
 
-Install one package: `@graphysdk/react` exports everything — the spec builders, the `<GraphProvider>`/`<GraphRenderer>` components, and the hooks. (Under the hood it composes `@graphysdk/viz-engine`, the framework-agnostic compile engine, and `@graphysdk/react-renderer`, the SVG/DOM renderer — install those directly only for advanced embedding, e.g. compiling specs without React.)
+Install one package: `@graphysdk/react` exports everything — the spec builders, the `<GraphProvider>`/`<GraphRenderer>` components, and the hooks. (Under the hood it composes `@graphysdk/viz-engine`, the framework-agnostic compile engine, and `@graphysdk/react-renderer`, the SVG/DOM renderer — install those directly only for advanced embedding, e.g. compiling specs without React.) Eight more geoms ship as their own packages, `@graphysdk/geom-<name>`: boxplot, candlestick, dumbbell, funnel, lollipop, mekko, sankey and waterfall. Each exports one plugin you pass to `createGraphyKit({ plugins })`.
 
 ## Quickstart
 
@@ -41,7 +41,7 @@ Rules that prevent the most common mistakes: mappings and transforms reference c
 
 ## Agent skills
 
-Two skills (https://github.com/graphysdk/skills) teach a coding agent to work with Graphy: `graphy-charts` covers installing the SDK, authoring charts and applying themes — including a headless spec validator so specs can be checked without rendering — and `graphy-editor` covers making rendered charts editable: commands and undo/redo, programmatic and agent-driven edits, annotation editing on the canvas, and the optional pre-built editor panel. One install brings both:
+Two skills (https://github.com/graphysdk/skills) teach a coding agent to work with Graphy: `graphy-charts` covers installing the SDK, authoring charts, the geom packages and applying themes — including a headless spec validator so specs can be checked without rendering — and `graphy-editor` covers making rendered charts editable: point-and-edit menus on the chart itself, commands and undo/redo, programmatic and agent-driven edits, annotation editing on the canvas, and the optional pre-built editor panel. One install brings both:
 
 - Claude Code: `/plugin marketplace add graphysdk/skills` then `/plugin install graphy@graphysdk`
 - Any agent via the Vercel Labs skills CLI (Cursor, Codex, OpenCode, Cline, …): `npx skills add graphysdk/skills`
@@ -58,15 +58,19 @@ Two skills (https://github.com/graphysdk/skills) teach a coding agent to work wi
 - [themes.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/themes.md): the built-in theme packages, installing and applying one, and writing your own
 - [slots.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/slots.md): replacing the header, footer, tooltip, legend, grid, or axis ticks with your own components
 - [storytelling.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/storytelling.md): highlights, annotations, reference lines, trendlines, headline numbers, difference arrows
-- [plugins.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/plugins.md): repainting built-in geoms and defining new geoms/stats
+- [plugins.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/plugins.md): the geom packages, finding and reading a new one on npm, repainting built-in geoms and defining new geoms/stats
+- [troubleshooting.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/reference/troubleshooting.md): diagnosing a chart that draws nothing or draws the wrong thing
 
 `graphy-editor` entry point and reference files:
 
-- [SKILL.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/SKILL.md): mental model (every edit is a command on one undo history), minimal editable chart, routing table, hard rules
-- [embedding.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/embedding.md): making a chart editable, saving and restoring edits, what each editing surface can reach
-- [commands.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/commands.md): the full command catalogue, per-layer control, undo/redo, editing from code or an agent (serialized command replay)
-- [canvas.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/canvas.md): point-and-click editing — drags, the `(+)` menu, annotation anchors and movability
+- [SKILL.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/SKILL.md): how editing works (every edit is a command on one undo history), a minimal point-and-edit chart, the file index
+- [embedding.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/embedding.md): making a chart editable, the editing modes, saving and restoring edits
+- [point-and-edit.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/point-and-edit.md): click an element and edit it in a nearby menu — every row, what shows it, and the command behind it
+- [annotations.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/annotations.md): editable mode — selecting, dragging and resizing annotations, inline text, the `(+)` menu
+- [commands.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/commands.md): the full command list, per-layer control, undo/redo, editing from code or an agent (serialized command replay)
+- [request-to-command.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/request-to-command.md): common editing requests mapped to the command that does them
 - [panel.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/panel.md): the optional pre-built settings panel — sections, swappable controls, design-system adoption
+- [troubleshooting.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/troubleshooting.md): edits that do nothing, menus that do not open, state that does not persist
 - [types.md](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-editor/reference/types.md): generated type reference for the editing surface — commands, handle and hooks, panel components
 
 ## Docs
@@ -83,8 +87,10 @@ Every docs page serves markdown directly — append `.md` to its URL.
 ## Optional
 
 - Chart recipes from the skill — worked examples per chart family: [bar](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/bar.md), [line](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/line.md), [area](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/area.md), [scatter](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/scatter.md), [pie/donut](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/pie.md), [radar](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/radar.md), [polar bar](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/polar-bar.md), [combo/dual-axis](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/combo.md), [heatmap/waffle](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/charts/heatmap.md)
-- [Plugin recipes](https://github.com/graphysdk/skills/tree/main/skills/graphy-charts/recipes/plugins): custom geoms from lollipop to treemap, sankey, beeswarm, candlestick
-- [Editor recipes](https://github.com/graphysdk/skills/tree/main/skills/graphy-editor/recipes): worked editing integrations — minimal embed with persistence, programmatic/agent editing, canvas-only annotations, full tabbed editor, design-system adoption
+- Geom package recipes — a complete component per package: [boxplot](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/boxplot.md), [candlestick](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/candlestick.md), [dumbbell](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/dumbbell.md), [funnel](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/funnel.md), [lollipop](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/lollipop.md), [mekko](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/mekko.md), [sankey](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/sankey.md), [waterfall](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/recipes/geoms/waterfall.md)
+- [Plugin recipes](https://github.com/graphysdk/skills/tree/main/skills/graphy-charts/recipes/plugins): custom geoms, from a minimal panel rectangle to a repainted bar, beeswarm, voronoi, treemap and a force-directed graph
+- Skill demos for a request with no data and no chart type — three example charts, a theme switcher and the editing modes: [HTML](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/demos/html.md), [React](https://raw.githubusercontent.com/graphysdk/skills/main/skills/graphy-charts/demos/react.md)
+- [Editor recipes](https://github.com/graphysdk/skills/tree/main/skills/graphy-editor/recipes): worked editing integrations — point and edit with persistence, point and edit on a CDN page, both editing modes on one page, a custom edit menu, a host-built menu, programmatic/agent editing, annotation editing with no panel, a tabbed editor with the built-in panel, design-system adoption
 - [Website](https://graphy.dev/?md): product site (append `?md` to any graphy.dev page for markdown)
 - [Discord](https://discord.gg/yGmYCjkSr): community and support
 - [System status](https://status.graphy.app/): service status page
