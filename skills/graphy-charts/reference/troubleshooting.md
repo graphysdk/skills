@@ -29,8 +29,8 @@ Read the diagnostics in the panel, console, or `onError`. Fix the first error fi
 ## A geom is missing or draws in the wrong place
 
 - **Pie or donut:** use a [polar bar](../recipes/charts/pie.md); there is no pie geom.
-- **Waterfall, funnel, boxplot, candlestick, dumbbell, lollipop:** install `@graphysdk/geom-<name>` and register it with `createGraphyKit({ plugins })`.
-- **Mekko or table:** unsupported; do not build a workaround plugin.
+- **Waterfall, funnel, boxplot, candlestick, dumbbell, error-bar, lollipop, mekko, sankey:** install `@graphysdk/geom-<name>` and register it with `createGraphyKit({ plugins })`.
+- **Table:** unsupported; do not build a workaround plugin.
 - **Missing data labels:** bars support all coords; points, lines, and areas support cartesian and flip; tiles support cartesian; rules support none. Other combinations warn `DATA_LABELS_UNSUPPORTED`.
 - **Date or numeric x on bars:** bars force a band scale, warning when replacing a continuous scale. Use points or lines for continuous x.
 

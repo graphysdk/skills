@@ -23,13 +23,14 @@ Exact declarations: [types.md](types.md), Plugins sections. Complete implementat
 
 ## Geoms that ship as packages
 
-Eight geoms are published packages. Use the package. Do not write a plugin for these.
+Nine geoms are published packages. Use the package. Do not write a plugin for these.
 
 | Geom        | Package                       | Recipe                                         |
 | ----------- | ----------------------------- | ---------------------------------------------- |
 | Boxplot     | `@graphysdk/geom-boxplot`     | [boxplot](../recipes/geoms/boxplot.md)         |
 | Candlestick | `@graphysdk/geom-candlestick` | [candlestick](../recipes/geoms/candlestick.md) |
 | Dumbbell    | `@graphysdk/geom-dumbbell`    | [dumbbell](../recipes/geoms/dumbbell.md)       |
+| Error bar   | `@graphysdk/geom-error-bar`   | [error-bar](../recipes/geoms/error-bar.md)     |
 | Funnel      | `@graphysdk/geom-funnel`      | [funnel](../recipes/geoms/funnel.md)           |
 | Lollipop    | `@graphysdk/geom-lollipop`    | [lollipop](../recipes/geoms/lollipop.md)       |
 | Mekko       | `@graphysdk/geom-mekko`       | [mekko](../recipes/geoms/mekko.md)             |

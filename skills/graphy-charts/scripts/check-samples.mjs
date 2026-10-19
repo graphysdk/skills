@@ -188,7 +188,17 @@ const THEME_NAMES = [
 ];
 const THEME_PACKAGES = THEME_NAMES.map((name) => `@graphysdk/theme-${name}`);
 // The geom packages the skill documents. Each ships `@graphysdk/geom-<name>` with one plugin export.
-const GEOM_NAMES = ['boxplot', 'candlestick', 'dumbbell', 'funnel', 'lollipop', 'mekko', 'sankey', 'waterfall'];
+const GEOM_NAMES = [
+  'boxplot',
+  'candlestick',
+  'dumbbell',
+  'error-bar',
+  'funnel',
+  'lollipop',
+  'mekko',
+  'sankey',
+  'waterfall',
+];
 const GEOM_PACKAGES = GEOM_NAMES.map((name) => `@graphysdk/geom-${name}`);
 const VALID = new Set([
   ...DATA_IMPORT,
