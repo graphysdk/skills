@@ -3001,6 +3001,7 @@ class BarGeom extends Geom<BarGeomParams> {
         readonly observation: {
             readonly vocabulary: {
                 readonly strokeWidth: "pixels";
+                readonly maxWidth: "pixels";
             };
             readonly aesthetics: {
                 readonly fill: "color";
@@ -5803,7 +5804,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "overpaint", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overpaint", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "maxWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -9015,6 +9016,8 @@ interface StyleCornerRadiusSides {
  * - `strokeWidth` — stroke width in pixels for line and area outlines, grid lines, panel-border
  *   edges and the borders of boxes, bars, points and tiles; `0` is an explicit no-border and hides a
  *   chrome stroke, reserving no space for it.
+ * - `maxWidth` — the most a cartesian bar spans across its band, in pixels, centered in the band. A
+ *   stack shares the narrowest cap among its segments. Undeclared, a bar fills its band.
  * - `dashArray` — the dash rhythm of a stroke: dash and gap lengths in stroke widths, `[]` solid.
  * - `strokeAlpha` — area outline opacity, `0..1`, independent of the fill's `alpha`.
  * - `fillAlpha` — peak opacity of the gradient wash beneath a line, `0..1`. Undeclared draws no wash.

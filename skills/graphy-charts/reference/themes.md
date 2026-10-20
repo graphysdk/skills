@@ -366,15 +366,16 @@ Share one drawing component between `render` and `renderHover`:
 
 ```tsx
 import {
+  createBarBoundsReader,
   createStableKeyGenerator,
   defineGeomRenderer,
-  getBarRectBounds,
   readMainAxis,
   toPaintColor,
   toPercent,
   useGeomStyleReader,
   type MainAxis,
   type Observation,
+  type Rect,
   type SceneLayerFor,
   type StyleState,
   type Theme,
@@ -384,17 +385,20 @@ interface CapsuleBarsProps {
   layer: SceneLayerFor<'bar'>;
   observations: Iterable<Observation>;
   mainAxis: MainAxis;
+  panelRect: Rect;
   state?: StyleState;
 }
 
-// Normal and hover rendering use the same geometry and style readers.
-const CapsuleBars = ({ layer, observations, mainAxis, state }: CapsuleBarsProps) => {
+// Normal and hover rendering use the same geometry and style readers. The bounds reader reads the whole
+// layer, so a hovered bar narrows to its column's `maxWidth` like the rest.
+const CapsuleBars = ({ layer, observations, mainAxis, panelRect, state }: CapsuleBarsProps) => {
   const styleReaders = useGeomStyleReader(layer);
   const generateKey = createStableKeyGenerator(layer.data, layer.mapping, layer.id);
+  const readBounds = createBarBoundsReader(layer, mainAxis, styleReaders, panelRect);
   return (
     <g data-geom="bar">
       {Array.from(observations, (observation) => {
-        const rect = getBarRectBounds(mainAxis, observation);
+        const rect = readBounds(observation);
         if (rect === null) return null;
         return (
           <rect
@@ -419,15 +423,21 @@ const capsuleBars = defineGeomRenderer('bar', {
   coord: 'cartesian',
   swatchShape: 'square',
   guideMode: 'band',
-  render: ({ layer, coordSystem }) => (
-    <CapsuleBars layer={layer as SceneLayerFor<'bar'>} observations={layer.data} mainAxis={readMainAxis(coordSystem)} />
+  render: ({ layer, coordSystem, panelRect }) => (
+    <CapsuleBars
+      layer={layer as SceneLayerFor<'bar'>}
+      observations={layer.data}
+      mainAxis={readMainAxis(coordSystem)}
+      panelRect={panelRect}
+    />
   ),
   // Redraw the hovered bar above the dimmed base layer.
-  renderHover: ({ layer, coordSystem, primary }) => (
+  renderHover: ({ layer, coordSystem, primary, panelRect }) => (
     <CapsuleBars
       layer={layer as SceneLayerFor<'bar'>}
       observations={[primary.observation]}
       mainAxis={readMainAxis(coordSystem)}
+      panelRect={panelRect}
       state="hovered"
     />
   ),
@@ -442,8 +452,10 @@ export const capsule: Theme = {
 };
 ```
 
+- Read a bar's bounds through `createBarBoundsReader`, which narrows it to `maxWidth` as the built-in bar paints it. `getBarRectBounds` returns the full band.
 - Read paint through `useGeomStyleReader(layer)` or the render input's `styleReaders`, passing the current state. Spec styles and mapped colors then reach the repaint.
 - A repainted line or area edge passes its `dashArray` and `strokeWidth` reads through `resolvePathStroke`, with the cap the stroke would otherwise paint: its `lineCap` read to follow the stylesheet, or a cap of its own. It spreads the `strokeWidth`, `strokeDasharray` and `strokeLinecap` it gets back onto its `<path>`. A dotted line is a run of zero-length dashes, which a butt cap leaves invisible, so a dotted stroke comes back round-capped under any cap.
+- A repainted line draws the area under it when `fillAlpha` reads above 0, at that opacity, since the chart menu's Fill under line writes `fillAlpha`. Take the path from `createLineFillAreaGenerator(layer.params)`, which follows the curve and missing values. A theme that wants every line filled sets `fillAlpha` in its stylesheet, not in the renderer.
 - `renderHover` redraws `primary.observation` in the `'hovered'` state above the dimmed layer. Returning `null` leaves the hovered bar dimmed with the rest.
 - Key shapes with `createStableKeyGenerator`, or `createStableCellKeyGenerator` for tiles, so they keep their identity across updates.
 - A contract covers one coordinate system. Add a second with `coord: 'polar'` to repaint pies and roses. Without it the built-in polar drawing stays.

@@ -49,8 +49,8 @@ Save as `sketchy-bar.tsx`.
 import { type ReactNode, useMemo } from 'react';
 import rough from 'roughjs';
 
-import { defineGeomRenderer, getBarRectBounds, toPaintColor } from '@graphysdk/react';
-import type { CartesianCoordSystem, GeomStyleReaders, Observation, SceneLayer } from '@graphysdk/react';
+import { createBarBoundsReader, defineGeomRenderer, toPaintColor } from '@graphysdk/react';
+import type { CartesianCoordSystem, GeomStyleReaders, Observation, Rect, SceneLayer } from '@graphysdk/react';
 
 // The bars paint into a nominal square canvas that the browser stretches to the panel through
 // `preserveAspectRatio="none"`, so the renderer never needs the panel's pixel size. 100 keeps rough.js's
@@ -62,7 +62,6 @@ const FALLBACK_COLOR = '#4e79a7';
 const generator = rough.generator();
 
 type RoughPath = ReturnType<typeof generator.toPaths>[number];
-type BarBounds = NonNullable<ReturnType<typeof getBarRectBounds>>;
 
 interface BarStyle {
   strokeWidth: number;
@@ -86,10 +85,10 @@ const hashSeed = (key: string): number => {
 
 // The seed comes from the bar's bounds, so the base paint and the hover paint of one bar share it and the
 // heavier hover strokes land exactly over the base strokes.
-const rectSeed = (bounds: BarBounds): number => hashSeed(`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`);
+const rectSeed = (bounds: Rect): number => hashSeed(`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`);
 
 /** The rough.js paths for one bar. `bounds` is in [0, 1] with a top-left origin; it is scaled into the canvas. */
-const buildBarPaths = (bounds: BarBounds, color: string, style: BarStyle): RoughPath[] =>
+const buildBarPaths = (bounds: Rect, color: string, style: BarStyle): RoughPath[] =>
   generator.toPaths(
     generator.rectangle(
       bounds.x * VIEWBOX_SIZE,
@@ -148,6 +147,7 @@ interface SketchyBarsProps {
   layer: SceneLayer;
   coordSystem: CartesianCoordSystem;
   styleReaders: GeomStyleReaders;
+  panelRect: Rect;
 }
 
 interface SketchyBar {
@@ -156,15 +156,19 @@ interface SketchyBar {
   paths: RoughPath[];
 }
 
-/** Paints every bar of the layer. `getBarRectBounds` handles stacked, dodged and flipped bars. */
-const SketchyBars = ({ layer, coordSystem, styleReaders }: SketchyBarsProps) => {
+/**
+ * Paints every bar of the layer. `createBarBoundsReader` handles stacked, dodged and flipped bars, and narrows
+ * each to its column's `maxWidth` as the built-in bar paints it.
+ */
+const SketchyBars = ({ layer, coordSystem, styleReaders, panelRect }: SketchyBarsProps) => {
   const bars = useMemo<SketchyBar[]>(() => {
+    const readBounds = createBarBoundsReader(layer, coordSystem.mainAxis, styleReaders, panelRect);
     const result: SketchyBar[] = [];
     let index = 0;
     for (const observation of layer.data) {
       const key = index;
       index += 1;
-      const bounds = getBarRectBounds(coordSystem.mainAxis, observation);
+      const bounds = readBounds(observation);
       if (!bounds || bounds.width <= 0 || bounds.height <= 0) continue;
 
       result.push({
@@ -174,7 +178,7 @@ const SketchyBars = ({ layer, coordSystem, styleReaders }: SketchyBarsProps) => 
       });
     }
     return result;
-  }, [layer.data, coordSystem.mainAxis, styleReaders]);
+  }, [layer, coordSystem.mainAxis, styleReaders, panelRect]);
 
   return (
     <SketchyCanvas>
@@ -188,14 +192,16 @@ const SketchyBars = ({ layer, coordSystem, styleReaders }: SketchyBarsProps) => 
 };
 
 interface SketchyBarHoverProps {
+  layer: SceneLayer;
   observation: Observation;
   coordSystem: CartesianCoordSystem;
   styleReaders: GeomStyleReaders;
+  panelRect: Rect;
 }
 
-/** The hovered bar redrawn bolder, in the same place through the shared seed. */
-const SketchyBarHover = ({ observation, coordSystem, styleReaders }: SketchyBarHoverProps) => {
-  const bounds = getBarRectBounds(coordSystem.mainAxis, observation);
+/** The hovered bar redrawn bolder, in the same place through the shared seed. Its column's cap comes from the whole layer. */
+const SketchyBarHover = ({ layer, observation, coordSystem, styleReaders, panelRect }: SketchyBarHoverProps) => {
+  const bounds = createBarBoundsReader(layer, coordSystem.mainAxis, styleReaders, panelRect)(observation);
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) return null;
 
   return (
@@ -209,13 +215,21 @@ const SketchyBarHover = ({ observation, coordSystem, styleReaders }: SketchyBarH
 export const sketchyBar = defineGeomRenderer('bar', {
   coord: 'cartesian',
   guideMode: 'band',
-  render: ({ layer, coordSystem, styleReaders }) => {
+  render: ({ layer, coordSystem, styleReaders, panelRect }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <SketchyBars layer={layer} coordSystem={coordSystem} styleReaders={styleReaders} />;
+    return <SketchyBars layer={layer} coordSystem={coordSystem} styleReaders={styleReaders} panelRect={panelRect} />;
   },
-  renderHover: ({ primary, coordSystem, styleReaders }) => {
+  renderHover: ({ layer, primary, coordSystem, styleReaders, panelRect }) => {
     if (coordSystem.type !== 'cartesian') return null;
-    return <SketchyBarHover observation={primary.observation} coordSystem={coordSystem} styleReaders={styleReaders} />;
+    return (
+      <SketchyBarHover
+        layer={layer}
+        observation={primary.observation}
+        coordSystem={coordSystem}
+        styleReaders={styleReaders}
+        panelRect={panelRect}
+      />
+    );
   },
   renderHoverCompanions: () => null,
 });
@@ -225,6 +239,7 @@ export const sketchyBar = defineGeomRenderer('bar', {
 
 - Install `roughjs` (`npm install roughjs`). Everything else imports from `@graphysdk/react`.
 - `defineGeomRenderer('bar', contract)` registers no compile definition, so there is no kit and no new geom name. The name is limited to the built-in geoms. Stacked, dodged and flipped bars keep working; polar bars keep the built-in paint, because this contract binds `coord: 'cartesian'` only.
+- Bounds come from `createBarBoundsReader`, so a `style.geom.bar({ maxWidth })` cap narrows the sketchy bar as it does the built-in one, and data labels and annotations land on it. `getBarRectBounds` returns the full band and ignores the cap.
 - Paint reads `styleReaders.get('fill', observation)` and `styleReaders.get('alpha', observation)`, so `style.geom.bar({ fill })` overrides, the color scale and the bar's built-in default all reach the paint. `toPaintColor` reduces a gradient or pattern to one color, which is all rough.js can stroke.
 - A theme's or the spec's overpaint lands over the whole sketchy canvas, so the pattern keeps its panel-pixel size.
 - On hover the base layer dims through the stylesheet's `dimmed` state and the bolder hover paint is drawn above it.
