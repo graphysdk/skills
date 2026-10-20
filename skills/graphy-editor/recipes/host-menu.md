@@ -79,7 +79,7 @@ const Rows = ({ target }: { target: EditTarget }) => {
       return (
         <button
           onClick={() =>
-            dispatch(new SetAxisVisibilityCommand({ axis: target.axis, isVisible: false, keepSecondaryAxis: true }))
+            dispatch(new SetAxisVisibilityCommand({ axis: target.axis, visible: false, keepSecondaryAxis: true }))
           }
         >
           Hide axis
@@ -90,7 +90,7 @@ const Rows = ({ target }: { target: EditTarget }) => {
       const axis = target.axis;
       if (axis === 'both') return null;
       return (
-        <button onClick={() => dispatch(new SetGridVisibilityCommand({ axis, isVisible: false }))}>
+        <button onClick={() => dispatch(new SetGridVisibilityCommand({ axis, visible: false }))}>
           Hide grid lines
         </button>
       );

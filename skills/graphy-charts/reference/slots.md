@@ -45,14 +45,14 @@ Exported types: `GraphSlots` for the prop; one `...SlotProps` type per slot (`He
 
 ## Bare slots
 
-| Slot            | Receives                                                                                                                              | Default export   |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `Tooltip`       | `content`                                                                                                                             | `DefaultTooltip` |
-| `Header`        | `ref`, `headerRect`, `mode`, `title`, `isTitleVisible`, `subtitle`, `isSubtitleVisible`, `headingStyle`, `subtitleStyle`, `brandMark` | `DefaultHeader`  |
-| `Footer`        | `ref`, `footerRect`, `mode`, `caption`, `isCaptionVisible`, `source`, `isSourceVisible`, `captionStyle`, `sourceStyle`, `brandMark`   | `DefaultFooter`  |
-| `Swatch`        | `shape`, `color`, `paint`, `surface`, `label`, `lineType`, `width`, `height`, `strokeWidth`, `alpha`, `cornerRadius`, `symbol`        | `DefaultSwatch`  |
-| `Grid`          | `axes`, `panelBorderSizes`, `panelFrameRect`, `panelRect`                                                                             | `DefaultGrid`    |
-| `EditorSurface` | `frameElement`, `panelRect`, `formattedAxes`, `shouldAnimateTransitions`                                                              | none             |
+| Slot            | Receives                                                                                                                       | Default export   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| `Tooltip`       | `content`                                                                                                                      | `DefaultTooltip` |
+| `Header`        | `ref`, `headerRect`, `mode`, `title`, `showTitle`, `subtitle`, `showSubtitle`, `headingStyle`, `subtitleStyle`, `brandMark`    | `DefaultHeader`  |
+| `Footer`        | `ref`, `footerRect`, `mode`, `caption`, `showCaption`, `source`, `showSource`, `captionStyle`, `sourceStyle`, `brandMark`      | `DefaultFooter`  |
+| `Swatch`        | `shape`, `color`, `paint`, `surface`, `label`, `lineType`, `width`, `height`, `strokeWidth`, `alpha`, `cornerRadius`, `symbol` | `DefaultSwatch`  |
+| `Grid`          | `axes`, `panelBorderSizes`, `panelFrameRect`, `panelRect`                                                                      | `DefaultGrid`    |
+| `EditorSurface` | `frameElement`, `panelRect`, `formattedAxes`, `animateTransitions`                                                             | none             |
 
 `EditorSurface` is filled by `EditableGraphRenderer` from `@graphysdk/react/editable`. A read-only graph never sets it.
 
@@ -70,7 +70,7 @@ const DarkTooltip = ({ content }: TooltipSlotProps) => (
     {content.rows.map((row) => (
       <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
         <span style={{ color: row.swatchColor ?? 'inherit' }}>{row.label}</span>
-        <span style={{ fontWeight: row.isPrimary ? 700 : 400 }}>{row.value}</span>
+        <span style={{ fontWeight: row.primary ? 700 : 400 }}>{row.value}</span>
       </div>
     ))}
   </div>
@@ -79,7 +79,7 @@ const DarkTooltip = ({ content }: TooltipSlotProps) => (
 export const Renderer = () => <GraphRenderer slots={{ Tooltip: DarkTooltip }} />;
 ```
 
-`content.heading` is the formatted main-axis value. It is `null` on polar graphs and whenever `content.comment` is set. `content.rows` lists one row per group in legend order. A row has `label`, `value` (formatted), `swatchColor` (`null` when the graph has no color scale), `geom`, `isPrimary` (the hovered row) and a stable `key`, plus the optional swatch details `swatchLineType`, `swatchFill`, `swatchAlpha`, `swatchCornerRadius` and `swatchSymbol`. `content.comment` is rich text when the pointer is over a comment bubble, else `null`.
+`content.heading` is the formatted main-axis value. It is `null` on polar graphs and whenever `content.comment` is set. `content.rows` lists one row per group in legend order. A row has `label`, `value` (formatted), `swatchColor` (`null` when the graph has no color scale), `geom`, `primary` (the hovered row) and a stable `key`, plus the optional swatch details `swatchLineType`, `swatchFill`, `swatchAlpha`, `swatchCornerRadius` and `swatchSymbol`. `content.comment` is rich text when the pointer is over a comment bubble, else `null`.
 
 ## Header slot
 
@@ -99,24 +99,24 @@ const BannerHeader = ({
   ref,
   headerRect,
   title,
-  isTitleVisible,
+  showTitle,
   subtitle,
-  isSubtitleVisible,
+  showSubtitle,
   headingStyle,
   brandMark,
 }: HeaderSlotProps) => {
-  if (!isTitleVisible && !isSubtitleVisible && brandMark === 'hidden') return null;
+  if (!showTitle && !showSubtitle && brandMark === 'hidden') return null;
   return (
     <div
       ref={ref}
       style={{ position: 'absolute', left: headerRect.x, top: headerRect.y, width: headerRect.width, padding: '8px 0' }}
     >
-      {isTitleVisible && (
+      {showTitle && (
         <h2 style={{ margin: 0, fontSize: headingStyle.fontSize, color: headingStyle.textColor }}>
           {toPlainText(title)}
         </h2>
       )}
-      {isSubtitleVisible && <p style={{ margin: 0, opacity: 0.7 }}>{toPlainText(subtitle)}</p>}
+      {showSubtitle && <p style={{ margin: 0, opacity: 0.7 }}>{toPlainText(subtitle)}</p>}
       {brandMark !== 'hidden' && <BrandMark visual={brandMark} placement="header" />}
     </div>
   );
@@ -139,8 +139,8 @@ Same contract as the header. Forward `ref`, place at `footerRect`.
 import { GraphRenderer } from '@graphysdk/react';
 import type { FooterSlotProps } from '@graphysdk/react';
 
-const SourceOnlyFooter = ({ ref, footerRect, source, isSourceVisible, sourceStyle }: FooterSlotProps) => {
-  if (!isSourceVisible || source === null) return null;
+const SourceOnlyFooter = ({ ref, footerRect, source, showSource, sourceStyle }: FooterSlotProps) => {
+  if (!showSource || source === null) return null;
   return (
     <div ref={ref} style={{ position: 'absolute', left: footerRect.x, top: footerRect.y, width: footerRect.width }}>
       <span style={{ fontSize: sourceStyle.label.fontSize, color: sourceStyle.label.textColor }}>
@@ -209,7 +209,7 @@ const DottedGrid = ({ axes, panelFrameRect, panelRect }: GridSlotProps) => {
   return (
     <svg x={panelFrameRect.x} y={panelFrameRect.y} width={panelFrameRect.width} height={panelFrameRect.height}>
       {axes.map((axis) => {
-        if (axis.geometry !== 'linear' || !axis.gridVisible) return null;
+        if (axis.geometry !== 'linear' || !axis.showGrid) return null;
         const isHorizontalAxis = axis.position === 'bottom' || axis.position === 'top';
         return axis.ticks.map((tick) => {
           const x = offsetX + tick.position * panelRect.width;
@@ -244,7 +244,7 @@ const DottedGrid = ({ axes, panelFrameRect, panelRect }: GridSlotProps) => {
 export const Renderer = () => <GraphRenderer slots={{ Grid: DottedGrid }} />;
 ```
 
-`axes` holds one `FormattedAxis` per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `scaleAestheticKey`, `isVisible`, `gridVisible`, `ticksVisible`, `label`, `labelRotation` and `labelMaxWidthPx`. A radar's circular and radial axes are drawn elsewhere and have a `geometry` other than `'linear'`. `DefaultGrid` skips a line that would sit on a bordered panel edge; read `panelBorderSizes` to match.
+`axes` holds one `FormattedAxis` per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `scaleAestheticKey`, `visible`, `showGrid`, `showTicks`, `label`, `labelRotation` and `labelMaxWidthPx`. A radar's circular and radial axes are drawn elsewhere and have a `geometry` other than `'linear'`. `DefaultGrid` skips a line that would sit on a bordered panel edge; read `panelBorderSizes` to match.
 
 ## Measured slots
 
@@ -261,7 +261,7 @@ For `Legend`, `AxisTicks` and `AxisLabel`, `measure` returns the band thickness 
 
 `measure` is skipped where the band is empty: a legend with no items, an axis that is hidden, has no ticks or is not linear. `AxisLabel`'s measure runs only for an axis with a title.
 
-`Headline` is different. Its `measure` is an object with `measureHeadline(headline, size, isInDonutHole?)` returning `{ width, height }` and `measureHeadlineItemWidths(headline, size)` returning one width per strip item. Neither receives a `SlotMeasureContext`.
+`Headline` is different. Its `measure` is an object with `measureHeadline(headline, size, inDonutHole?)` returning `{ width, height }` and `measureHeadlineItemWidths(headline, size)` returning one width per strip item. Neither receives a `SlotMeasureContext`.
 
 Give `measure` a stable reference. A new function each render takes effect on the next paint but does not retrigger layout, so paint and reserved space drift apart. The pair is typed `SlotOverride<Props, Measure>`; `GraphSlots['Legend']` and the others name each slot's instance of it.
 
@@ -417,7 +417,7 @@ export const Renderer = () => {
 };
 ```
 
-`headline.kind` is `'perGroup'` with `items` (each with `label`, `value`, `caption`, `comparison`, `swatch`) or `'grandTotal'` with one `value`. Every string is final: render it verbatim. `resolvedSize` is `'small'`, `'medium'` or `'large'`. `visibleItemCount` says how many strip items fit. `isInDonutHole` says whether a total sits inside a donut. `measureHeadline` returns `{ width, height }` for a given size. `measureHeadlineItemWidths` receives a per-group headline and returns one width per item.
+`headline.kind` is `'perGroup'` with `items` (each with `label`, `value`, `caption`, `comparison`, `swatch`) or `'grandTotal'` with one `value`. Every string is final: render it verbatim. `resolvedSize` is `'small'`, `'medium'` or `'large'`. `visibleItemCount` says how many strip items fit. `inDonutHole` says whether a total sits inside a donut. `measureHeadline` returns `{ width, height }` for a given size. `measureHeadlineItemWidths` receives a per-group headline and returns one width per item.
 
 ## Wrapping a default
 

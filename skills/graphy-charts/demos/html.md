@@ -37,7 +37,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792506850788/dist/editable.browser.mjs",
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792510459918/dist/editable.browser.mjs",
           "@graphysdk/theme-blueprint": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-blueprint@latest/dist/index.mjs",
           "@graphysdk/theme-botanical": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-botanical@latest/dist/index.mjs",
           "@graphysdk/theme-comic": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-comic@latest/dist/index.mjs",
@@ -189,7 +189,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
               subtitle: 'A 22 km ridge loop, from trailhead to summit and back · Illustrative route',
             },
             legend: { position: 'none' },
-            axes: { y: { position: 'left', ticks: { isVisible: true } } },
+            axes: { y: { position: 'left', ticks: { visible: true } } },
             numberFormat: { abbreviation: 'none', decimals: 0 },
           })
         ),
@@ -207,7 +207,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
               subtitle: 'Flavor intensity, 0–10 · Illustrative tasting scores',
             },
             legend: { position: 'bottom' },
-            axes: { x: { grid: { isVisible: true } }, y: { grid: { isVisible: true } } },
+            axes: { x: { grid: { visible: true } }, y: { grid: { visible: true } } },
             numberFormat: { decimals: 0 },
           })
         ),
@@ -225,7 +225,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
               subtitle: 'Critic and audience scores for four fictional releases · Out of 100',
             },
             legend: { position: 'top' },
-            axes: { y: { isVisible: false } },
+            axes: { y: { visible: false } },
             numberFormat: { decimals: 0 },
           })
         ),

@@ -131,11 +131,11 @@ Use `readReachableLevels` from `@graphysdk/react/editable` to build a custom lev
 
 Axes, the legend and grid lines have a visibility button in the menu title. Clicking it hides the target and leaves the menu open with settings disabled. Clicking again restores the target, including its previous position. Each click creates one undo entry. After the menu closes, use undo to restore the previous state. A legend already hidden when selected is restored at `auto`.
 
-| Target     | Hide                                                                            | Show                                             |
-| ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Legend     | `SetLegendPositionCommand({ position: 'none' })`                                | `SetLegendPositionCommand` with the old position |
-| Axis       | `SetAxisVisibilityCommand({ axis, isVisible: false, keepSecondaryAxis: true })` | the same with `true`                             |
-| Grid lines | `SetGridVisibilityCommand({ axis, isVisible: false })`                          | the value it had, else `true`                    |
+| Target     | Hide                                                                          | Show                                             |
+| ---------- | ----------------------------------------------------------------------------- | ------------------------------------------------ |
+| Legend     | `SetLegendPositionCommand({ position: 'none' })`                              | `SetLegendPositionCommand` with the old position |
+| Axis       | `SetAxisVisibilityCommand({ axis, visible: false, keepSecondaryAxis: true })` | the same with `true`                             |
+| Grid lines | `SetGridVisibilityCommand({ axis, visible: false })`                          | the value it had, else `true`                    |
 
 Hiding one vertical axis leaves the other alone. The panel's y axis section hides both.
 

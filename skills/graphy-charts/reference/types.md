@@ -788,9 +788,9 @@ interface HeaderSlotProps {
     headerRect: Rect;
     mode?: GraphMode;
     title: TextContent | null;
-    isTitleVisible: boolean;
+    showTitle: boolean;
     subtitle: TextContent | null;
-    isSubtitleVisible: boolean;
+    showSubtitle: boolean;
     headingStyle: TextStyle;
     subtitleStyle: TextStyle;
     /**
@@ -811,9 +811,9 @@ interface FooterSlotProps {
     footerRect: Rect;
     mode?: GraphMode;
     caption: TextContent | null;
-    isCaptionVisible: boolean;
+    showCaption: boolean;
     source: SourceContent | null;
-    isSourceVisible: boolean;
+    showSource: boolean;
     captionStyle: TextStyle;
     sourceStyle: SourceStyle;
     /**
@@ -867,7 +867,7 @@ interface HeadlineSlotProps {
      * Whether this figure sits in the donut hole. Strip polar totals reuse the grand-total class, so
      * paint cannot infer the hole from CSS — only the placement input knows.
      */
-    isInDonutHole?: boolean;
+    inDonutHole?: boolean;
 }
 
 /**
@@ -932,7 +932,7 @@ interface EditorSurfaceSlotProps {
     /** The axes as the chart paints them, whose ticks a stamped tick index addresses. */
     formattedAxes: readonly FormattedAxis[];
     /** Whether the chart animates between states, so what the editor draws over its geoms can follow. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
 }
 ```
 
@@ -1041,7 +1041,7 @@ abstract class Geom<TParams = Record<string, never>> {
      * Whether this geom composes a single geometry per group (e.g. a line's path) rather than
      * drawing one per observation (e.g. a point's marker).
      */
-    readonly isComposite: boolean;
+    readonly composite: boolean;
     /** The tooltip contract this geom declares. */
     readonly tooltip: TooltipContract;
     /** What the mark paints: its observations, and each part beside them. Unset, the geom paints the shared vocabulary. */
@@ -1434,7 +1434,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
     readonly resolvePercentageValueStrategy: (layer: SceneLayer) => PercentageValueStrategy;
-    readonly isComposite = true;
+    readonly composite = true;
     readonly legend: LegendPolicy;
     readonly highlightStrategy: "overlay-anchor";
     /** The band between `yMin` and the value is painted, so a cursor inside it is on the observation. */
@@ -1545,7 +1545,7 @@ interface AxisGridConfig {
      * - null: let the compiler decide based on geom/coord policies
      *   (visible unless a geom policy hides it, e.g. bar charts hide the x grid)
      */
-    isVisible: boolean | null;
+    visible: boolean | null;
 }
 
 /** Which axis something belongs to, with `ySecondary` already folded into `y`. */
@@ -1580,7 +1580,7 @@ type AxisTickMode = 'auto' | 'edges';
  * Configuration for a single axis's ticks
  */
 interface AxisTicksConfig {
-    isVisible: boolean;
+    visible: boolean;
     mode: AxisTickMode;
 }
 
@@ -2962,7 +2962,7 @@ class LineGeom extends Geom<LineGeomParams> {
     readonly summaries: GeomSummaries;
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
-    readonly isComposite = true;
+    readonly composite = true;
     readonly legend: LegendPolicy;
     readonly highlightStrategy: "overlay-anchor";
     readonly spatialKind: SpatialKind;
@@ -3216,7 +3216,7 @@ interface PlacedDataLabel {
     width: number;
     height: number;
     /** When true, paint the label rotated -90° around `(x, y)`. */
-    isRotated: boolean;
+    rotated: boolean;
     /** Which on-canvas element this label decorates (per-observation vs stack total). */
     role: DataLabelRole;
     /** Where the label sits relative to its geom or stack. */
@@ -3676,13 +3676,13 @@ interface ResolvedConfigSpec {
  */
 interface ResolvedContentSpec {
     title: TextContent | null;
-    isTitleVisible: boolean;
+    showTitle: boolean;
     subtitle: TextContent | null;
-    isSubtitleVisible: boolean;
+    showSubtitle: boolean;
     caption: TextContent | null;
-    isCaptionVisible: boolean;
+    showCaption: boolean;
     source: SourceContent | null;
-    isSourceVisible: boolean;
+    showSource: boolean;
     /**
      * Structured provenance-badge config. Canonical source of truth for enabled /
      * placement / variant after {@link resolveConfig}.
@@ -4101,21 +4101,21 @@ interface ScaleAPI {
 /** Scale-domain constraints a geom imposes on the scales it draws against. */
 interface ScaleConstraints {
     /** Force this geom's band (x) scale to be discrete (e.g. a bar's categorical axis). */
-    discreteMainAxis?: boolean;
+    requireMainAxisBands?: boolean;
     /** Force this geom's cross (y) scale to be discrete (e.g. a tile's categorical rows). */
-    discreteCrossAxis?: boolean;
+    requireCrossAxisBands?: boolean;
     /**
      * Default band padding for this geom's discrete position scales; `0` makes neighboring cells abut.
      * Explicit user padding always wins.
      */
     bandPadding?: number;
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
-    zeroBaseline?: boolean;
+    includeZero?: boolean;
     /**
      * Infer this geom's color scale from the column behind it — a ramp for a measure — instead of the
      * default palette. What a geom drawing its value as color (a tile) asks for.
      */
-    inferredColor?: boolean;
+    inferColorScale?: boolean;
 }
 
 /**
@@ -4146,7 +4146,7 @@ type ScaledVisualAestheticKey = 'color' | 'size' | 'alpha' | 'strokeWidth' | 'li
 
 /**
  * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
- * left unset is inherited at compile time — `position` from the side opposite `y`, `isVisible`,
+ * left unset is inherited at compile time — `position` from the side opposite `y`, `visible`,
  * `grid` and `ticks` from `y` itself, and `label` from no label at all. An absent override
  * therefore means "mirror the primary axis", which stops being expressible once a field is pinned.
  */
@@ -4729,7 +4729,7 @@ interface TooltipContent {
      * {@link TooltipContent.comment} is set — the two share one slot.
      */
     heading: string | null;
-    /** In legend order; the hovered observation's rows have `isPrimary` set. */
+    /** In legend order; the hovered observation's rows have `primary` set. */
     rows: TooltipRow[];
     /** Rich text of the comment whose mini bubble the pointer is over; `null` otherwise. */
     comment: RichTextContent | null;
@@ -4771,7 +4771,7 @@ interface TooltipRow {
     /** Formatted Y reading for this hit. */
     value: string;
     /** Styling hint: a row read from the primary's observation. Never re-orders. */
-    isPrimary: boolean;
+    primary: boolean;
     /** Stable key — `${layerId}:${pointIndex}`. */
     key: string;
 }
@@ -4883,7 +4883,7 @@ interface XAxisConfig {
      * Whether the x axis is visible.
      * @default true
      */
-    isVisible: boolean;
+    visible: boolean;
     /**
      * Axis title text. null means explicitly no label.
      * @default null
@@ -4914,7 +4914,7 @@ interface YAxisConfig {
      * Whether the y axis is visible.
      * @default true
      */
-    isVisible: boolean;
+    visible: boolean;
     /**
      * Axis title text. null means explicitly no label.
      * @default null
@@ -5077,7 +5077,7 @@ interface EditOutlineShapesInput<G extends GeomName | string = string, C extends
     /** Cascade readers for this layer, for the sizes a shape matches: a line's width, a point's size. */
     styleReaders: StyleReadersOf<G>;
     /** Whether the chart animates transitions, for a shape to copy where the geom's paint springs. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
 }
 
 /** A stroke, which the outline grows from either side of its thickness. */
@@ -5113,7 +5113,7 @@ interface GeomCircleProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of center or radius springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     /** A geom's own test hook, since the primitive owns the painted element. */
     'data-testid'?: string;
 }
@@ -5131,7 +5131,7 @@ interface GeomLineProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of either endpoint springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -5164,7 +5164,7 @@ interface GeomPathProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of shape morphs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -5184,7 +5184,7 @@ interface GeomRectProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of origin or size springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -5286,7 +5286,7 @@ type GeomRenderFn<G extends GeomName | string = string, C extends CoordKind = Co
 interface GeomRenderInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> extends GeomRenderInputBase {
     layer: SceneLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     formattingLocale: Locale;
     intro?: LayerIntroPlan | null;
     /**
@@ -5397,7 +5397,7 @@ interface MorphingEditOutlineShape {
     /** Identifies the shape across renders, such as a line's group, so a morph starts from where it was. */
     key?: string;
     /** Whether a change of shape morphs to the new one, as the geom's paint does. Snaps when omitted. */
-    shouldAnimateTransitions?: boolean;
+    animateTransitions?: boolean;
 }
 
 interface ObservationRectInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> {
@@ -5434,7 +5434,7 @@ interface ResizeObserverState {
     width: number;
     height: number;
     /** True until the first ResizeObserver measurement lands. */
-    isDefault: boolean;
+    unmeasured: boolean;
 }
 
 /**

@@ -143,7 +143,7 @@ const spec = pipe(
   scale.x.discrete({ domain: indices }),
   scale.y.discrete({ domain: indices }),
   scale.color.discrete({ domain: channels.map((entry) => entry.channel), range: channels.map((entry) => entry.color) }),
-  config({ axes: { x: { isVisible: false }, y: { isVisible: false } }, legend: { position: 'right' } })
+  config({ axes: { x: { visible: false }, y: { visible: false } }, legend: { position: 'right' } })
 );
 ```
 

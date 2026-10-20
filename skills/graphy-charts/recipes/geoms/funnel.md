@@ -38,7 +38,7 @@ const spec = kit.pipe(
   kit.scale.x.discrete(),
   kit.scale.y.continuous(),
   kit.coord.flip(),
-  kit.config({ axes: { y: { isVisible: false } } })
+  kit.config({ axes: { y: { visible: false } } })
 );
 
 export function Checkout() {
@@ -102,7 +102,7 @@ const coloredSpec = kit.pipe(
   kit.scale.y.continuous(),
   kit.scale.color.discrete(),
   kit.coord.flip(),
-  kit.config({ axes: { y: { isVisible: false } }, legend: { position: 'none' } })
+  kit.config({ axes: { y: { visible: false } }, legend: { position: 'none' } })
 );
 ```
 

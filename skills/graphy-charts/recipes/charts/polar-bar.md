@@ -102,7 +102,7 @@ Width is a fraction of the band: angular for a rose, radial for a track. Under p
 ### Hide the axes
 
 ```ts
-const noAxes = config({ axes: { x: { isVisible: false }, y: { isVisible: false } } });
+const noAxes = config({ axes: { x: { visible: false }, y: { visible: false } } });
 ```
 
 ## Pitfalls

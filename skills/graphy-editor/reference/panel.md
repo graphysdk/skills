@@ -88,7 +88,7 @@ Use commands for colors, arbitrary stylesheet edits, mapping beyond the five aes
 ## Your own section
 
 - `Section`: `{ title, layout?, preview?, accessory?, onOpenChange?, children }`. `fixed` (the default here) always shows its body. `collapsible` joins the accordion. `inline` puts the control in the header unless a `preview` is given. `accessory` is a live control in the header whose clicks do not toggle.
-- `ToggledSection`: `{ title, isChecked, onToggle, isDisabled?, preview?, children }`. A switch in the header turns the feature on and opens the section, or off and closes every section. Opening the section while off switches it on, unless `isDisabled`.
+- `ToggledSection`: `{ title, checked, onToggle, disabled?, preview?, children }`. A switch in the header turns the feature on and opens the section, or off and closes every section. Opening the section while off switches it on, unless `disabled`.
 - `Row`: `{ label?, layout?: 'stack' | 'grid', icon?, children }`. One labeled setting. With a `label`, the row labels its control for screen readers.
 - `Separator`: a line between runs of rows.
 - `usePanelGraph(): GraphHandle`: the chart the panel edits. Read the compiled chart from it and dispatch to it.
@@ -128,7 +128,7 @@ const BarWidthSection = () => {
 
 Sections get controls from the registry through `useControls()`. The ten controls use these contracts:
 
-- Discrete, `DiscreteControlProps<V>` (`value`, `onChange`): one change, one undo entry, nothing to commit. `Switch` (`isChecked`, not `value`), `Select` (nullable value, `options`, `placeholder`), `ColorSwatches` (`colors`, `trailing`, `isClearable`).
+- Discrete, `DiscreteControlProps<V>` (`value`, `onChange`): one change, one undo entry, nothing to commit. `Switch` (`checked`, not `value`), `Select` (nullable value, `options`, `placeholder`), `ColorSwatches` (`colors`, `trailing`, `clearable`).
 - Continuous, `ContinuousControlProps<V>` (`value`, `onChange`, `onCommit?`): `onChange` streams through the gesture and is dispatched transiently, `onCommit` closes it into one undo entry. `Slider` (`min`, `max`, `step`, `suffix`, `showValue`, `formatValue`), `NumberField` (`number | null`, null is an empty field), `TextField` (per keystroke, commit on blur), `ToggleGroup` (`options`, `itemLayout`, `hasEqualWidths`), `RadioGrid` (`options`, `columns`, `itemLayout: 'tile' | 'swatch' | 'icon' | 'track'`, options may pin `gridRow` and `gridColumn`), `CustomColor` (`variant: 'default' | 'chip'`, commits when the picker closes).
 - `Button` is an action: `onClick`, `variant: 'default' | 'tile'`, and either `{ label, icon? }` or `{ icon, ariaLabel }`.
 
@@ -147,7 +147,7 @@ const MySlider = ({
   suffix,
   showValue = true,
   formatValue,
-  isDisabled,
+  disabled,
   ariaLabel,
   ariaLabelledBy,
 }: SliderControlProps) => (
@@ -158,7 +158,7 @@ const MySlider = ({
       max={max}
       step={step}
       value={value}
-      disabled={isDisabled}
+      disabled={disabled}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       onChange={(event) => onChange(event.target.valueAsNumber)}

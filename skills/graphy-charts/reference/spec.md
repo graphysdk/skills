@@ -465,13 +465,13 @@ config({
   },
   axes: {
     x: {
-      isVisible: true,
+      visible: true,
       label: 'Month',
       position: 'bottom',
-      grid: { isVisible: false },
-      ticks: { isVisible: true, mode: 'auto' },
+      grid: { visible: false },
+      ticks: { visible: true, mode: 'auto' },
     },
-    y: { label: 'Revenue', position: 'left', ticks: { isVisible: true, mode: 'edges' } }, // y defaults to the right side with ticks hidden
+    y: { label: 'Revenue', position: 'left', ticks: { visible: true, mode: 'edges' } }, // y defaults to the right side with ticks hidden
     ySecondary: { label: 'Margin' }, // sparse; position defaults opposite y, label to none, the rest copies y
   },
   numberFormat: {
@@ -481,13 +481,13 @@ config({
   },
   content: {
     title: 'Revenue',
-    isTitleVisible: true,
+    showTitle: true,
     subtitle: 'Monthly, 2024',
-    isSubtitleVisible: true,
+    showSubtitle: true,
     caption: 'Excludes refunds',
-    isCaptionVisible: true, // captions and sources are hidden by default
+    showCaption: true, // captions and sources are hidden by default
     source: { label: 'Finance team', url: 'https://example.com' },
-    isSourceVisible: true,
+    showSource: true,
     brandMark: { enabled: true, placement: 'footer', variant: 'full' },
   },
   headline: {
@@ -516,7 +516,7 @@ Legend:
 Axes:
 
 - `label: null` (the default) shows the column's `label` from the data when one is declared, otherwise no title. An empty string does the same.
-- `grid.isVisible: null` lets the geom decide: bars hide the x grid, tiles hide both. `ticks.mode: 'edges'` keeps only the two domain ends of a numeric or date axis; band axes ignore it.
+- `grid.visible: null` lets the geom decide: bars hide the x grid, tiles hide both. `ticks.mode: 'edges'` keeps only the two domain ends of a numeric or date axis; band axes ignore it.
 - `position` must match the axis orientation; on a flipped graph x runs vertically.
 
 Number format:

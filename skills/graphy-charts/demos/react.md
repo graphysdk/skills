@@ -166,7 +166,7 @@ const createExampleSpecs = (): Record<Example, Spec> => ({
         subtitle: 'A 22 km ridge loop, from trailhead to summit and back · Illustrative route',
       },
       legend: { position: 'none' },
-      axes: { y: { position: 'left', ticks: { isVisible: true } } },
+      axes: { y: { position: 'left', ticks: { visible: true } } },
       numberFormat: { abbreviation: 'none', decimals: 0 },
     })
   ),
@@ -184,7 +184,7 @@ const createExampleSpecs = (): Record<Example, Spec> => ({
         subtitle: 'Flavor intensity, 0–10 · Illustrative tasting scores',
       },
       legend: { position: 'bottom' },
-      axes: { x: { grid: { isVisible: true } }, y: { grid: { isVisible: true } } },
+      axes: { x: { grid: { visible: true } }, y: { grid: { visible: true } } },
       numberFormat: { decimals: 0 },
     })
   ),
@@ -202,7 +202,7 @@ const createExampleSpecs = (): Record<Example, Spec> => ({
         subtitle: 'Critic and audience scores for four fictional releases · Out of 100',
       },
       legend: { position: 'top' },
-      axes: { y: { isVisible: false } },
+      axes: { y: { visible: false } },
       numberFormat: { decimals: 0 },
     })
   ),

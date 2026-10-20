@@ -37,7 +37,7 @@ const HouseSlider = ({
   suffix,
   showValue = true,
   formatValue,
-  isDisabled,
+  disabled,
   ariaLabel,
   ariaLabelledBy,
 }: SliderControlProps) => (
@@ -48,7 +48,7 @@ const HouseSlider = ({
       max={max}
       step={step}
       value={value}
-      disabled={isDisabled}
+      disabled={disabled}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       onChange={(event) => onChange(event.target.valueAsNumber)}
@@ -60,14 +60,14 @@ const HouseSlider = ({
   </div>
 );
 
-// Each toggle creates one undo step. Switch controls use isChecked.
-const HouseSwitch = ({ isChecked, onChange, isDisabled, ariaLabel, ariaLabelledBy, id }: SwitchControlProps) => (
+// Each toggle creates one undo step. Switch controls use checked.
+const HouseSwitch = ({ checked, onChange, disabled, ariaLabel, ariaLabelledBy, id }: SwitchControlProps) => (
   <input
     type="checkbox"
     role="switch"
     id={id}
-    checked={isChecked}
-    disabled={isDisabled}
+    checked={checked}
+    disabled={disabled}
     aria-label={ariaLabel}
     aria-labelledby={ariaLabelledBy}
     onChange={(event) => onChange(event.target.checked)}

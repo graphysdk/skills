@@ -163,11 +163,11 @@ All classes are exported from `@graphysdk/react/editable`. Params are in [types]
 
 ### Content
 
-`SetContentTitleCommand`, `SetContentSubtitleCommand`, `SetContentCaptionCommand` take `TextContent = string | RichTextContent`, `null` clears. `SetContentSourceCommand({ source: { label?, url? } | null })`. `ToggleContentVisibilityCommand({ part, isVisible })`.
+`SetContentTitleCommand`, `SetContentSubtitleCommand`, `SetContentCaptionCommand` take `TextContent = string | RichTextContent`, `null` clears. `SetContentSourceCommand({ source: { label?, url? } | null })`. `ToggleContentVisibilityCommand({ part, visible })`.
 
 ### Axes, grid, legend
 
-`SetAxisLabelCommand`, `SetAxisPositionCommand`, `SetAxisTickModeCommand`, `SetAxisTicksVisibilityCommand`, `SetAxisVisibilityCommand`. `axis` is `'x'`, `'y'` or `'ySecondary'` on the label, tick mode and visibility commands. On `'y'`, label and visibility reach both vertical axes unless `keepSecondaryAxis: true`. On `'ySecondary'`, omitting the value drops the override. `SetGridVisibilityCommand({ axis: 'x' | 'y', isVisible })`, where `null` lets the compiler choose. `SetGridLineStyleCommand` takes `axis: 'x' | 'y' | 'both'` and sets dash and width as one undo step, each as one value or `{ x, y }`: a `lineStyle` of `'solid' | 'dashed' | 'dotted' | null` and a `strokeWidth` in pixels or `null`. `SetLegendPositionCommand`, `SetLegendAlignCommand`, `SetLegendDisplayCommand`, and `SetLegendPlacementCommand({ position, align })` for both in one step.
+`SetAxisLabelCommand`, `SetAxisPositionCommand`, `SetAxisTickModeCommand`, `SetAxisTicksVisibilityCommand`, `SetAxisVisibilityCommand`. `axis` is `'x'`, `'y'` or `'ySecondary'` on the label, tick mode and visibility commands. On `'y'`, label and visibility reach both vertical axes unless `keepSecondaryAxis: true`. On `'ySecondary'`, omitting the value drops the override. `SetGridVisibilityCommand({ axis: 'x' | 'y', visible })`, where `null` lets the compiler choose. `SetGridLineStyleCommand` takes `axis: 'x' | 'y' | 'both'` and sets dash and width as one undo step, each as one value or `{ x, y }`: a `lineStyle` of `'solid' | 'dashed' | 'dotted' | null` and a `strokeWidth` in pixels or `null`. `SetLegendPositionCommand`, `SetLegendAlignCommand`, `SetLegendDisplayCommand`, and `SetLegendPlacementCommand({ position, align })` for both in one step.
 
 ### Headline and numbers
 

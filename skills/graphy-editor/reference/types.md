@@ -1131,7 +1131,7 @@ class SetContentCaptionCommand implements Command<SetContentCaptionParams> {
 
 /**
  * Sets the data-source attribution shown under the caption. Whether it renders is controlled
- * separately by `isSourceVisible`, so clearing the text and hiding the slot are distinct edits.
+ * separately by `showSource`, so clearing the text and hiding the slot are distinct edits.
  */
 class SetContentSourceCommand implements Command<SetContentSourceParams> {
     readonly type: "set-content-source";
@@ -1943,7 +1943,7 @@ type SectionLayout = 'fixed' | 'collapsible' | 'inline';
  * A section whose feature is switched on and off from its own header. The coupling runs both ways: on
  * opens it, off closes it, and opening it while off switches it on.
  */
-const ToggledSection: ({ title, isChecked, onToggle, isDisabled, preview, children }: ToggledSectionProps) => JSX.Element;
+const ToggledSection: ({ title, checked, onToggle, disabled, preview, children }: ToggledSectionProps) => JSX.Element;
 
 /**
  * One labeled setting, wiring its own control: the row publishes its ids and each control takes the
@@ -2136,12 +2136,12 @@ interface ControlOption {
     description?: string;
     /** Shown beside the label, or alone where the control is icon-only. */
     icon?: ReactNode;
-    isDisabled?: boolean;
+    disabled?: boolean;
 }
 
 /** Props every control shares. */
 interface ControlBaseProps {
-    isDisabled?: boolean;
+    disabled?: boolean;
     /** Required unless the control is labeled by a section row, which passes `ariaLabelledBy` instead. */
     ariaLabel?: string;
     ariaLabelledBy?: string;
@@ -2185,7 +2185,7 @@ interface ContinuousControlProps<Value> extends ControlBaseProps {
  * Every press is its own undo entry, so there is no transient run to commit here — a button has no
  * gesture to hold open the way a drag or a run of keystrokes does.
  */
-const Button: ({ label, icon, onClick, variant, isExpanded, isDisabled, ariaLabel, ariaLabelledBy, id, }: ButtonControlProps) => JSX.Element;
+const Button: ({ label, icon, onClick, variant, expanded, disabled, ariaLabel, ariaLabelledBy, id, }: ButtonControlProps) => JSX.Element;
 
 /**
  * An action rather than a value: pressing it is the whole gesture, so there is nothing to read
@@ -2194,7 +2194,7 @@ const Button: ({ label, icon, onClick, variant, isExpanded, isDisabled, ariaLabe
 type ButtonControlProps = ButtonBaseProps & ButtonContentProps;
 
 /** A grid of color chips, for picking one color from a fixed set such as the palette. */
-const ColorSwatches: ({ title, colors, value, onChange, trailing, isClearable, isDisabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
+const ColorSwatches: ({ title, colors, value, onChange, trailing, clearable, disabled, id, ariaLabel, ariaLabelledBy, }: ColorSwatchesControlProps) => JSX.Element;
 
 /**
  * A grid of color chips. A click reports the color.
@@ -2208,7 +2208,7 @@ interface ColorSwatchesControlProps extends Omit<DiscreteControlProps<string | n
     /** Chips after the colors and a separator, such as a custom picker's trigger. They wrap with the colors. */
     trailing?: ReactNode;
     /** Ends the row in a chip for no color at all, after `trailing`, reported as `TRANSPARENT_COLOR`. */
-    isClearable?: boolean;
+    clearable?: boolean;
 }
 
 /** A hex picker behind a trigger, for a color none of the swatches offer. */
@@ -2235,7 +2235,7 @@ interface CustomColorControlProps extends Omit<ContinuousControlProps<string | n
  * Base UI's `onValueCommitted` already fires on blur and at the end of a scrub or a button press,
  * which is exactly the grain `onCommit` wants — so a scrub is one undo entry, not one per pixel.
  */
-const NumberField: ({ value, onChange, onCommit, min, max, step, placeholder, prefix, suffix, isDisabled, hasError, ariaLabel, ariaLabelledBy, id, }: NumberFieldControlProps) => JSX.Element;
+const NumberField: ({ value, onChange, onCommit, min, max, step, placeholder, prefix, suffix, disabled, hasError, ariaLabel, ariaLabelledBy, id, }: NumberFieldControlProps) => JSX.Element;
 
 /** `null` is an empty field, which is a state of its own rather than zero. */
 interface NumberFieldControlProps extends ContinuousControlProps<number | null> {
@@ -2268,7 +2268,7 @@ interface NumberFieldControlProps extends ContinuousControlProps<number | null> 
  * Base UI reports every change with the same reason, so which gesture is under way is tracked here
  * rather than read off the event.
  */
-const RadioGrid: ({ options, value, onChange, onCommit, columns, itemLayout, isDisabled, ariaLabel, ariaLabelledBy, id, }: RadioGridControlProps) => JSX.Element;
+const RadioGrid: ({ options, value, onChange, onCommit, columns, itemLayout, disabled, ariaLabel, ariaLabelledBy, id, }: RadioGridControlProps) => JSX.Element;
 
 /**
  * Single-select grid of icon buttons, for choices that read as pictures rather than words.
@@ -2299,7 +2299,7 @@ interface RadioGridOption extends ControlOption {
 }
 
 /** A single-choice dropdown, for a set too long or too wordy for a segmented row. */
-const Select: ({ options, value, onChange, placeholder, isDisabled, hasError, ariaLabel, ariaLabelledBy, id, }: SelectControlProps) => JSX.Element;
+const Select: ({ options, value, onChange, placeholder, disabled, hasError, ariaLabel, ariaLabelledBy, id, }: SelectControlProps) => JSX.Element;
 
 /**
  * Single-choice dropdown, for a set too long or too wordy to sit in a segmented row.
@@ -2326,7 +2326,7 @@ interface SelectControlProps extends Omit<DiscreteControlProps<string | null>, '
  * committed on key up instead — the keyboard's equivalent of releasing the thumb. Blur commits too,
  * for focus leaving mid-hold with no key up ever arriving.
  */
-const Slider: ({ value, onChange, onCommit, min, max, step, suffix, formatValue, showValue, isDisabled, ariaLabel, ariaLabelledBy, }: SliderControlProps) => JSX.Element;
+const Slider: ({ value, onChange, onCommit, min, max, step, suffix, formatValue, showValue, disabled, ariaLabel, ariaLabelledBy, }: SliderControlProps) => JSX.Element;
 
 interface SliderControlProps extends ContinuousControlProps<number> {
     min: number;
@@ -2344,16 +2344,16 @@ interface SliderControlProps extends ContinuousControlProps<number> {
 }
 
 /** An on/off toggle, for a setting whose whole value is whether it is on. */
-const Switch: ({ isChecked, onChange, isDisabled, ariaLabel, ariaLabelledBy, id }: SwitchControlProps) => JSX.Element;
+const Switch: ({ checked, onChange, disabled, ariaLabel, ariaLabelledBy, id }: SwitchControlProps) => JSX.Element;
 
 /**
  * An on/off toggle.
  *
- * Named `isChecked` rather than `value`: the state is the whole value, and every flip is its own
+ * Named `checked` rather than `value`: the state is the whole value, and every flip is its own
  * undo entry, so there is no gesture left to commit.
  */
 interface SwitchControlProps extends ControlBaseProps {
-    isChecked: boolean;
+    checked: boolean;
     onChange: (isChecked: boolean) => void;
 }
 
@@ -2363,7 +2363,7 @@ interface SwitchControlProps extends ControlBaseProps {
  * Typing fires `onChange` per keystroke and blur fires `onCommit`, so a burst of typing dispatches
  * transiently and commits into one undo entry when the field is left.
  */
-const TextField: ({ value, onChange, onCommit, placeholder, isDisabled, hasError, ariaLabel, ariaLabelledBy, id, }: TextFieldControlProps) => JSX.Element;
+const TextField: ({ value, onChange, onCommit, placeholder, disabled, hasError, ariaLabel, ariaLabelledBy, id, }: TextFieldControlProps) => JSX.Element;
 
 interface TextFieldControlProps extends ContinuousControlProps<string> {
     placeholder?: string;
@@ -2382,7 +2382,7 @@ interface TextFieldControlProps extends ContinuousControlProps<string> {
  * transient run committed on key up. Only the layout differs — a row of words here, a grid of pictures
  * there — which is the whole of why they are two controls.
  */
-const ToggleGroup: ({ options, value, onChange, onCommit, itemLayout, hasEqualWidths, isDisabled, ariaLabel, ariaLabelledBy, id, }: ToggleGroupControlProps) => JSX.Element;
+const ToggleGroup: ({ options, value, onChange, onCommit, itemLayout, hasEqualWidths, disabled, ariaLabel, ariaLabelledBy, id, }: ToggleGroupControlProps) => JSX.Element;
 
 /**
  * Single-select segmented control.
@@ -2450,14 +2450,14 @@ interface ControlRegistryProviderProps {
 }
 
 /** Names an option that shows only an icon, on hover and focus the Base UI way, and at once in a hovered row or menu head. */
-const ControlTooltip: ({ label, isChecked, children }: ControlTooltipProps) => JSX.Element;
+const ControlTooltip: ({ label, checked, children }: ControlTooltipProps) => JSX.Element;
 
 /** What a host's own control passes to name an option that shows only an icon, as Graphy's controls do. */
 interface ControlTooltipProps {
     /** The option's name: the words the tooltip shows, and the option's accessible name unless it carries its own. */
     label: string;
     /** The option the control holds, which names itself while its row or the menu head is hovered. */
-    isChecked?: boolean;
+    checked?: boolean;
     /** The option's element, which must pass the props and ref it is given on to one DOM element, as a `<button>` does. */
     children: ReactElement;
 }
@@ -2798,7 +2798,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
     readonly resolvePercentageValueStrategy: (layer: SceneLayer) => PercentageValueStrategy;
-    readonly isComposite = true;
+    readonly composite = true;
     readonly legend: LegendPolicy;
     readonly highlightStrategy: "overlay-anchor";
     /** The band between `yMin` and the value is painted, so a cursor inside it is on the observation. */
@@ -2909,7 +2909,7 @@ interface AxisGridConfig {
      * - null: let the compiler decide based on geom/coord policies
      *   (visible unless a geom policy hides it, e.g. bar charts hide the x grid)
      */
-    isVisible: boolean | null;
+    visible: boolean | null;
 }
 
 /** Which axis something belongs to, with `ySecondary` already folded into `y`. */
@@ -2981,7 +2981,7 @@ type AxisTickSource = 'generated' | 'categories';
  * Configuration for a single axis's ticks
  */
 interface AxisTicksConfig {
-    isVisible: boolean;
+    visible: boolean;
     mode: AxisTickMode;
 }
 
@@ -3941,11 +3941,11 @@ type GeomStyleReaders = GeomStyleReader<ResolvedDeclarations<GeomVocabulary>, Ge
  */
 interface GeomSummaries {
     /** Emit a layer-wide grand total over `y` (the figure a polar headline shows). */
-    grandTotal?: boolean;
+    includeGrandTotal?: boolean;
     /** Emit per-x stack totals for a stacked layer. */
-    stackTotals?: boolean;
+    includeStackTotals?: boolean;
     /** Eligible to carry a per-group headline strip. */
-    perGroupHeadline?: boolean;
+    supportsPerGroupHeadline?: boolean;
 }
 
 /** Every property any geom kind declares, each with the domains it takes across the kinds. */
@@ -4089,7 +4089,7 @@ type HighlightCandidate = Omit<ResolvedHighlightSpec, 'type' | 'id'>;
 /** Per-layer side-channel produced by the highlights compile stage. */
 interface HighlightComposition {
     /** True when the base render should be wrapped in a dim group (so matched observations stand out). */
-    isDimmed: boolean;
+    dimmed: boolean;
     /**
      * A real sub-`SceneLayer` whose dataset is mask-filtered to just the matched observations
      * (everything else identical to the source layer). Feed it back through the same geom renderer to
@@ -4431,7 +4431,7 @@ class LineGeom extends Geom<LineGeomParams> {
     readonly summaries: GeomSummaries;
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
-    readonly isComposite = true;
+    readonly composite = true;
     readonly legend: LegendPolicy;
     readonly highlightStrategy: "overlay-anchor";
     readonly spatialKind: SpatialKind;
@@ -4503,7 +4503,7 @@ interface MappableAesthetic<Key extends AestheticKey = AestheticKey> {
     /** The columns this aesthetic can read, in the order the data declares them. */
     variables: VariableName[];
     /** Whether the chart has nothing to draw with the aesthetic unmapped. */
-    isRequired: boolean;
+    required: boolean;
 }
 
 /** The mapping and everything resolved from it, restored verbatim by a revert. */
@@ -4779,7 +4779,7 @@ interface PlacedDataLabel {
     width: number;
     height: number;
     /** When true, paint the label rotated -90° around `(x, y)`. */
-    isRotated: boolean;
+    rotated: boolean;
     /** Which on-canvas element this label decorates (per-observation vs stack total). */
     role: DataLabelRole;
     /** Where the label sits relative to its geom or stack. */
@@ -5207,13 +5207,13 @@ interface ResolvedConfigSpec {
  */
 interface ResolvedContentSpec {
     title: TextContent | null;
-    isTitleVisible: boolean;
+    showTitle: boolean;
     subtitle: TextContent | null;
-    isSubtitleVisible: boolean;
+    showSubtitle: boolean;
     caption: TextContent | null;
-    isCaptionVisible: boolean;
+    showCaption: boolean;
     source: SourceContent | null;
-    isSourceVisible: boolean;
+    showSource: boolean;
     /**
      * Structured provenance-badge config. Canonical source of truth for enabled /
      * placement / variant after {@link resolveConfig}.
@@ -7797,21 +7797,21 @@ interface ScalarStyleDomainValues {
 /** Scale-domain constraints a geom imposes on the scales it draws against. */
 interface ScaleConstraints {
     /** Force this geom's band (x) scale to be discrete (e.g. a bar's categorical axis). */
-    discreteMainAxis?: boolean;
+    requireMainAxisBands?: boolean;
     /** Force this geom's cross (y) scale to be discrete (e.g. a tile's categorical rows). */
-    discreteCrossAxis?: boolean;
+    requireCrossAxisBands?: boolean;
     /**
      * Default band padding for this geom's discrete position scales; `0` makes neighboring cells abut.
      * Explicit user padding always wins.
      */
     bandPadding?: number;
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
-    zeroBaseline?: boolean;
+    includeZero?: boolean;
     /**
      * Infer this geom's color scale from the column behind it — a ramp for a measure — instead of the
      * default palette. What a geom drawing its value as color (a tile) asks for.
      */
-    inferredColor?: boolean;
+    inferColorScale?: boolean;
 }
 
 /**
@@ -7921,7 +7921,7 @@ interface SceneAxisGuide {
     /**
      * Gates the whole axis region (line + ticks + labels).
      */
-    isVisible: boolean;
+    visible: boolean;
     /**
      * Candidate tick sets, sorted by ascending count. These are raw candidates, not the final selection.
      * Final selection happens in `LayoutCompiler`. The renderer
@@ -7945,9 +7945,9 @@ interface SceneAxisGuide {
     /** Tick mode from config. Already honored by the compiler when building candidates — don't re-filter ticks. */
     tickMode: AxisTickMode;
     /** Whether tick marks are visible. Labels still show when this is false (independent of `isVisible`). */
-    ticksVisible: boolean;
+    showTicks: boolean;
     /** Whether grid lines are visible at tick positions. Their paint comes from the chrome styles. */
-    gridVisible: boolean;
+    showGrid: boolean;
     /** Scale type — the renderer uses this to select a formatting strategy */
     scaleType: ScaleType;
     /** Band width in [0, 1] space for discrete position scales. Undefined otherwise. */
@@ -8424,7 +8424,7 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
 
 /**
  * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
- * left unset is inherited at compile time — `position` from the side opposite `y`, `isVisible`,
+ * left unset is inherited at compile time — `position` from the side opposite `y`, `visible`,
  * `grid` and `ticks` from `y` itself, and `label` from no label at all. An absent override
  * therefore means "mirror the primary axis", which stops being expressible once a field is pinned.
  */
@@ -8495,7 +8495,7 @@ type SetAxisTickModeParams = ({
 type SetAxisTicksVisibilityParams = {
     axis: AxisKey;
     /** Whether tick marks are drawn. */
-    isVisible: boolean;
+    visible: boolean;
 };
 
 /**
@@ -8505,10 +8505,10 @@ type SetAxisTicksVisibilityParams = {
  */
 type SetAxisVisibilityParams = ({
     axis: AxisKey;
-    isVisible: boolean;
+    visible: boolean;
 } | {
     axis: 'ySecondary';
-    isVisible?: boolean;
+    visible?: boolean;
 }) & {
     keepSecondaryAxis?: boolean;
 };
@@ -8593,7 +8593,7 @@ type SetGridVisibilityParams = {
      * Whether this axis's grid lines are drawn. `null` defers to the compiler's geom and coord
      * policies.
      */
-    isVisible: boolean | null;
+    visible: boolean | null;
 };
 
 type SetHeadlineCompareWithParams = {
@@ -8941,7 +8941,7 @@ interface StatCompilerInput {
      * Whether the x aesthetic resolves to a discrete (band) scale. The `smooth` stat emits one fitted
      * point per observed x when set.
      */
-    xScaleIsDiscrete: boolean;
+    hasDiscreteXScale: boolean;
     /**
      * The layer's resolved params. As in ggplot, one param list serves the layer's geom and its stat, so a stat
      * a geom applies by default reads its settings (a boxplot's whisker `extent`) where the author sets the geom's.
@@ -9436,7 +9436,7 @@ type ToggleCategoryLabelsParams = {
 type ToggleContentVisibilityParams = {
     /** Which content part to show or hide. */
     part: ContentPart;
-    isVisible: boolean;
+    visible: boolean;
 };
 
 type ToggleDataLabelsParams = {
@@ -9647,7 +9647,7 @@ interface XAxisConfig {
      * Whether the x axis is visible.
      * @default true
      */
-    isVisible: boolean;
+    visible: boolean;
     /**
      * Axis title text. null means explicitly no label.
      * @default null
@@ -9672,7 +9672,7 @@ interface YAxisConfig {
      * Whether the y axis is visible.
      * @default true
      */
-    isVisible: boolean;
+    visible: boolean;
     /**
      * Axis title text. null means explicitly no label.
      * @default null
@@ -9714,7 +9714,7 @@ interface GeomCircleProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of center or radius springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     /** A geom's own test hook, since the primitive owns the painted element. */
     'data-testid'?: string;
 }
@@ -9732,7 +9732,7 @@ interface GeomLineProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of either endpoint springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -9754,7 +9754,7 @@ interface GeomPathProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of shape morphs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -9774,7 +9774,7 @@ interface GeomRectProps {
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of origin or size springs to the new one. Snaps when false. */
-    shouldAnimateTransitions: boolean;
+    animateTransitions: boolean;
     'data-testid'?: string;
 }
 
@@ -9839,7 +9839,7 @@ interface ButtonBaseProps extends ControlBaseProps {
      */
     variant?: 'default' | 'tile' | 'icon';
     /** Whether what the button opens is open, for a button that discloses the content below it. */
-    isExpanded?: boolean;
+    expanded?: boolean;
 }
 
 /**
@@ -10020,7 +10020,7 @@ interface ResizeObserverState {
     width: number;
     height: number;
     /** True until the first ResizeObserver measurement lands. */
-    isDefault: boolean;
+    unmeasured: boolean;
 }
 
 /** What the overlay menu hands the edit menu of a selection of observations. */
@@ -10046,8 +10046,8 @@ type TargetEditMenu<Kind extends GuideEditTarget['kind'] | 'graph'> = ComponentT
 }>>;
 
 interface ToggledSectionProps extends Omit<SectionProps, 'layout' | 'accessory' | 'onOpenChange'> {
-    isChecked: boolean;
+    checked: boolean;
     onToggle: (isChecked: boolean) => void;
-    isDisabled?: boolean;
+    disabled?: boolean;
 }
 ```

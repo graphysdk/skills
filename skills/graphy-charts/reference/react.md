@@ -82,7 +82,7 @@ export const Renderer = () => (
 Props:
 
 - `sizing`: how the graph claims space. Default `{ mode: 'responsive' }`. See "Sizing".
-- `onResize`: called with `{ width, height, isDefault }` whenever the container changes size.
+- `onResize`: called with `{ width, height, unmeasured }` whenever the container changes size.
 - `animation`: `true`, `false`, or an object. See "Animation".
 - `showTooltips`: default `true`. `false` hides the tooltip whatever `config.tooltip.mode` says.
 - `mode`: `'readonly'` (default), `'editable'` or `'point-and-edit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
