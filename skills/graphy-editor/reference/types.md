@@ -732,7 +732,8 @@ class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
  * or one group's, as one undo step. Without `where` the given properties also leave every group rule
  * of the layer, so the whole path shows the new value.
  *
- * Switching the fill off writes a zero where a rule beneath still fills, and removes `fillAlpha` otherwise.
+ * Switching the fill off writes a zero, since a theme may fill beneath any rule and the spec cannot see it.
+ * Switching it on drops that zero where a rule beneath fills, and writes the default wash otherwise.
  */
 class SetLineStyleCommand implements Command<SetLineStyleParams> {
     readonly type: "set-line-style";
@@ -747,7 +748,7 @@ class SetLineStyleCommand implements Command<SetLineStyleParams> {
     private readEdit;
     /**
      * The `fillAlpha` that draws the fill as asked, `null` to drop it, or `undefined` when the line already
-     * draws it so, counting a fill held by a rule beneath and, for a group, the layer's.
+     * draws it so, counting a fill held by a rule beneath, for a group the layer's, and the theme's.
      */
     private readFillAlpha;
     private isFilled;
@@ -8690,6 +8691,8 @@ type SetLineStyleParams = {
     strokeWidth?: number | null;
     /** The wash beneath a line. An area fills by definition, so it ignores this. */
     showFill?: boolean;
+    /** The line's `fillAlpha` as drawn, from the style readers: the only way the command sees a theme's fill. */
+    drawnFillAlpha?: number;
 };
 
 type SetNumberFormatAbbreviationParams = {
