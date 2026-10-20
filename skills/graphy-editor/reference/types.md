@@ -2793,6 +2793,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
         readonly kind: "visual";
         readonly name: "alpha";
     }];
+    /** Stack totals are what a stacked area's Show percentages divides by; the area draws no total label. */
     readonly summaries: GeomSummaries;
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
