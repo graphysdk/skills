@@ -5272,6 +5272,11 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
     hitTest?: (input: GeomRenderInput<G, C>) => RenderHitTester;
     /** Panel-space anchor for a matched observation; required when the def highlights via overlay-anchor. */
     getOverlayAnchor?: (input: OverlayAnchorInput<G, C>) => OverlayAnchor | null;
+    /**
+     * The rect an observation is painted in, in panel `[0, 1]` with a top-left origin, where annotations
+     * anchored to it land. Omit it where the geom paints the box its position variables span.
+     */
+    getObservationRect?: (input: ObservationRectInput<G, C>) => Rect | null;
 }
 
 /** A geom's panel-SVG paint function — the plain `render` form. */
@@ -5392,6 +5397,14 @@ interface MorphingEditOutlineShape {
     key?: string;
     /** Whether a change of shape morphs to the new one, as the geom's paint does. Snaps when omitted. */
     shouldAnimateTransitions?: boolean;
+}
+
+interface ObservationRectInput<G extends GeomName | string = string, C extends CoordKind = CoordKind> {
+    layer: SceneLayerOf<G>;
+    coordSystem: CoordSystemFor<C>;
+    observation: Observation;
+    panelRect: GraphLayout['panel'];
+    styleReaders: StyleReadersOf<G>;
 }
 
 /**

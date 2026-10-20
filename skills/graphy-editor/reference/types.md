@@ -2585,7 +2585,7 @@ interface AnchorContext {
  * Anchor work the compiler leaves for the runtime pass because it needs runtime context (panel
  * pixels, text measurement, sibling boxes). An open union.
  */
-type AnchorDeferral = PixelOffsetDeferral | AnnotationRefDeferral;
+type AnchorDeferral = PixelOffsetDeferral | AnnotationRefDeferral | ObservationBoxDeferral;
 
 /**
  * A nudge applied after a target resolves. `unit` selects the frame: `'panel'` is a
@@ -4635,9 +4635,32 @@ interface ObservationAnchorSpec {
     align?: AnchorAlign;
 }
 
+/**
+ * An anchor on the boxes of the observations it matched. The compiler reads each box off the position
+ * variables, but a renderer can paint an observation narrower than that box in pixels (a bar's
+ * `maxWidth`), so it emits its own answer as placeholder coordinates plus this descriptor, and the
+ * runtime pass places the anchor on the boxes as painted.
+ */
+interface ObservationBoxDeferral {
+    type: 'observation-box';
+    observations: ObservationRef[];
+    /** A point anchor's box-point; absent on a region. */
+    align?: AnchorAlign;
+    /** A point anchor's nudge, applied once it lands. */
+    offset?: AnchorOffset;
+    /** A region's padding, grown once the boxes are folded; a number pads both axes in the region's space. */
+    padding?: number | AnchorOffset;
+}
+
 type ObservationOf<Target> = Target extends {
     observation: infer Observation;
 } ? Observation : Record<never, never>;
+
+/** A compiled observation by its layer and row, re-counted every compile like the coordinates it sits with. */
+interface ObservationRef {
+    layerId: string;
+    observationIndex: number;
+}
 
 /** What the observations paint: the declared vocabulary over the shared paint, unless they decline it. */
 type ObservationVocabularyOf<Target> = ObservationOf<Target> extends infer Observation ? Observation extends {
