@@ -45,7 +45,7 @@ Each package needs `@graphysdk/react` and React 19 as peer dependencies. Each ex
 | Blueprint     | `@graphysdk/theme-blueprint`     | `blueprint`    | dark                 | IBM Plex Mono               | White lines on dark blue, hatched shapes, drafting grid                    |
 | Botanical     | `@graphysdk/theme-botanical`     | `botanical`    | light                | Kalam, Cormorant Garamond   | Grained paper, sepia outlines, watercolour washes, leaf-shaped bars        |
 | Chalkboard    | `@graphysdk/theme-chalkboard`    | `chalkboard`   | dark                 | Gochi Hand                  | Colored chalk on a green-gray board in a wooden frame                      |
-| Comic         | `@graphysdk/theme-comic`         | `comic`        | light                | Bangers, Comic Neue         | Black outlines, printed dots, hard shadows, burst-shaped pies and points   |
+| Comic         | `@graphysdk/theme-comic`         | `comic`        | light                | Bangers, Comic Neue         | Black outlines, printed dots, hard shadows, burst-shaped points            |
 | Financial     | `@graphysdk/theme-financial`     | `financial`    | light                | Source Sans 3               | Salmon paper, ruled baseline, right-side value axis                        |
 | Graphite      | `@graphysdk/theme-graphite`      | `graphite`     | follows the provider | IBM Plex Sans               | One cool gray, groups told apart by lightness                              |
 | Halloween     | `@graphysdk/theme-halloween`     | `halloween`    | dark                 | Creepster, Cinzel, Nunito   | Moonlit churchyard: headstone bars, rose-window pies, a ghost on each line |
