@@ -9130,12 +9130,17 @@ interface StyleGradientStop<Color> {
  * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
  * The fallback always paints behind the image; `alpha` affects only the image.
  * Use `fallback: 'transparent'` for an overpaint that should preserve the underlying colors.
+ *
+ * `aspectRatio` (width over height) states the image's proportions up front. A tile that declares it
+ * paints at its final size from the first render; one that does not is drawn square until the
+ * renderer has loaded the image to measure it.
  */
 interface StyleImage<Color> {
     image: string;
     fit?: StyleImageFit;
     alpha?: number;
     size?: number;
+    aspectRatio?: number;
     fallback: Color;
 }
 

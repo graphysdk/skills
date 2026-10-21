@@ -268,7 +268,7 @@ Full list: types.md § Mapping & layers, `ResolvedDataLabelsSpec`.
 
 ## Scales
 
-A scale turns data values into positions or visual values. The x and y scales are never created for you. Declare `scale.x()` and `scale.y()` in every spec. A mapped position without a scale gets no position: the compile succeeds with no warning and the graph is blank. Two other scales are added when missing: `ySecondary` when a layer uses `yScaleType: 'secondary'`, and `color`, which falls back to the default palette (or to a scale inferred from the column under a tile). If a spec declares two scales for the same aesthetic, the last one is used.
+A scale turns data values into positions or visual values. A mapped x or y with no scale gets an inferred one, as a bare `scale.x()` or `scale.y()` would. Declare a typed scale, such as `scale.y.continuous({ domainMin: 0 })`, to pin its type or options. Two other scales are added when missing: `ySecondary` when a layer uses `yScaleType: 'secondary'`, and `color`, which falls back to the default palette (or to a scale inferred from the column under a tile). If a spec declares two scales for the same aesthetic, the last one is used.
 
 ### Position scales
 
@@ -549,7 +549,6 @@ A table is not a chart type in this SDK. Say it is unsupported and stop. Do not 
 
 ## Pitfalls
 
-- The x and y scales are never inferred into existence. Add `scale.x()` and `scale.y()` to every spec. A blank graph with no warning usually means a missing scale. `ySecondary` and `color` are added for you when missing.
 - Only six built-in geoms exist. There is no text or pie geom. Pie is `geom.bar` under `coord.polar({ theta: 'y' })`. Boxplot, candlestick, dumbbell, funnel, lollipop, mekko, sankey, and waterfall are `@graphysdk/geom-<name>` packages. A new geom is a plugin, except a table, which is unsupported.
 - `createSpec` and `pipe` return new objects. Keep the result, they never mutate.
 - Wide data (one column per group) needs `transform.reshape` before the mapping can name `color`. Put `mapping()` after the transform.

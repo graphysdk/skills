@@ -121,7 +121,6 @@ const spec = pipe(createSpec({ x: 'month', y: 'revenue' }), geom.area(), scale.x
 
 ## Pitfalls
 
-- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
 - Area paint is `fill` and `fillAlpha` in `style.geom.area`. The built-in `fillAlpha` is 0.3. The outline uses `stroke`, `strokeWidth` and `strokeAlpha`.
 - Stacking needs a `color` mapping. A single group with `position: 'stack'` is the same as a plain area.
 - Short month names are read as dates and get a synthetic year, one sequence per group, counted from each group's first row. A group that starts in `Dec` puts its `Jan` in the next year; a group that starts in `Jan` stays in the first year. Their `Jan` values then sit a year apart and never stack. Give every group the same first month, or use full dates such as `'2025-12-01'`.

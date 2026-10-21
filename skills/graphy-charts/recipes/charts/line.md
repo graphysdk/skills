@@ -161,7 +161,6 @@ const yScale = scale.y({ domainMin: 0 });
 
 ## Pitfalls
 
-- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
 - Several groups need a `color` mapping. Without it every row joins one line, which zigzags.
 - Wide data must be reshaped before the mapping reads it. Put the reshape inside `createSpec(...)` or before `mapping(...)`.
 - Line paint is `stroke` and `strokeWidth` in `style.geom.line`. `strokeAlpha` is the stroke opacity, `fillAlpha` the wash beneath, and `alpha` fades the whole geom.

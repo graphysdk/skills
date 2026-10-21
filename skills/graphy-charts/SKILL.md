@@ -44,7 +44,7 @@ export function RevenueGraph() {
 
 ## What goes in a spec
 
-Mappings name a column `key`, never its `label`. The six built-in geoms are `point`, `line`, `area`, `bar`, `rule`, and `tile`. Nine more ship as packages, wired through `createGraphyKit({ plugins })`: boxplot, candlestick, dumbbell, error-bar, funnel, lollipop, mekko, sankey, and waterfall. Declare `scale.x()` and `scale.y()` for every mapped position. Color scales are inferred. Add `coord`, `stat`, `transform`, `config`, `styles`, `highlight`, and `annotation` only when needed.
+Mappings name a column `key`, never its `label`. The six built-in geoms are `point`, `line`, `area`, `bar`, `rule`, and `tile`. Nine more ship as packages, wired through `createGraphyKit({ plugins })`: boxplot, candlestick, dumbbell, error-bar, funnel, lollipop, mekko, sankey, and waterfall. Position and color scales are inferred when the spec leaves them out; declare a typed one, such as `scale.y.continuous({ domainMin: 0 })`, to fix its type or options. Add `coord`, `stat`, `transform`, `config`, `styles`, `highlight`, and `annotation` only when needed.
 
 ## Which tool
 
@@ -129,7 +129,6 @@ The nine geom recipes install a published package; each is a complete component.
 
 ## Pitfalls
 
-- A mapped `x` or `y` without `scale.x()` or `scale.y()` draws nothing.
 - Map the column `key`, never the label.
 - There is no pie geom. Pie and donut are a polar bar.
 - Pass a theme to `createGraphyKit({ theme })` or the provider's `theme` prop. Themes stay outside the spec.

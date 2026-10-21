@@ -89,7 +89,7 @@ export function RevenueGraph() {
 
 `GraphProvider` takes two inputs: `data` (a table of columns and rows, see data.md) and `spec` (what to draw, see spec.md). It compiles both into a scene. `GraphRenderer` paints the scene and handles hover, tooltips, and resizing.
 
-A spec is built with `pipe`. `createSpec({ x, y, color, ... })` maps columns to aesthetics. Each further call adds one thing: `geom.bar()` adds a layer, `scale.x()` and `scale.y()` declare the position scales, `config({...})` sets titles and axes, `styles({...})` sets paint. Position scales are never added for you. Every mapped `x` and `y` needs its `scale.x()` or `scale.y()`.
+A spec is built with `pipe`. `createSpec({ x, y, color, ... })` maps columns to aesthetics. Each further call adds one thing: `geom.bar()` adds a layer, `scale.y.continuous({ domainMin: 0 })` fixes a position scale's type and options, `config({...})` sets titles and axes, `styles({...})` sets paint. A mapped `x` or `y` with no scale gets an inferred one, as a bare `scale.x()` or `scale.y()` would.
 
 Build the spec once, outside render, or memoize it. A new spec object recompiles the graph.
 
@@ -141,7 +141,7 @@ There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. When the Graphy URL
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792575115573/dist/index.browser.mjs"
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792582784445/dist/index.browser.mjs"
         }
       }
     </script>
@@ -204,7 +204,7 @@ Vendor the files next to the HTML, then rewrite those imports to relative filena
    - `vendor/react-dom.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm`
    - `vendor/react-dom-client.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm`
    - `vendor/scheduler.mjs` from `https://cdn.jsdelivr.net/npm/scheduler@0.27.0/+esm`
-   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792575115573/dist/index.browser.mjs`
+   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1792582784445/dist/index.browser.mjs`
 2. In the React files, replace every `from"/npm/<package>@<version>/+esm"` (and any `/npm/<package>@<version>/<path>/+esm`) with a relative path to the matching local file. `graphy.mjs` imports `react`, `react-dom`, and `react/jsx-runtime` as bare specifiers, so leave it alone.
 3. Point the import map at the local files:
 
@@ -228,7 +228,6 @@ If the host accepts one HTML file only and also blocks the network, Graphy canno
 
 ## Pitfalls
 
-- Forgetting `scale.x()` and `scale.y()`. Position scales are declared, never inferred from the mapping. Without them nothing is placed.
 - A container with no height. `GraphRenderer` is responsive by default and needs a sized parent (react.md § Sizing).
 - Building the spec inside render without `useMemo`. Every render then recompiles the graph.
 - Mixing `@graphysdk/react` and `@graphysdk/react-renderer` providers in one app works, but the mark default differs.

@@ -97,8 +97,8 @@ function pipe(spec: Spec, ...items: SpecItem[]): Spec;
  * pipeable spec items (geoms, scales, coords, transforms, config, ...) folded on in order.
  *
  * This is the builder pattern: `createSpec` seeds the mapping, then `pipe` (or extra args here) folds each
- * item onto an immutable spec, accumulating layers/scales/etc. Always declare `scale.x()` / `scale.y()` for
- * any position mapping — they are NOT auto-inferred and yield NaN positions if omitted.
+ * item onto an immutable spec, accumulating layers/scales/etc. A mapped `x` or `y` with no scale of its own
+ * gets an inferred one, as `scale.x()` / `scale.y()` would; declare a typed scale to pin it.
  *
  * @example
  * import { createSpec, pipe, geom, scale } from '@graphysdk/viz-engine';
@@ -147,8 +147,8 @@ const geom: {
  * Builders for the scale of each aesthetic (`scale.x`, `scale.y`, `scale.color`, ...). Position aesthetics
  * are callable directly to infer the scale type from the data (`scale.x()`); every aesthetic also exposes
  * explicit methods (`scale.x.continuous()`, `scale.color.discrete()`). `Object.assign` gives `x`/`y` both
- * forms — color, size, etc. have no inferred shorthand, so they stay dot-access only. Position scales are
- * never auto-created — declare one for every mapped position aesthetic.
+ * forms — color, size, etc. have no inferred shorthand, so they stay dot-access only. A mapped x or y with
+ * no scale gets an inferred one; declare a typed scale to pin its type or options.
  */
 const scale: ScaleAPI;
 
@@ -4425,12 +4425,17 @@ interface StyleGradientStop<Color> {
  * A data URI image, tiled by default. Tiles preserve its proportions; `size` sets their width in pixels.
  * The fallback always paints behind the image; `alpha` affects only the image.
  * Use `fallback: 'transparent'` for an overpaint that should preserve the underlying colors.
+ *
+ * `aspectRatio` (width over height) states the image's proportions up front. A tile that declares it
+ * paints at its final size from the first render; one that does not is drawn square until the
+ * renderer has loaded the image to measure it.
  */
 interface StyleImage<Color> {
     image: string;
     fit?: StyleImageFit;
     alpha?: number;
     size?: number;
+    aspectRatio?: number;
     fallback: Color;
 }
 

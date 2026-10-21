@@ -231,7 +231,7 @@ Every option is optional. By default all categorical and temporal columns are ke
 - categorical position: band (one slot per distinct value).
 - temporal position: datetime, with date-aware ticks.
 
-Geoms can override this. A bar's main axis is always a band, even for numbers or dates, so `geom.bar()` with a numeric `x` places one bar per distinct value. A `scale.x.continuous()` under a bar is replaced by a band with an `UNSUPPORTED_SCALE_TYPE` warning. A tile needs bands on both axes. A bar or area holds zero on its value axis, so a `domainMin` above zero gives way with a warning. An undeclared `x` or `y` scale raises no diagnostic; the geom is just not placed.
+Geoms can override this. A bar's main axis is always a band, even for numbers or dates, so `geom.bar()` with a numeric `x` places one bar per distinct value. A `scale.x.continuous()` under a bar is replaced by a band with an `UNSUPPORTED_SCALE_TYPE` warning. A tile needs bands on both axes. A bar or area holds zero on its value axis, so a `domainMin` above zero gives way with a warning. An `x` or `y` the spec places without a scale gets one inferred as above.
 
 To force a kind, call the typed builder: `scale.x.datetime()`, `scale.x.discrete()`, `scale.y.log()`. Options such as `domainMin` and `reverse` work on the inferred form too: `scale.y({ domainMin: 0 })`. See spec.md § Scales.
 

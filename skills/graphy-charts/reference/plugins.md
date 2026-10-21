@@ -249,7 +249,7 @@ Each handler's input type is exported, for a handler written outside the contrac
 
 A render-only override that draws the built-in geometry in its own look can hand its outline to the built-in renderer: `getEditOutlineShapes: (input) => getBuiltInEditOutlineShapes('line', 'cartesian', input)`.
 
-`render` receives `layer`, `coordSystem`, `panelRect`, `styleReaders`, `colorScheme`, `formattingLocale`, `shouldAnimateTransitions`, and `intro`. The panel SVG's user units are pixels; `panelRect.width` and `panelRect.height` give its size. Its offset is already applied, so paint in local panel coordinates.
+`render` receives `layer`, `coordSystem`, `panelRect`, `styleReaders`, `colorScheme`, `formattingLocale`, `animateTransitions`, and `intro`. The panel SVG's user units are pixels; `panelRect.width` and `panelRect.height` give its size. Its offset is already applied, so paint in local panel coordinates.
 
 Scaled positions use `[0, 1]` with y pointing up. For SVG attributes, use `toPercent(x)` and `toPercent(toViewBoxY(y))`, or multiply by the panel dimensions. Keep radii, text sizes, and stroke widths in pixels. The [panel-rect](../recipes/plugins/panel-rect.md) and [unit-box](../recipes/plugins/unit-box.md) recipes show a complete compile/render pair.
 

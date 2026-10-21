@@ -204,7 +204,6 @@ const spec = pipe(
 
 ## Pitfalls
 
-- Declare `scale.x()` and `scale.y()`. Position scales are never created for you.
 - The x axis under a bar is always a band, even for numeric or date columns. Declaring `scale.x.continuous()` under a bar gets replaced by a band with a warning. Use a point or line geom for a continuous x.
 - Bars with several observations per band sit side by side by default. Use `position: 'stack'` to stack them.
 - Borders use `stroke` and `strokeWidth` in `style.geom.bar`. There is no `borderColor` property.

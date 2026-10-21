@@ -16,7 +16,6 @@ Contents
 ## The panel is blank
 
 - **No height:** `GraphRenderer` fills its parent. Give the parent a height or pass `sizing={{ mode: 'fixed', width, height }}`.
-- **Missing position scales:** add `scale.x()` and `scale.y()` for mapped positions. A missing one compiles with no warning and the layer gets no position.
 - **CDN load failure:** check the console. If the host blocks jsDelivr, use the [offline vendor steps](setup.md#when-the-cdn-is-blocked). For 404s, use the [pinned import map](setup.md#cdn-without-a-bundler); `@graphysdk/react@1` does not exist. Use jsDelivr, not esm.sh.
 
 ## The panel says "This chart could not be rendered."
