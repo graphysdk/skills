@@ -236,4 +236,32 @@ const editMenus: EditMenus = {
 
 Define the components outside render. A new object per render remounts the menu.
 
+### Keeping Graphy's rows
+
+Graphy's menus are exported, so a custom menu can draw one and add rows after it: `BarEditMenu`, `LineEditMenu` (lines and areas), `AxisEditMenu`, `GridEditMenu` and `LegendEditMenu`. So are two rows: `ColorRow`, the color chips for selected observations, and `PaletteRow`, which switches the chart between the theme palette and your `palettePresets`. Each reads the chart itself: the menus and `ColorRow` take the `target` they are given, and `PaletteRow` takes no props.
+
+Borrow `hasRows` from what you keep, so the menu opens only where Graphy's rows edit something. `PaletteRow` and `LegendEditMenu` have none: `PaletteRow` draws nothing without `palettePresets` or with a continuous color scale, so a menu built on it alone needs a `hasRows` of its own.
+
+```tsx
+import type { EditMenus, ObservationsTarget } from '@graphysdk/react/editable';
+import { BarEditMenu, ColorRow, Row } from '@graphysdk/react/editable';
+
+const BarsWithBrandRow = ({ target }: { target: ObservationsTarget }) => (
+  <>
+    <BarEditMenu target={target} />
+    <Row label="Brand">
+      <YourBrandControl target={target} />
+    </Row>
+  </>
+);
+BarsWithBrandRow.hasRows = BarEditMenu.hasRows;
+
+const PointsColorOnly = ({ target }: { target: ObservationsTarget }) => <ColorRow target={target} />;
+PointsColorOnly.hasRows = ColorRow.hasRows;
+
+const editMenus: EditMenus = { geoms: { bar: BarsWithBrandRow, point: PointsColorOnly } };
+```
+
+The chart menu and its chart type rows are not exported.
+
 Custom `AxisTicks`, `AxisLabel`, `Legend` and `Grid` slots join point and edit by stamping what they draw, from `@graphysdk/react`: `stampAxisEditTarget(axis, tickIndex?)` on a tick label or, without an index, the title; `stampLegendEditTarget({ legendIndex, itemIndex })` on a pill; `stampGridEditTarget(axis)` on the group holding one grid line. Spread the stamp and give the element a hit area only while `useGuidesTakePress()` returns true, as the built-in renderers do. Without the stamp a click on the slot's element selects the chart.

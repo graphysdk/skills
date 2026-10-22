@@ -1980,6 +1980,53 @@ const usePanelGraph: () => GraphHandle;
 const usePanelExpansion: () => PanelExpansion;
 ```
 
+## Edit menus
+
+```ts
+/** The bar edit menu: fill color, and how thick the bars are. */
+const BarEditMenu: ObservationsEditMenu;
+
+/** The line and area edit menu: color, thickness, dash, fill and points, all for the selected group. */
+const LineEditMenu: {
+    ({ target }: ResolvedObservations): JSX.Element | null;
+    hasRows(target: ObservationsTarget, { scene }: EditMenuRowsInputs): boolean;
+};
+
+/** The selected axis's rows: its title, labels, position, scale, start and end. The overlay menu draws the heading above. */
+const AxisEditMenu: {
+    ({ target }: {
+        target: Extract<EditTarget, {
+            kind: "axis";
+        }>;
+    }): JSX.Element | null;
+    hasRows(_target: Extract<EditTarget, {
+        kind: "axis";
+    }>, { scene }: EditMenuRowsInputs): boolean;
+};
+
+/** The grid's edit menu. A press edits the direction it landed on. */
+const GridEditMenu: TargetEditMenu<'grid'>;
+
+/**
+ * The legend's edit menu: one grid of arrows that places it on a side of the chart and along it, disabled with no
+ * arrow checked while the chart draws no legend.
+ */
+const LegendEditMenu: TargetEditMenu<'legend'>;
+
+/** The color row for a selection. Renders nothing where the command has nowhere to write. */
+const ColorRow: {
+    ({ target }: ResolvedObservations): JSX.Element | null;
+    hasRows(target: ObservationsTarget, { scene }: EditMenuRowsInputs): boolean;
+};
+
+/**
+ * The chart's palette: the theme's, or one of the host's `palettePresets` written as the color scale's `range`,
+ * whose first color an unmapped geom takes too. Renders nothing where the host offers none or the color scale
+ * is not discrete, as a heatmap's.
+ */
+const PaletteRow: () => JSX.Element | null;
+```
+
 ## Sections
 
 ```ts

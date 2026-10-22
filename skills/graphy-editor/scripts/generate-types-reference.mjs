@@ -275,6 +275,19 @@ const GROUPS = [
     ],
   },
   {
+    title: 'Edit menus',
+    pkg: 'editable',
+    symbols: [
+      'BarEditMenu',
+      'LineEditMenu',
+      'AxisEditMenu',
+      'GridEditMenu',
+      'LegendEditMenu',
+      'ColorRow',
+      'PaletteRow',
+    ],
+  },
+  {
     title: 'Sections',
     pkg: 'editable',
     symbols: [
