@@ -71,7 +71,7 @@ Comparison keys: `eq`, `oneOf`, `lt`, `lte`, `gt`, `gte`, `range` (inclusive). T
 Options:
 
 - `scope`: how far a match spreads. `'data-point'` (default) keeps only the matched observations. `'series'` keeps every observation in the same group as a match. `'x-value'` keeps every observation at the same x value.
-- `layerId`: only evaluate on the layer with that id (`geom.bar({ id: 'bars' })`). Other layers are untouched.
+- `layerId`: only evaluate on the layer with that id (`geom.bar({ id: 'bars' })`) and the non-interactive layers repeating its mapping, such as `geom.point({ interactive: false })` over a line. Other layers are untouched.
 - `id`: a stable id for the highlight.
 
 Several `highlight()` calls union their matches, the same as one `or` predicate. To put one line in focus and fade the others, use scope `'series'`:
