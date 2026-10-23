@@ -2516,6 +2516,9 @@ interface ControlTooltipProps {
 Additional types referenced by the sections above.
 
 ```ts
+/** See {@link AutoColor}. A plain `color` property rejects the bare keyword, since its renderer has nothing to pick from. */
+const AUTO_COLOR = "auto";
+
 /**
  * Serialized parameters of {@link AddAnnotationCommand}. The id is settled here, so a deserialized
  * command replays to the same spec rather than minting a second annotation.
@@ -2907,6 +2910,7 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 /** The shape a declaration in each domain takes as authored. */
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     color: StyleColorValue;
+    autoColor: StyleColorValue | AutoColor;
     paint: AuthoredStylePaint;
     overpaint: AuthoredStyleOverpaint;
     shadow: StyleShadowValue<StyleColorValue>;
@@ -2923,6 +2927,9 @@ type AuthoredStyleOverpaint = 'none' | AuthoredStylePaint | readonly AuthoredSty
 
 /** A paint as authored, compiled (tokens inlined) and resolved (every color one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
+
+/** The color an `autoColor` property takes for its renderer to pick per element, from what lies under it. */
+type AutoColor = typeof AUTO_COLOR;
 
 /**
  * Axes configuration (after defaults applied)
@@ -3335,6 +3342,7 @@ type CompiledStyleColorValue = string | LightDarkColor;
 /** The shape a declaration in each domain takes once compiled: tokens inlined, padding per edge. */
 interface CompiledStyleDomainValues extends ScalarStyleDomainValues {
     color: CompiledStyleColorValue;
+    autoColor: CompiledStyleColorValue | AutoColor;
     paint: CompiledStylePaint;
     overpaint: CompiledStyleOverpaint;
     shadow: StyleShadowValue<CompiledStyleColorValue>;
@@ -5690,9 +5698,10 @@ interface ResolvedStickerAnnotationSpec {
  */
 type ResolvedStyleDeclarations = StyleDeclarationsFor<ResolvedStyleDomainValues>;
 
-/** The shape a declaration in each domain takes once read: every color is one CSS string. */
+/** The shape a declaration in each domain takes once read: every color is one CSS string, `'auto'` included. */
 interface ResolvedStyleDomainValues extends ScalarStyleDomainValues {
     color: string;
+    autoColor: string;
     paint: ResolvedPaint;
     overpaint: ResolvedOverpaint;
     shadow: StyleShadowValue<string>;
@@ -6419,6 +6428,7 @@ const STYLE_TARGETS: {
             readonly target: "dataLabel";
         };
         readonly vocabulary: {
+            readonly textOutlineColor: "autoColor";
             readonly paddingInline: "pixels";
             readonly paddingBlock: "pixels";
             readonly fill: "paint";
@@ -6434,7 +6444,6 @@ const STYLE_TARGETS: {
             readonly letterSpacing: "signedPixels";
             readonly textTransform: "textTransform";
             readonly textDecoration: "textDecoration";
-            readonly textOutlineColor: "color";
             readonly textOutlineWidth: "pixels";
             readonly textShadow: "shadow";
             readonly lineHeight: "multiplier";
@@ -6456,6 +6465,7 @@ const STYLE_TARGETS: {
                     readonly role: "aggregate";
                 };
                 readonly vocabulary: {
+                    readonly textOutlineColor: "autoColor";
                     readonly paddingInline: "pixels";
                     readonly paddingBlock: "pixels";
                     readonly fill: "paint";
@@ -6471,7 +6481,6 @@ const STYLE_TARGETS: {
                     readonly letterSpacing: "signedPixels";
                     readonly textTransform: "textTransform";
                     readonly textDecoration: "textDecoration";
-                    readonly textOutlineColor: "color";
                     readonly textOutlineWidth: "pixels";
                     readonly textShadow: "shadow";
                     readonly lineHeight: "multiplier";
@@ -6489,6 +6498,7 @@ const STYLE_TARGETS: {
                     readonly role: "observation" | "category";
                 };
                 readonly vocabulary: {
+                    readonly textOutlineColor: "autoColor";
                     readonly paddingInline: "pixels";
                     readonly paddingBlock: "pixels";
                     readonly fill: "paint";
@@ -6504,7 +6514,6 @@ const STYLE_TARGETS: {
                     readonly letterSpacing: "signedPixels";
                     readonly textTransform: "textTransform";
                     readonly textDecoration: "textDecoration";
-                    readonly textOutlineColor: "color";
                     readonly textOutlineWidth: "pixels";
                     readonly textShadow: "shadow";
                     readonly lineHeight: "multiplier";
@@ -6518,6 +6527,7 @@ const STYLE_TARGETS: {
                             readonly position: "inside";
                         };
                         readonly vocabulary: {
+                            readonly textOutlineColor: "autoColor";
                             readonly paddingInline: "pixels";
                             readonly paddingBlock: "pixels";
                             readonly fill: "paint";
@@ -6533,7 +6543,6 @@ const STYLE_TARGETS: {
                             readonly letterSpacing: "signedPixels";
                             readonly textTransform: "textTransform";
                             readonly textDecoration: "textDecoration";
-                            readonly textOutlineColor: "color";
                             readonly textOutlineWidth: "pixels";
                             readonly textShadow: "shadow";
                             readonly lineHeight: "multiplier";
@@ -6550,6 +6559,7 @@ const STYLE_TARGETS: {
                             readonly position: "outside";
                         };
                         readonly vocabulary: {
+                            readonly textOutlineColor: "autoColor";
                             readonly paddingInline: "pixels";
                             readonly paddingBlock: "pixels";
                             readonly fill: "paint";
@@ -6565,7 +6575,6 @@ const STYLE_TARGETS: {
                             readonly letterSpacing: "signedPixels";
                             readonly textTransform: "textTransform";
                             readonly textDecoration: "textDecoration";
-                            readonly textOutlineColor: "color";
                             readonly textOutlineWidth: "pixels";
                             readonly textShadow: "shadow";
                             readonly lineHeight: "multiplier";
@@ -6585,6 +6594,7 @@ const STYLE_TARGETS: {
                     readonly role: "observation" | "category";
                 };
                 readonly vocabulary: {
+                    readonly textOutlineColor: "autoColor";
                     readonly paddingInline: "pixels";
                     readonly paddingBlock: "pixels";
                     readonly fill: "paint";
@@ -6600,7 +6610,6 @@ const STYLE_TARGETS: {
                     readonly letterSpacing: "signedPixels";
                     readonly textTransform: "textTransform";
                     readonly textDecoration: "textDecoration";
-                    readonly textOutlineColor: "color";
                     readonly textOutlineWidth: "pixels";
                     readonly textShadow: "shadow";
                     readonly lineHeight: "multiplier";
@@ -6614,6 +6623,7 @@ const STYLE_TARGETS: {
                             readonly position: "inside";
                         };
                         readonly vocabulary: {
+                            readonly textOutlineColor: "autoColor";
                             readonly paddingInline: "pixels";
                             readonly paddingBlock: "pixels";
                             readonly fill: "paint";
@@ -6629,7 +6639,6 @@ const STYLE_TARGETS: {
                             readonly letterSpacing: "signedPixels";
                             readonly textTransform: "textTransform";
                             readonly textDecoration: "textDecoration";
-                            readonly textOutlineColor: "color";
                             readonly textOutlineWidth: "pixels";
                             readonly textShadow: "shadow";
                             readonly lineHeight: "multiplier";
@@ -6646,6 +6655,7 @@ const STYLE_TARGETS: {
                             readonly position: "outside";
                         };
                         readonly vocabulary: {
+                            readonly textOutlineColor: "autoColor";
                             readonly paddingInline: "pixels";
                             readonly paddingBlock: "pixels";
                             readonly fill: "paint";
@@ -6661,7 +6671,6 @@ const STYLE_TARGETS: {
                             readonly letterSpacing: "signedPixels";
                             readonly textTransform: "textTransform";
                             readonly textDecoration: "textDecoration";
-                            readonly textOutlineColor: "color";
                             readonly textOutlineWidth: "pixels";
                             readonly textShadow: "shadow";
                             readonly lineHeight: "multiplier";

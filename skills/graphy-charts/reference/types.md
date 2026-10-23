@@ -1171,6 +1171,9 @@ interface GraphyKit<P extends readonly Plugin_2[] = readonly Plugin_2[]> extends
 Types referenced by the sections above, included so no name dangles.
 
 ```ts
+/** See {@link AutoColor}. A plain `color` property rejects the bare keyword, since its renderer has nothing to pick from. */
+const AUTO_COLOR = "auto";
+
 /**
  * Aesthetic value can be:
  * - string (shorthand for { variable: string })
@@ -1495,6 +1498,7 @@ type ArrowheadStyle = 'none' | 'line-arrow';
 /** The shape a declaration in each domain takes as authored. */
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     color: StyleColorValue;
+    autoColor: StyleColorValue | AutoColor;
     paint: AuthoredStylePaint;
     overpaint: AuthoredStyleOverpaint;
     shadow: StyleShadowValue<StyleColorValue>;
@@ -1511,6 +1515,9 @@ type AuthoredStyleOverpaint = 'none' | AuthoredStylePaint | readonly AuthoredSty
 
 /** A paint as authored, compiled (tokens inlined) and resolved (every color one string). */
 type AuthoredStylePaint = StylePaint<StyleColorValue>;
+
+/** The color an `autoColor` property takes for its renderer to pick per element, from what lies under it. */
+type AutoColor = typeof AUTO_COLOR;
 
 /**
  * Axes configuration (after defaults applied)
