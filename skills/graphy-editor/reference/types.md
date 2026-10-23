@@ -9939,12 +9939,21 @@ interface EditMenus {
     /** Edit menus for observations drawn one way, keyed by their layer's geom, the chart's coord and the position. */
     layers?: Readonly<Record<string, LayerEditMenus | undefined>>;
     /** Edit menus for observations however they are drawn, keyed by their layer's geom, a built-in or a custom one. */
-    geoms?: Readonly<Record<string, ObservationsEditMenu | null | undefined>>;
+    geoms?: Readonly<Record<string, GeomEditMenuEntry | null | undefined>>;
     legend?: TargetEditMenu<'legend'> | null;
     axis?: TargetEditMenu<'axis'> | null;
     grid?: TargetEditMenu<'grid'> | null;
     graph?: TargetEditMenu<'graph'> | null;
 }
+
+/** The style menu and the annotate menu for one way observations are drawn. */
+interface GeomEditMenuActions {
+    style?: ObservationsEditMenu | null;
+    annotate?: ObservationsEditMenu | null;
+}
+
+/** A component is the style menu, the shape hosts already pass; the pair names each action. */
+type GeomEditMenuEntry = ObservationsEditMenu | GeomEditMenuActions;
 
 /** No `layout`: a toggled section is always collapsible. */
 type GoalSectionProps = Omit<OverridableSectionProps, 'layout'>;
@@ -10051,7 +10060,7 @@ interface IntroAnimationOptions {
 type IntroTrigger = 'mount' | 'inView';
 
 /** One geom's edit menus, keyed by the chart's coord and then by the layer's position. */
-type LayerEditMenus = Partial<Record<CoordType, Partial<Record<PositionAdjustment, ObservationsEditMenu | null>>>>;
+type LayerEditMenus = Partial<Record<CoordType, Partial<Record<PositionAdjustment, GeomEditMenuEntry | null>>>>;
 
 interface ListProps {
     children: ReactNode;
