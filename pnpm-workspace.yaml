@@ -2,8 +2,8 @@ packages:
   - apps/*
 
 catalog:
-  "@graphysdk/react": 1.9.0-beta.1793017273153
-  "@graphysdk/viz-engine": 1.9.0-beta.1793017273153
-  "@graphysdk/react-renderer": 1.9.0-beta.1793017273153
-  "@graphysdk/data-import-utils": 1.9.0-beta.1793017273153
+  "@graphysdk/react": 1.9.0-beta.1793022188121
+  "@graphysdk/viz-engine": 1.9.0-beta.1793022188121
+  "@graphysdk/react-renderer": 1.9.0-beta.1793022188121
+  "@graphysdk/data-import-utils": 1.9.0-beta.1793022188121
   typescript: ^5.9.3
