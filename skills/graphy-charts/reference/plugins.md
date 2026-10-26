@@ -153,7 +153,7 @@ class LollipopGeom extends Geom<{ stemWidth: number }> {
   override readonly positionRoles = [
     { axis: 'x', role: 'point', valueKind: 'value' },
     { axis: 'y', role: 'min', valueKind: 'value' },
-    { axis: 'y', role: 'max', valueKind: 'value', aes: 'y' },
+    { axis: 'y', role: 'max', valueKind: 'value', aesthetic: 'y' },
   ] as const;
   override readonly aesthetics = [{ kind: 'visual', name: 'color' }] as const;
   override readonly supportedCoordTypes = ['cartesian'] as const;
@@ -175,8 +175,8 @@ Write `positionRoles` and `aesthetics` with `as const`. The kit reads their lite
 `positionRoles` defaults to `[]`. A position role is one column the engine writes for each observation, scaled to `[0, 1]`. The render half reads it back with a value reader.
 
 - `{ axis: 'x', role: 'point' }` is the observation's x. It comes from the `x` mapping. Same for `y`.
-- `{ axis: 'y', role: 'min', aes: 'start' }` and `{ axis: 'y', role: 'max', aes: 'end' }` describe an interval. The engine trains the y scale on both ends and writes `yMin` and `yMax`.
-- `{ axis: 'y', role: 'scalar', aes: 'open' }` scales one more value on the y axis into its own column, read with `getScaledAesthetic(observation, 'open')`. The raw value stays in the mapped column for the tooltip.
+- `{ axis: 'y', role: 'min', aesthetic: 'start' }` and `{ axis: 'y', role: 'max', aesthetic: 'end' }` describe an interval. The engine trains the y scale on both ends and writes `yMin` and `yMax`.
+- `{ axis: 'y', role: 'scalar', aesthetic: 'open' }` scales one more value on the y axis into its own column, read with `getScaledAesthetic(observation, 'open')`. The raw value stays in the mapped column for the tooltip.
 - A `min` or `max` role without `aes` is written by `compile`, as the lollipop writes `yMin = 0`.
 - A `point` role makes its axis required, and a `min` or `max` role with `aes` makes that aesthetic required. A missing one fails compile with `MISSING_AESTHETIC`. A `scalar` role's aesthetic is optional unless `validateMapping` says otherwise.
 
@@ -194,16 +194,16 @@ The `aes` name can be anything. That is how a candlestick declares `open`, `high
 
 | Field                               | Default                 | Meaning                                                                                                                                                                                                                                                                                      |
 | ----------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identityKey`                       | `'x-group'`             | What makes the same observation across recompiles. `'index'` for row order, `'x-y'` for grids, `{ variable: 'id' }` for a column the geom owns.                                                                                                                                              |
-| `spatialKind`                       | `'points'`              | The hit-test shape built from the position columns: `'points'`, `'buckets'`, `'filled-buckets'`, `'spanned-buckets'`, `'rects'`, `'cells'`, `'noop'`, or `'render-hit-test'`.                                                                                                                |
-| `highlightStrategy`                 | `null`                  | `null` opts out of highlighting. `'observation-rerender'` repaints matched observations through `render`. `'overlay-anchor'` draws a marker through the contract's `getOverlayAnchor`.                                                                                                       |
+| `identityKey`                       | `'xGroup'`              | What makes the same observation across recompiles. `'index'` for row order, `'xY'` for grids, `{ variable: 'id' }` for a column the geom owns.                                                                                                                                               |
+| `spatialKind`                       | `'points'`              | The hit-test shape built from the position columns: `'points'`, `'buckets'`, `'filledBuckets'`, `'spannedBuckets'`, `'rects'`, `'cells'`, `'noop'`, or `'renderHitTest'`.                                                                                                                    |
+| `highlightStrategy`                 | `null`                  | `null` opts out of highlighting. `'observationRerender'` repaints matched observations through `render`. `'overlayAnchor'` draws a marker through the contract's `getOverlayAnchor`.                                                                                                         |
 | `supportedCoordTypes`               | `['cartesian', 'flip']` | Add `'polar'` only with a polar render contract.                                                                                                                                                                                                                                             |
 | `defaultPosition`                   | `'identity'`            | `'stack'`, `'dodge'`, `'fill'`, or `'identity'` when the layer sets none.                                                                                                                                                                                                                    |
 | `supportedPositions`                | all                     | Position adjustments the layer may set. Another is rejected with `UNSUPPORTED_POSITION`.                                                                                                                                                                                                     |
 | `defaultStat`                       | `null`                  | The stat a layer applies when it names none. It is registered with the geom, so `kit.stat.<type>()` exists and a layer can name it or `identity`.                                                                                                                                            |
 | `scaleConstraints`                  | none                    | `requireMainAxisBands`, `requireCrossAxisBands`, `includeZero`, `bandPadding`, `inferColorScale`.                                                                                                                                                                                            |
 | `categorySpanAxes`                  | `[]`                    | `['x'] as const` when `x` names the category each observation spans and `compile` writes the interval into `xMin`/`xMax`. `x` becomes required, its scale continuous and unniced by default, and the axis ticks each category at its center. Its layers cannot dodge. Only `x` is supported. |
-| `tooltip`                           | `[]`                    | Rows to show: `[{ key: 'Open', aes: 'open' }]`. A non-empty list replaces the default rows.                                                                                                                                                                                                  |
+| `tooltip`                           | `[]`                    | Rows to show: `[{ key: 'Open', aesthetic: 'open' }]`. A non-empty list replaces the default rows.                                                                                                                                                                                            |
 | `legend`                            | `{}`                    | `suppressWhenSingleItem`, `sidePlacement`, `directLabelSupport`.                                                                                                                                                                                                                             |
 | `summaries`                         | `{}`                    | `grandTotal`, `stackTotals`, `supportsPerGroupHeadline`.                                                                                                                                                                                                                                     |
 | `derivedVariables`                  | `[]`                    | Columns `compile` or the stat creates that an author may map or name in a `where`.                                                                                                                                                                                                           |
@@ -232,18 +232,18 @@ The internal column names are exported as `POSITION_VARIABLES` (`x`, `y`, `xMin`
 
 `defineGeomRenderer(new LollipopGeom(), contract)` pairs the compile definition with its paint. The render contract:
 
-| Field                   | Required                      | What it does                                                                                                                                                                                                   |
-| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `coord`                 | yes                           | `'cartesian'` or `'polar'`. One contract per coord.                                                                                                                                                            |
-| `render`                | yes                           | Paints the layer into the panel SVG. Or `{ fn, options: { live: true } }` for a live geom.                                                                                                                     |
-| `renderHover`           | yes                           | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip.                                  |
-| `renderHoverCompanions` | yes                           | Paints companions in this layer when another layer is hovered. Receives `layer`, `coordSystem`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `panelRect` or `group`. Usually `() => null`. |
-| `renderHighlight`       | no                            | Repaints only matched observations when a highlight is active. Receives the render input plus `sourceLayer`, the full layer. Falls back to `render`.                                                           |
-| `swatchShape`           | no                            | `'square'`, `'line'`, `'circle'`, `'area'`, `'slice'`, or `'interval'` for legend and tooltip swatches. An `interval` swatch is a stem capped at both ends, upright unless the chart is flipped.               |
-| `guideMode`             | no                            | `'band'` or `'crosshair'` hover guide. Omit or pass `null` for none.                                                                                                                                           |
-| `getOverlayAnchor`      | no                            | Returns `{ x, y }` in `[0, 1]`, y up, for the highlight marker under `'overlay-anchor'`. Omit it and highlights draw no marker.                                                                                |
-| `hitTest`               | for `'render-hit-test'` geoms | A factory that returns a cursor tester. See Layout geoms.                                                                                                                                                      |
-| `getEditOutlineShapes`  | no                            | Shapes the editor outlines, of kind `'region'`, `'stroke'`, or `'dots'` (`EditOutlineRegion`, `EditOutlineStroke`, `EditOutlineDots`). Omit and it uses bounding boxes.                                        |
+| Field                   | Required                    | What it does                                                                                                                                                                                                   |
+| ----------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coord`                 | yes                         | `'cartesian'` or `'polar'`. One contract per coord.                                                                                                                                                            |
+| `render`                | yes                         | Paints the layer into the panel SVG. Or `{ fn, options: { live: true } }` for a live geom.                                                                                                                     |
+| `renderHover`           | yes                         | Paints the hovered observation on top. Receives `layer`, `primary`, `group`, `related`, `coordSystem`, `panelRect`, `styleReaders`, and `colorScheme`. Return `null` to skip.                                  |
+| `renderHoverCompanions` | yes                         | Paints companions in this layer when another layer is hovered. Receives `layer`, `coordSystem`, `primary`, `related`, `styleReaders`, and `colorScheme`, with no `panelRect` or `group`. Usually `() => null`. |
+| `renderHighlight`       | no                          | Repaints only matched observations when a highlight is active. Receives the render input plus `sourceLayer`, the full layer. Falls back to `render`.                                                           |
+| `swatchShape`           | no                          | `'square'`, `'line'`, `'circle'`, `'area'`, `'slice'`, or `'interval'` for legend and tooltip swatches. An `interval` swatch is a stem capped at both ends, upright unless the chart is flipped.               |
+| `guideMode`             | no                          | `'band'` or `'crosshair'` hover guide. Omit or pass `null` for none.                                                                                                                                           |
+| `getOverlayAnchor`      | no                          | Returns `{ x, y }` in `[0, 1]`, y up, for the highlight marker under `'overlayAnchor'`. Omit it and highlights draw no marker.                                                                                 |
+| `hitTest`               | for `'renderHitTest'` geoms | A factory that returns a cursor tester. See Layout geoms.                                                                                                                                                      |
+| `getEditOutlineShapes`  | no                          | Shapes the editor outlines, of kind `'region'`, `'stroke'`, or `'dots'` (`EditOutlineRegion`, `EditOutlineStroke`, `EditOutlineDots`). Omit and it uses bounding boxes.                                        |
 
 Each handler's input type is exported, for a handler written outside the contract: `GeomRendererInput` for `render`, `GeomHoverRendererInput` for `renderHover`, `GeomHoverCompanionsRendererInput`, `GeomOverlayAnchorRendererInput`, and `GeomEditOutlineShapesRendererInput`. `GeomRenderInputBase` is the `styleReaders` and `colorScheme` part they share. `GeomRenderFn` types a plain render function and `GeomRender` the whole `render` field.
 
@@ -354,16 +354,16 @@ defineGeomRenderer(new LollipopGeom(), {
 Hover comes free when the geom declares a `spatialKind` built from position columns. The engine indexes the layer, finds the observation under the cursor, shows the tooltip, and calls `renderHover` with `primary.observation`. The default tooltip lists the mapped values. A non-empty `tooltip` contract on the geom replaces those rows with one row per listed aesthetic.
 
 - `'buckets'` snaps to the nearest position along the main axis.
-- `'spanned-buckets'` is a bucket whose observations one stroke joins, lowest to highest, as a lollipop's stem or a dumbbell's connector.
+- `'spannedBuckets'` is a bucket whose observations one stroke joins, lowest to highest, as a lollipop's stem or a dumbbell's connector.
 - `'rects'` tests the rect between the interval ends. Good for bar-like geoms.
 - `'points'` uses nearest-point distance in two dimensions.
 - `'noop'` disables hover for the layer.
 
-A `HoverHit` carries `layerId`, `pointIndex`, and `observation`. It is discriminated on `anchored`. A hit from a position-based shape has `x` and `y` in `[0, 1]`, y up. A hit from a `'render-hit-test'` geom has no `x` or `y`, so narrow on `anchored` before reading them.
+A `HoverHit` carries `layerId`, `pointIndex`, and `observation`. It is discriminated on `anchored`. A hit from a position-based shape has `x` and `y` in `[0, 1]`, y up. A hit from a `'renderHitTest'` geom has no `x` or `y`, so narrow on `anchored` before reading them.
 
 `guideMode: 'band'` draws a band behind the hovered position, `'crosshair'` a line through it. `swatchShape` chooses the legend and tooltip swatch. The legend itself is driven by the `color` scale, so a geom that declares `{ kind: 'visual', name: 'color' }` gets legend items for free.
 
-Highlights use `highlightStrategy`, which is `null` by default: a layer with no strategy ignores a `highlight`. With `'observation-rerender'` the matched observations are drawn again through `render` above dimmed siblings, and nothing else is needed. With `'overlay-anchor'` the renderer asks `getOverlayAnchor` for an `OverlayAnchor`, the marker position. It is optional for a custom contract. Without it, a highlight dims the rest and draws no marker. Return y as the data-up value; the overlay flips it.
+Highlights use `highlightStrategy`, which is `null` by default: a layer with no strategy ignores a `highlight`. With `'observationRerender'` the matched observations are drawn again through `render` above dimmed siblings, and nothing else is needed. With `'overlayAnchor'` the renderer asks `getOverlayAnchor` for an `OverlayAnchor`, the marker position. It is optional for a custom contract. Without it, a highlight dims the rest and draws no marker. Return y as the data-up value; the overlay flips it.
 
 ```ts
 import { getX, getYMax } from '@graphysdk/react';
@@ -380,7 +380,7 @@ export const getOverlayAnchor: GeomRenderContract['getOverlayAnchor'] = ({ obser
 
 For geometry that does not fit the built-in spatial indices, such as treemaps or Sankey diagrams:
 
-- Declare `spatialKind = 'render-hit-test'` and `identityKey = 'index'` or `{ variable: 'markId' }`. Emit that identity column from `compile` when using a variable.
+- Declare `spatialKind = 'renderHitTest'` and `identityKey = 'index'` or `{ variable: 'markId' }`. Emit that identity column from `compile` when using a variable.
 - Store geometry in your own columns and keep it separate from scaled positions. If `compile` replaces the dataset, preserve mapped inputs or return mapping overrides pointing at the new columns; otherwise color, grouping, or tooltip values can disappear.
 - Provide a `hitTest` factory on the render contract. It receives the render input and returns a `RenderHitTester`: `(cursor) => ({ key: string } | null)`. The cursor is normalized to `[0, 1]` with a top-left origin. Match the observation's identity exactly; dates use ISO strings.
 - The renderer rebuilds the tester when `layer.data` or the panel size changes. Use the same geometry for paint and hit-testing.
@@ -389,7 +389,7 @@ For geometry that does not fit the built-in spatial indices, such as treemaps or
 
 For complete examples, see [treemap](../recipes/plugins/treemap.md), [Voronoi](../recipes/plugins/voronoi.md), and [unit-box](../recipes/plugins/unit-box.md).
 
-For a pixel-dependent layout, compute the geometry from `panelRect` in `render`, `hitTest`, and `renderHover`, so all three lay out from the same input. `hitTest` receives the same `panelRect` as `render`, and `renderHover` finds the hovered shape by `primary.pointIndex`. Keep the layout on the contract: a tester registered from a component with `useGeomHitTest` is not visible to the diagnostics, so a `'render-hit-test'` layer without a contract `hitTest` warns `MISSING_RENDER_HIT_TEST`. The [beeswarm recipe](../recipes/plugins/beeswarm.md) shows this path.
+For a pixel-dependent layout, compute the geometry from `panelRect` in `render`, `hitTest`, and `renderHover`, so all three lay out from the same input. `hitTest` receives the same `panelRect` as `render`, and `renderHover` finds the hovered shape by `primary.pointIndex`. Keep the layout on the contract: a tester registered from a component with `useGeomHitTest` is not visible to the diagnostics, so a `'renderHitTest'` layer without a contract `hitTest` warns `MISSING_RENDER_HIT_TEST`. The [beeswarm recipe](../recipes/plugins/beeswarm.md) shows this path.
 
 ## Live geoms
 
@@ -410,11 +410,11 @@ The renderer paints this render after the hover capture layer, so its shapes rec
 - `pushHover(null)` clears this layer's hover. Other layers' hover survives, and unmounting clears the layer's own hover.
 - `readPanelPoint(event)` converts a pointer's client coordinates to panel units. Use it to move a dragged shape; subtracting a client rect is off on a graph drawn at another size.
 
-Give the group `pointerEvents: 'none'` and enable it on the shapes that take the pointer, so gaps fall through to the chart's own hover. Use `spatialKind = 'render-hit-test'` and an explicit identity here too. Choose either the live render's push events or the contract's `hitTest` factory. When both are supplied, the live render is used and the renderer warns. `useGeomHover(layer.id)` exposes the same push function to other components. The [force-directed recipe](../recipes/plugins/force-directed.md) includes a complete simulation with dragging and cleanup.
+Give the group `pointerEvents: 'none'` and enable it on the shapes that take the pointer, so gaps fall through to the chart's own hover. Use `spatialKind = 'renderHitTest'` and an explicit identity here too. Choose either the live render's push events or the contract's `hitTest` factory. When both are supplied, the live render is used and the renderer warns. `useGeomHover(layer.id)` exposes the same push function to other components. The [force-directed recipe](../recipes/plugins/force-directed.md) includes a complete simulation with dragging and cleanup.
 
 ## Custom stats and transforms
 
-A stat is a `Stat` subclass. `computeStat` receives the layer's dataset, its mapping, the resolved stat `spec`, the layer's `params`, and `hasDiscreteXScale`, and returns a dataset plus mapping overrides. An empty dataset skips `computeStat`. `computedVariables` names the aesthetics it produces, so the author may leave them unmapped. The kit exposes it as `kit.stat.<type>()`.
+A stat is a `Stat` subclass. `computeStat` receives the layer's dataset, its mapping, the resolved stat `spec`, the layer's `params`, and `hasDiscreteXScale`, and returns a dataset plus mapping overrides. An empty dataset skips `computeStat`. `computedAesthetics` names the aesthetics it produces, so the author may leave them unmapped. The kit exposes it as `kit.stat.<type>()`.
 
 ```ts
 import { createGraphyKit, Stat } from '@graphysdk/react';
@@ -422,7 +422,7 @@ import type { StatCompileResult, StatCompilerInput } from '@graphysdk/react';
 
 class UseRawYStat extends Stat {
   readonly type = 'useRawY' as const;
-  readonly computedVariables: ReadonlySet<string> = new Set(['y']);
+  readonly computedAesthetics: ReadonlySet<string> = new Set(['y']);
 
   protected computeStat({ data }: StatCompilerInput): StatCompileResult {
     return { data, mapping: { y: 'rawY' } };
@@ -439,7 +439,7 @@ export const spec = kit.pipe(
 );
 ```
 
-A transform is a plain object with `transformType` and `apply(dataset, transformSpec)`. It runs before stats. Options arrive on the spec's `options` field. An optional `getIntroducedVariables(transformSpec)` names the columns it adds. The kit exposes it as `kit.transform.<type>({ options })`.
+A transform is a plain object with `transformType` and `apply(dataset, transformSpec)`. It runs before stats. Options arrive on the spec's `options` field. An optional `getDerivedVariables(transformSpec)` names the columns it adds. The kit exposes it as `kit.transform.<type>({ options })`.
 
 ```ts
 import { createGraphyKit } from '@graphysdk/react';
@@ -484,9 +484,9 @@ Plugin problems surface as diagnostics. Errors go to the provider's `onError` an
 - `MISSING_GEOM_RENDERER` is an error at registration when a custom geom's compile half has no render half at all, and a warning at scene time when none is bound for the active coord, so that layer is not painted.
 - `DUPLICATE_REGISTERED_TYPE` is a warning when two definitions share a name, or two render-only overrides share a `(geom, coord)` pair. The last in the array is used.
 - `RENDER_HIT_TEST_IDENTITY` is a warning for a layout geom left on a position-derived identity, or whose `{ variable }` identity names a column `compile` did not emit.
-- `MISSING_RENDER_HIT_TEST` when a `'render-hit-test'` geom has neither `hitTest` nor a live render; `CONFLICTING_RENDER_HIT_TEST` when it has both, and the live render is used; `LIVE_RENDER_REQUIRES_RENDER_HIT_TEST` when a live render sits on another spatial kind.
+- `MISSING_RENDER_HIT_TEST` when a `'renderHitTest'` geom has neither `hitTest` nor a live render; `CONFLICTING_RENDER_HIT_TEST` when it has both, and the live render is used; `LIVE_RENDER_REQUIRES_RENDER_HIT_TEST` when a live render sits on another spatial kind.
 - `MISSING_DATA_LABEL_PLACEMENT` when a geom declares `dataLabelCoordTypes` without `getDataLabelPlacements`; its layers paint no data labels.
-- `SPATIAL_KIND_COORD_UNSUPPORTED` for `'cells'` under polar, and `MISSING_ANCHOR_CAPABILITY` for a `'render-hit-test'` geom without `resolveAnchorPosition`. All warnings.
+- `SPATIAL_KIND_COORD_UNSUPPORTED` for `'cells'` under polar, and `MISSING_ANCHOR_CAPABILITY` for a `'renderHitTest'` geom without `resolveAnchorPosition`. All warnings.
 
 ## Position and styling pitfalls
 

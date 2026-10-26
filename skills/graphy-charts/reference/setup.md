@@ -6,7 +6,7 @@ Contents
 - Which package to use
 - First graph
 - Mental model
-- Hiding the brand mark
+- Hiding the Graphy badge
 - Editable graphs
 - CDN without a bundler
 - When the CDN is blocked
@@ -36,7 +36,7 @@ Built-in themes are separate `@graphysdk/theme-<name>` packages. See [themes](th
 ## Which package to use
 
 - `@graphysdk/react`: the default. Spec builders, `GraphProvider`, `GraphRenderer`, hooks, slots, and plugin authoring from one import. The "Made with Graphy" mark is on by default.
-- `@graphysdk/react-renderer`: the same components and hooks, no spec builders, mark off by default. Pair it with `@graphysdk/viz-engine` for the builders.
+- `@graphysdk/react-renderer`: the same components and hooks, no spec builders, badge off by default. Pair it with `@graphysdk/viz-engine` for the builders.
 - `@graphysdk/viz-engine`: the engine alone. Build a spec, compile it with `createCompiler`, read the scene. No React, no DOM. Ships ESM and CommonJS.
 
 ```ts
@@ -93,7 +93,7 @@ A spec is built with `pipe`. `createSpec({ x, y, color, ... })` maps columns to 
 
 Build the spec once, outside render, or memoize it. A new spec object recompiles the graph.
 
-## Hiding the brand mark
+## Hiding the Graphy badge
 
 ```ts
 import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -103,11 +103,11 @@ const spec = pipe(
   geom.bar(),
   scale.x(),
   scale.y(),
-  config({ content: { brandMark: { enabled: false } } })
+  config({ content: { graphyBadge: { visible: false } } })
 );
 ```
 
-`@graphysdk/react` turns the mark on only when the spec says nothing about it. `brandMark` also takes `placement` and `variant` (`BrandMarkConfig` in types.md § Supporting types). See react.md § The brand mark.
+`@graphysdk/react` turns the badge on only when the spec says nothing about it. `graphyBadge` also takes `position` and `variant` (`GraphyBadgeConfig` in types.md § Supporting types). See react.md § The Graphy badge.
 
 ## Editable graphs
 
@@ -141,7 +141,7 @@ There is no `@graphysdk/react@1` on jsDelivr. That URL 404s. When the Graphy URL
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793022188121/dist/index.browser.mjs"
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793027249956/dist/index.browser.mjs"
         }
       }
     </script>
@@ -204,7 +204,7 @@ Vendor the files next to the HTML, then rewrite those imports to relative filena
    - `vendor/react-dom.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm`
    - `vendor/react-dom-client.mjs` from `https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm`
    - `vendor/scheduler.mjs` from `https://cdn.jsdelivr.net/npm/scheduler@0.27.0/+esm`
-   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793022188121/dist/index.browser.mjs`
+   - `vendor/graphy.mjs` from `https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793027249956/dist/index.browser.mjs`
 2. In the React files, replace every `from"/npm/<package>@<version>/+esm"` (and any `/npm/<package>@<version>/<path>/+esm`) with a relative path to the matching local file. `graphy.mjs` imports `react`, `react-dom`, and `react/jsx-runtime` as bare specifiers, so leave it alone.
 3. Point the import map at the local files:
 
@@ -230,7 +230,7 @@ If the host accepts one HTML file only and also blocks the network, Graphy canno
 
 - A container with no height. `GraphRenderer` is responsive by default and needs a sized parent (react.md § Sizing).
 - Building the spec inside render without `useMemo`. Every render then recompiles the graph.
-- Mixing `@graphysdk/react` and `@graphysdk/react-renderer` providers in one app works, but the mark default differs.
+- Mixing `@graphysdk/react` and `@graphysdk/react-renderer` providers in one app works, but the badge default differs.
 - Installing TipTap for a read-only graph. Those peers are only for `/editable`.
 - Loading React or Graphy from esm.sh. jsDelivr only.
 - Loading Graphy with `/+esm` instead of `dist/index.browser.mjs`.

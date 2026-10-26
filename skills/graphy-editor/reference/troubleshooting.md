@@ -25,7 +25,7 @@ Contents
 
 ## Nothing happens when I click a bar
 
-- `mode` is not `'point-and-edit'`. In `editable`, annotations, the title, the caption and the (+) button support editing; bars do not. In `readonly`, canvas editing is disabled.
+- `mode` is not `'pointAndEdit'`. In `editable`, annotations, the title, the caption and the (+) button support editing; bars do not. In `readonly`, canvas editing is disabled.
 - The chart uses a plain `GraphRenderer`. Only `EditableGraphRenderer` from `@graphysdk/react/editable` has the editing layer.
 - The target has no editing controls: a line's single point, a heatmap tile, a layer colored by a number, a band of stacked bars, a geom from a geom package. Only targets with a menu row or visibility toggle can be hovered and selected. Register a menu with `editMenus` to make it selectable.
 

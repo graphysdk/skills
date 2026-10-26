@@ -56,12 +56,12 @@ Mappings name a column `key`, never its `label`. The six built-in geoms are `poi
 
 ## Packages
 
-| Package                     | Use it when                                                        | Brand mark |
-| --------------------------- | ------------------------------------------------------------------ | ---------- |
-| `@graphysdk/react`          | Building charts in React. This is the default.                     | on         |
-| `@graphysdk/react-renderer` | The same components without the builders.                          | off        |
-| `@graphysdk/viz-engine`     | Compiling a spec without React.                                    | none       |
-| `@graphysdk/geom-<name>`    | One extra geom each, wired through `createGraphyKit({ plugins })`. | off        |
+| Package                     | Use it when                                                        | Graphy badge |
+| --------------------------- | ------------------------------------------------------------------ | ------------ |
+| `@graphysdk/react`          | Building charts in React. This is the default.                     | on           |
+| `@graphysdk/react-renderer` | The same components without the builders.                          | off          |
+| `@graphysdk/viz-engine`     | Compiling a spec without React.                                    | none         |
+| `@graphysdk/geom-<name>`    | One extra geom each, wired through `createGraphyKit({ plugins })`. | off          |
 
 ## License
 
@@ -77,7 +77,7 @@ Open one file, then use the contents list at the top of that file.
 
 | Task                                                                                  | Read                                                                          |
 | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Install, HTML artifacts, jsDelivr CDN, light and dark, offline vendor, brand mark     | [setup](reference/setup.md)                                                   |
+| Install, HTML artifacts, jsDelivr CDN, light and dark, offline vendor, Graphy badge   | [setup](reference/setup.md)                                                   |
 | Data, dates, CSV                                                                      | [data](reference/data.md)                                                     |
 | Mappings, geoms, scales, config                                                       | [spec](reference/spec.md)                                                     |
 | Provider, sizing, live data, dark mode                                                | [React](reference/react.md)                                                   |
@@ -136,7 +136,7 @@ The nine geom recipes install a published package; each is a complete component.
 - Date strings are read day-first unless the column sets `dateFormat`.
 - Build the spec once, or memoize it. A new spec object recompiles the chart and clears undo history.
 - A responsive chart with no parent height is zero pixels tall.
-- `@graphysdk/react` shows the brand mark unless the spec sets `config.content.brandMark.enabled`.
+- `@graphysdk/react` shows the Graphy badge unless the spec sets `config.content.graphyBadge.visible`.
 - An HTML artifact that imports `@graphysdk/react` without a jsDelivr import map will not load. Use the CDN page in [setup](reference/setup.md). If the panel stays blank, the host may block the CDN: use the offline vendor steps there.
 - Never load React or Graphy from esm.sh. jsDelivr only.
 - `@graphysdk/react@1` 404s on jsDelivr. Use the Graphy URL in [setup](reference/setup.md) as written.

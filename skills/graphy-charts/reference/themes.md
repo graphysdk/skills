@@ -109,7 +109,7 @@ export const Themed = ({ data, spec }: { data: Data; spec: Spec }) => (
 
 - `theme` is read once at mount, like `plugins`. To switch themes, remount the provider with a new `key`.
 - Combine a theme and plugins in one kit: `createGraphyKit({ theme: watercolor, plugins: [dumbbell] })`, with `dumbbell` from `@graphysdk/geom-dumbbell`.
-- `kit.GraphProvider` shows "Made with Graphy" by default. Disable it with `config({ content: { brandMark: { enabled: false } } })`.
+- `kit.GraphProvider` shows the Graphy badge by default. Disable it with `config({ content: { graphyBadge: { visible: false } } })`.
 - Every theme package except Spreadsheet has a `fonts.css` that loads its Google Fonts. Import it once per app. Spreadsheet uses Arial and has no `fonts.css`. To self-host, skip the import and load the same families yourself; see [Fonts](#fonts).
 
 ## Changing one themed graph
@@ -186,7 +186,7 @@ export const ledger: Theme = {
       style.geom.bar({ cornerRadius: 'none', strokeWidth: 0 }),
       style.gridLine({ dashArray: [] }),
       style.panelBorder({ strokeWidth: 0 }),
-      style.panelBorder.bottom({ stroke: token('textSecondary'), strokeWidth: 1, dashArray: [] }),
+      style.axisLine.x({ stroke: token('textSecondary'), strokeWidth: 1, dashArray: [] }),
       style.tickLabel({ fontSize: 12 }),
     ],
   },
@@ -204,9 +204,9 @@ const kit = createGraphyKit({ theme: ledger });
 
 The five tokens above recolour most of the graph. See [Built-in stylesheet](styling.md#built-in-stylesheet) for the full token list.
 
-- `palettes.categorical` replaces the default palette, including the single-hue ramp used for touching geoms. List group colors in order. Its first color also fills unmapped geoms, so a `geom` token is only needed when that fill should differ.
+- `palettes.categorical` replaces the default palette, including the single-hue tones used for touching geoms. List group colors in order. Its first color also fills unmapped geoms, so a `geom` token is only needed when that fill should differ.
 - `palettes.sequential` supplies continuous color stops from low to high. `palettes.diverging` supplies the stops for a continuous scale with a `domainMid`: an odd count, with the middle stop the neutral that lands on the midpoint.
-- `config` accepts `parsingLocale`, `legend`, `axes`, `panel`, `headline`, `tooltip` and `numberFormat`. It cannot set `content`: titles, sources and the brand mark belong to the spec.
+- `config` accepts `parsingLocale`, `legend`, `axes`, `panel`, `headline`, `tooltip` and `numberFormat`. It cannot set `content`: titles, sources and the Graphy badge belong to the spec.
 - `colorScheme: 'light'` fixes the scheme. To support both, see [Light and dark](#light-and-dark).
 - Keep page cards and other surrounding UI in the host application.
 
@@ -254,9 +254,9 @@ import { style, type Stylesheet } from '@graphysdk/react';
 const sheet: Stylesheet = {
   defaults: [
     style.gridLine.x({ strokeWidth: 0 }),
-    style.panelBorder.bottom({ strokeWidth: 1, dashArray: [] }),
-    // Remove the baseline; add slice borders, spokes and circles.
-    style.panelBorder.bottom({ strokeWidth: 0 }, { coord: 'polar' }),
+    // Axis lines are omitted in polar coordinates.
+    style.axisLine.x({ strokeWidth: 1, dashArray: [] }),
+    // Polar slice borders, spokes and rings.
     style.geom.bar({ stroke: '#FFFFFF', strokeWidth: 1 }, { coord: 'polar' }),
     style.gridLine.x({ strokeWidth: 1, dashArray: [] }, { coord: 'polar' }),
     style.gridLine.y({ strokeWidth: 1, dashArray: [] }, { coord: 'polar' }),
@@ -541,5 +541,5 @@ Halloween does this: headstones rise and candles light on the intro clock, and a
 
 - `styles({ extends: [theme.styles] })` copies only the stylesheet into the spec. It does not apply the theme's palette, config, plugins or shapes.
 - Theme `defaults` yield to mapped aesthetics. Use `overrides` to force a fill when `color` is mapped; that fill then hides the mapped colors.
-- A theme's `config` cannot set `content`. Titles, sources and the brand mark come from the spec.
+- A theme's `config` cannot set `content`. Titles, sources and the Graphy badge come from the spec.
 - A theme's data label `textColor` is replaced by a readable one where it lacks contrast with the bar or slice under the label. A color set in the spec's `styles()` is kept.

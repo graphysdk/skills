@@ -9,7 +9,7 @@ Generated from `@graphysdk/viz-engine@1.8.0` and `@graphysdk/react-renderer@1.8.
 > handles and hooks from `@graphysdk/react-renderer`, and editor components
 > from `@graphysdk/react-renderer/editable`. Referenced types appear under
 > "Supporting types" where available; external and built-in types are omitted.
-> See the other references for usage. Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): AesMapping, AnnotationSpecByKind, ConfigSpec, Data, Dataset, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, VizDiagnostic, WhenClause.
+> See the other references for usage. Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): AestheticMapping, AnnotationSpecByKind, ConfigSpec, Data, Dataset, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, VizDiagnostic, WhenClause.
 
 ## Handle & hooks — @graphysdk/react-renderer
 
@@ -234,12 +234,12 @@ interface GraphProviderProps {
  * Chart display and interaction mode.
  * - 'readonly': Normal chart display with full interactivity but no editing (default)
  * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
- * - 'point-and-edit': A press on the chart selects what it hit: an observation, its band, or the chart
+ * - 'pointAndEdit': A press on the chart selects what it hit: an observation, its band, or the chart
  */
 const GRAPH_MODES: {
     readonly readonly: "readonly";
     readonly editable: "editable";
-    readonly pointAndEdit: "point-and-edit";
+    readonly pointAndEdit: "pointAndEdit";
 };
 
 /**
@@ -494,7 +494,7 @@ interface ObservationsTarget {
     scope: MatchScope;
     predicate: Predicate;
     /**
-     * The row of `layer.data` a `data-point` target was pressed on, telling it apart from rows holding the same
+     * The row of `layer.data` a `observation` target was pressed on, telling it apart from rows holding the same
      * values. A recompile can move rows, so the target takes that row only while the predicate still matches it,
      * and every match otherwise. Ignored at other scopes.
      */
@@ -520,18 +520,18 @@ function toSpec(spec: ResolvedSpec, { themeConfig }?: ToSpecOptions): Spec;
  * spec keeps it as separate facts: the coordinate system, each layer's geom and position, the scale
  * shape those geoms demand, and the main axis ({@link resolveMainAxisMapping}).
  */
-class SetChartTypeCommand implements Command<SetChartTypeParams> {
-    readonly type: "set-chart-type";
+class SetGraphTypeCommand implements Command<SetGraphTypeParams> {
+    readonly type: "setGraphType";
     readonly metadata: CommandMetadata;
-    readonly params: SetChartTypeParams;
+    readonly params: SetGraphTypeParams;
     /** The coordinate system belongs to no single layer, so it is what a restored selection points at. */
     readonly target: EditTarget;
-    constructor(params: SetChartTypeParams, metadata?: Partial<CommandMetadata>);
+    constructor(params: SetGraphTypeParams, metadata?: Partial<CommandMetadata>);
     apply(spec: ResolvedSpec): CommandApplyResult | null;
 }
 
 /** The chart's type as a picker reads it back, or `null` for a chart no type describes. */
-const readChartType: (spec: ResolvedSpec) => ChartTypeSummary | null;
+const readGraphType: (spec: ResolvedSpec) => GraphTypeSummary | null;
 
 /**
  * Whether the chart has the second dimension a heatmap lays out as rows: a series to pivot onto them,
@@ -545,7 +545,7 @@ const canBecomeHeatmap: (spec?: ResolvedSpec) => boolean;
  * than trusting its shape, since one arriving off the wire is only as good as what it names: a combo is
  * cartesian, its halves separated onto y axes polar coords have no room for.
  */
-const isComboChartType: (summary: ChartTypeSummary) => summary is ComboChartTypeSummary;
+const isComboGraphType: (summary: GraphTypeSummary) => summary is ComboGraphTypeSummary;
 
 /**
  * Whether the chart has the halves a combo needs: two layers already, or a variable to draw a second
@@ -559,7 +559,7 @@ const canBecomeCombo: (spec?: ResolvedSpec) => boolean;
  * drawn last is always the line; `'lines'` keeps the split without the bars, so both halves can still
  * be bound to y axes of their own.
  */
-const COMBO_TYPES: readonly ["grouped-bars", "stacked-bars", "lines"];
+const COMBO_TYPES: readonly ["groupedBars", "stackedBars", "lines"];
 
 /**
  * Points one aesthetic at a column of the data.
@@ -569,7 +569,7 @@ const COMBO_TYPES: readonly ["grouped-bars", "stacked-bars", "lines"];
  * Only the chart-wide mapping. A layer's own mapping overrides it, and that stays the author's.
  */
 class SetMappingCommand implements Command<SetMappingParams> {
-    readonly type: "set-mapping";
+    readonly type: "setMapping";
     readonly metadata: CommandMetadata;
     readonly params: SetMappingParams;
     readonly target: EditTarget;
@@ -603,7 +603,7 @@ const readMappableAesthetics: <Key extends AestheticKey>(spec: ResolvedSpec, aes
  * Reverts with a {@link RemoveLayerCommand} for the same id.
  */
 class AddLayerCommand implements Command<AddLayerParams> {
-    readonly type: "add-layer";
+    readonly type: "addLayer";
     readonly metadata: CommandMetadata;
     readonly params: AddLayerParams;
     constructor(options: AddLayerOptions, metadata?: Partial<CommandMetadata>);
@@ -635,7 +635,7 @@ type LayerDraft = WithOptionalId<ResolvedLayerSpec>;
  * occupied, so undo restores draw order rather than appending.
  */
 class RemoveLayerCommand implements Command<RemoveLayerParams> {
-    readonly type: "remove-layer";
+    readonly type: "removeLayer";
     readonly metadata: CommandMetadata;
     readonly params: RemoveLayerParams;
     constructor(params: RemoveLayerParams, metadata?: Partial<CommandMetadata>);
@@ -652,7 +652,7 @@ class RemoveLayerCommand implements Command<RemoveLayerParams> {
  * `null` when the layer already carries the requested position.
  */
 class SetLayerPositionCommand implements Command<SetLayerPositionParams> {
-    readonly type: "set-layer-position";
+    readonly type: "setLayerPosition";
     readonly metadata: CommandMetadata;
     readonly params: SetLayerPositionParams;
     constructor(params: SetLayerPositionParams, metadata?: Partial<CommandMetadata>);
@@ -670,7 +670,7 @@ class SetLayerPositionCommand implements Command<SetLayerPositionParams> {
  * Applying is a no-op when the layer is missing or already carries an equivalent stat.
  */
 class SetLayerStatCommand implements Command<SetLayerStatParams> {
-    readonly type: "set-layer-stat";
+    readonly type: "setLayerStat";
     readonly metadata: CommandMetadata;
     readonly params: SetLayerStatParams;
     constructor(options: SetLayerStatOptions, metadata?: Partial<CommandMetadata>);
@@ -689,7 +689,7 @@ class SetLayerStatCommand implements Command<SetLayerStatParams> {
  * the requested axis.
  */
 class SetLayerYScaleTypeCommand implements Command<SetLayerYScaleTypeParams> {
-    readonly type: "set-layer-y-scale-type";
+    readonly type: "setLayerYScaleType";
     readonly metadata: CommandMetadata;
     readonly params: SetLayerYScaleTypeParams;
     constructor(params: SetLayerYScaleTypeParams, metadata?: Partial<CommandMetadata>);
@@ -704,7 +704,7 @@ class SetLayerYScaleTypeCommand implements Command<SetLayerYScaleTypeParams> {
  * `NaN` has no end to clamp toward, so it is rejected instead.
  */
 class SetBarWidthCommand implements Command<SetBarWidthParams> {
-    readonly type: "set-bar-width";
+    readonly type: "setBarWidth";
     readonly metadata: CommandMetadata;
     readonly params: SetBarWidthParams;
     constructor(params: SetBarWidthParams, metadata?: Partial<CommandMetadata>);
@@ -719,7 +719,7 @@ class SetBarWidthCommand implements Command<SetBarWidthParams> {
  * The rounding merges into the layer's own override entry, leaving whatever else that entry paints.
  */
 class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
-    readonly type: "set-bar-corner-radius";
+    readonly type: "setBarCornerRadius";
     readonly metadata: CommandMetadata;
     readonly params: SetBarCornerRadiusParams;
     constructor(params: SetBarCornerRadiusParams, metadata?: Partial<CommandMetadata>);
@@ -736,7 +736,7 @@ class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
  * Switching it on drops that zero where a rule beneath fills, and writes the default wash otherwise.
  */
 class SetLineStyleCommand implements Command<SetLineStyleParams> {
-    readonly type: "set-line-style";
+    readonly type: "setLineStyle";
     readonly metadata: CommandMetadata;
     readonly params: SetLineStyleParams;
     constructor(params: SetLineStyleParams, metadata?: Partial<CommandMetadata>);
@@ -762,7 +762,7 @@ class SetLineStyleCommand implements Command<SetLineStyleParams> {
  * Produces a revert command that restores the previous curve for undo support.
  */
 class SetLineCurveCommand implements Command<SetLineCurveParams> {
-    readonly type: "set-line-curve";
+    readonly type: "setLineCurve";
     readonly metadata: CommandMetadata;
     readonly params: SetLineCurveParams;
     constructor(params: SetLineCurveParams, metadata?: Partial<CommandMetadata>);
@@ -778,7 +778,7 @@ class SetLineCurveCommand implements Command<SetLineCurveParams> {
  * `null` when the layer already carries the requested one.
  */
 class SetLineMissingValuesCommand implements Command<SetLineMissingValuesParams> {
-    readonly type: "set-line-missing-values";
+    readonly type: "setLineMissingValues";
     readonly metadata: CommandMetadata;
     readonly params: SetLineMissingValuesParams;
     constructor(params: SetLineMissingValuesParams, metadata?: Partial<CommandMetadata>);
@@ -792,7 +792,7 @@ class SetLineMissingValuesCommand implements Command<SetLineMissingValuesParams>
  * the groups shown on top of it take the size.
  */
 class SetPointSizeCommand implements Command<SetPointSizeParams> {
-    readonly type: "set-point-size";
+    readonly type: "setPointSize";
     readonly metadata: CommandMetadata;
     readonly params: SetPointSizeParams;
     constructor(params: SetPointSizeParams, metadata?: Partial<CommandMetadata>);
@@ -814,7 +814,7 @@ class SetPointSizeCommand implements Command<SetPointSizeParams> {
  * undo entry per gesture means renaming a label must not also move it.
  */
 class SetRuleLabelCommand implements Command<SetRuleLabelParams> {
-    readonly type: "set-rule-label";
+    readonly type: "setRuleLabel";
     readonly metadata: CommandMetadata;
     readonly params: SetRuleLabelParams;
     constructor(params: SetRuleLabelParams, metadata?: Partial<CommandMetadata>);
@@ -833,7 +833,7 @@ class SetRuleLabelCommand implements Command<SetRuleLabelParams> {
  * stat output has no value to type into, and a literal would sever it from the data it follows.
  */
 class SetRuleValueCommand implements Command<SetRuleValueParams> {
-    readonly type: "set-rule-value";
+    readonly type: "setRuleValue";
     readonly metadata: CommandMetadata;
     readonly params: SetRuleValueParams;
     constructor(params: SetRuleValueParams, metadata?: Partial<CommandMetadata>);
@@ -848,7 +848,7 @@ class SetRuleValueCommand implements Command<SetRuleValueParams> {
  * while an average is drawn replaces it, and a single undo puts the average back exactly as it was.
  */
 class SetStatLineCommand implements Command<SetStatLineParams> {
-    readonly type: "set-stat-line";
+    readonly type: "setStatLine";
     readonly metadata: CommandMetadata;
     readonly params: SetStatLineParams;
     constructor(params: SetStatLineParams, metadata?: Partial<CommandMetadata>);
@@ -867,7 +867,7 @@ class SetStatLineCommand implements Command<SetStatLineParams> {
  * when the layer already carries the requested one.
  */
 class SetDataLabelsFormatCommand implements Command<SetDataLabelsFormatParams> {
-    readonly type: "set-data-labels-format";
+    readonly type: "setDataLabelsFormat";
     readonly metadata: CommandMetadata;
     readonly params: SetDataLabelsFormatParams;
     constructor(params: SetDataLabelsFormatParams, metadata?: Partial<CommandMetadata>);
@@ -883,7 +883,7 @@ class SetDataLabelsFormatCommand implements Command<SetDataLabelsFormatParams> {
  * `null` when the layer already matches the requested visibility.
  */
 class ToggleDataLabelsCommand implements Command<ToggleDataLabelsParams> {
-    readonly type: "toggle-data-labels";
+    readonly type: "toggleDataLabels";
     readonly metadata: CommandMetadata;
     readonly params: ToggleDataLabelsParams;
     constructor(params: ToggleDataLabelsParams, metadata?: Partial<CommandMetadata>);
@@ -900,7 +900,7 @@ class ToggleDataLabelsCommand implements Command<ToggleDataLabelsParams> {
  * `null` when the layer already matches the requested one.
  */
 class ToggleCategoryLabelsCommand implements Command<ToggleCategoryLabelsParams> {
-    readonly type: "toggle-category-labels";
+    readonly type: "toggleCategoryLabels";
     readonly metadata: CommandMetadata;
     readonly params: ToggleCategoryLabelsParams;
     constructor(params: ToggleCategoryLabelsParams, metadata?: Partial<CommandMetadata>);
@@ -917,7 +917,7 @@ class ToggleCategoryLabelsCommand implements Command<ToggleCategoryLabelsParams>
  * undo entry rather than a re-creation of the line.
  */
 class ToggleGoalLineCommand implements Command<ToggleGoalLineParams> {
-    readonly type: "toggle-goal-line";
+    readonly type: "toggleGoalLine";
     readonly metadata: CommandMetadata;
     readonly params: ToggleGoalLineParams;
     constructor(params: ToggleGoalLineParams, metadata?: Partial<CommandMetadata>);
@@ -938,7 +938,7 @@ class ToggleGoalLineCommand implements Command<ToggleGoalLineParams> {
  * goes once no group draws a dot, and showing every group takes each size 0 away.
  */
 class ToggleLinePointsCommand implements Command<ToggleLinePointsParams> {
-    readonly type: "toggle-line-points";
+    readonly type: "toggleLinePoints";
     readonly metadata: CommandMetadata;
     readonly params: ToggleLinePointsParams;
     constructor(params: ToggleLinePointsParams, metadata?: Partial<CommandMetadata>);
@@ -963,7 +963,7 @@ class ToggleLinePointsCommand implements Command<ToggleLinePointsParams> {
  * `null` when the layer already matches the requested one.
  */
 class ToggleStackTotalsCommand implements Command<ToggleStackTotalsParams> {
-    readonly type: "toggle-stack-totals";
+    readonly type: "toggleStackTotals";
     readonly metadata: CommandMetadata;
     readonly params: ToggleStackTotalsParams;
     constructor(params: ToggleStackTotalsParams, metadata?: Partial<CommandMetadata>);
@@ -977,11 +977,11 @@ class ToggleStackTotalsCommand implements Command<ToggleStackTotalsParams> {
 ```ts
 /**
  * Command that changes the domain bounds on a continuous or datetime scale.
- * Targets a scale by scale aesthetic key.
+ * Targets a scale by scaled aesthetic.
  * Produces a revert command that restores the previous domain for undo support.
  */
 class SetScaleDomainCommand implements Command<SetScaleDomainParams> {
-    readonly type: "set-scale-domain";
+    readonly type: "setScaleDomain";
     readonly metadata: CommandMetadata;
     readonly params: SetScaleDomainParams;
     constructor(params: SetScaleDomainParams, metadata?: Partial<CommandMetadata>);
@@ -991,11 +991,11 @@ class SetScaleDomainCommand implements Command<SetScaleDomainParams> {
 
 /**
  * Command that sets the range of a discrete scale, such as the colors a color scale hands its groups.
- * Targets a scale by scale aesthetic key.
+ * Targets a scale by scaled aesthetic.
  * Produces a revert command that restores the previous range for undo support.
  */
 class SetScaleRangeCommand implements Command<SetScaleRangeParams> {
-    readonly type: "set-scale-range";
+    readonly type: "setScaleRange";
     readonly metadata: CommandMetadata;
     readonly params: SetScaleRangeParams;
     constructor(params: SetScaleRangeParams, metadata?: Partial<CommandMetadata>);
@@ -1005,11 +1005,11 @@ class SetScaleRangeCommand implements Command<SetScaleRangeParams> {
 
 /**
  * Command that toggles the reverse flag on a continuous, datetime or discrete scale.
- * Targets a scale by scale aesthetic key.
+ * Targets a scale by scaled aesthetic.
  * Produces a revert command that restores the previous reverse value for undo support.
  */
 class SetScaleReverseCommand implements Command<SetScaleReverseParams> {
-    readonly type: "set-scale-reverse";
+    readonly type: "setScaleReverse";
     readonly metadata: CommandMetadata;
     readonly params: SetScaleReverseParams;
     constructor(params: SetScaleReverseParams, metadata?: Partial<CommandMetadata>);
@@ -1019,11 +1019,11 @@ class SetScaleReverseCommand implements Command<SetScaleReverseParams> {
 
 /**
  * Command that changes the transformation (e.g. identity, log, sqrt) on a continuous scale.
- * Targets a scale by scale aesthetic key.
+ * Targets a scale by scaled aesthetic.
  * Produces a revert command that restores the previous transform for undo support.
  */
 class SetScaleTransformCommand implements Command<SetScaleTransformParams> {
-    readonly type: "set-scale-transform";
+    readonly type: "setScaleTransform";
     readonly metadata: CommandMetadata;
     readonly params: SetScaleTransformParams;
     constructor(params: SetScaleTransformParams, metadata?: Partial<CommandMetadata>);
@@ -1042,7 +1042,7 @@ class SetScaleTransformCommand implements Command<SetScaleTransformParams> {
  * Produces a revert command carrying the previous limits of exactly the axes this one touched.
  */
 class SetCoordLimitsCommand implements Command<SetCoordLimitsParams> {
-    readonly type: "set-coord-limits";
+    readonly type: "setCoordLimits";
     readonly metadata: CommandMetadata;
     readonly params: SetCoordLimitsParams;
     readonly target: EditTarget;
@@ -1057,7 +1057,7 @@ class SetCoordLimitsCommand implements Command<SetCoordLimitsParams> {
  * Produces a revert command that restores the previous inner radius for undo support.
  */
 class SetPolarInnerRadiusCommand implements Command<SetPolarInnerRadiusParams> {
-    readonly type: "set-polar-inner-radius";
+    readonly type: "setPolarInnerRadius";
     readonly metadata: CommandMetadata;
     readonly params: SetPolarInnerRadiusParams;
     readonly target: EditTarget;
@@ -1072,7 +1072,7 @@ class SetPolarInnerRadiusCommand implements Command<SetPolarInnerRadiusParams> {
  * Produces a revert command that restores the previous start angle for undo support.
  */
 class SetPolarStartAngleCommand implements Command<SetPolarStartAngleParams> {
-    readonly type: "set-polar-start-angle";
+    readonly type: "setPolarStartAngle";
     readonly metadata: CommandMetadata;
     readonly params: SetPolarStartAngleParams;
     readonly target: EditTarget;
@@ -1092,7 +1092,7 @@ class SetPolarStartAngleCommand implements Command<SetPolarStartAngleParams> {
  * updater, not nested config to merge into.
  */
 class SetContentTitleCommand implements Command<SetContentTitleParams> {
-    readonly type: "set-content-title";
+    readonly type: "setContentTitle";
     readonly metadata: CommandMetadata;
     readonly params: SetContentTitleParams;
     readonly target: EditTarget;
@@ -1107,7 +1107,7 @@ class SetContentTitleCommand implements Command<SetContentTitleParams> {
  * opaque values to the spec updater.
  */
 class SetContentSubtitleCommand implements Command<SetContentSubtitleParams> {
-    readonly type: "set-content-subtitle";
+    readonly type: "setContentSubtitle";
     readonly metadata: CommandMetadata;
     readonly params: SetContentSubtitleParams;
     readonly target: EditTarget;
@@ -1122,7 +1122,7 @@ class SetContentSubtitleCommand implements Command<SetContentSubtitleParams> {
  * opaque values to the spec updater.
  */
 class SetContentCaptionCommand implements Command<SetContentCaptionParams> {
-    readonly type: "set-content-caption";
+    readonly type: "setContentCaption";
     readonly metadata: CommandMetadata;
     readonly params: SetContentCaptionParams;
     readonly target: EditTarget;
@@ -1135,7 +1135,7 @@ class SetContentCaptionCommand implements Command<SetContentCaptionParams> {
  * separately by `showSource`, so clearing the text and hiding the slot are distinct edits.
  */
 class SetContentSourceCommand implements Command<SetContentSourceParams> {
-    readonly type: "set-content-source";
+    readonly type: "setContentSource";
     readonly metadata: CommandMetadata;
     readonly params: SetContentSourceParams;
     readonly target: EditTarget;
@@ -1148,7 +1148,7 @@ class SetContentSourceCommand implements Command<SetContentSourceParams> {
  * hidden and shown again without the user retyping its content.
  */
 class ToggleContentVisibilityCommand implements Command<ToggleContentVisibilityParams> {
-    readonly type: "toggle-content-visibility";
+    readonly type: "toggleContentVisibility";
     readonly metadata: CommandMetadata;
     readonly params: ToggleContentVisibilityParams;
     constructor(params: ToggleContentVisibilityParams, metadata?: Partial<CommandMetadata>);
@@ -1161,7 +1161,7 @@ class ToggleContentVisibilityCommand implements Command<ToggleContentVisibilityP
  * When set to null, the axis uses its default label derived from the data mapping.
  */
 class SetAxisLabelCommand implements Command<SetAxisLabelParams> {
-    readonly type: "set-axis-label";
+    readonly type: "setAxisLabel";
     readonly metadata: CommandMetadata;
     readonly params: SetAxisLabelParams;
     constructor(params: SetAxisLabelParams, metadata?: Partial<CommandMetadata>);
@@ -1173,7 +1173,7 @@ class SetAxisLabelCommand implements Command<SetAxisLabelParams> {
  * Sets the axis position, left/right for y-axis, top/bottom for x-axis.
  */
 class SetAxisPositionCommand implements Command<SetAxisPositionParams> {
-    readonly type: "set-axis-position";
+    readonly type: "setAxisPosition";
     readonly metadata: CommandMetadata;
     readonly params: SetAxisPositionParams;
     constructor(params: SetAxisPositionParams, metadata?: Partial<CommandMetadata>);
@@ -1185,7 +1185,7 @@ class SetAxisPositionCommand implements Command<SetAxisPositionParams> {
  * Controls how ticks are displayed on an axis (e.g. all ticks vs only the edges).
  */
 class SetAxisTickModeCommand implements Command<SetAxisTickModeParams> {
-    readonly type: "set-axis-tick-mode";
+    readonly type: "setAxisTickMode";
     readonly metadata: CommandMetadata;
     readonly params: SetAxisTickModeParams;
     constructor(params: SetAxisTickModeParams, metadata?: Partial<CommandMetadata>);
@@ -1198,7 +1198,7 @@ class SetAxisTickModeCommand implements Command<SetAxisTickModeParams> {
  * When hidden, the axis line remains visible but tick marks and their labels are removed.
  */
 class SetAxisTicksVisibilityCommand implements Command<SetAxisTicksVisibilityParams> {
-    readonly type: "set-axis-ticks-visibility";
+    readonly type: "setAxisTicksVisibility";
     readonly metadata: CommandMetadata;
     readonly params: SetAxisTicksVisibilityParams;
     constructor(params: SetAxisTicksVisibilityParams, metadata?: Partial<CommandMetadata>);
@@ -1210,7 +1210,7 @@ class SetAxisTicksVisibilityCommand implements Command<SetAxisTicksVisibilityPar
  * Toggles the entire axis visibility (line, ticks, and labels) for a given axis target.
  */
 class SetAxisVisibilityCommand implements Command<SetAxisVisibilityParams> {
-    readonly type: "set-axis-visibility";
+    readonly type: "setAxisVisibility";
     readonly metadata: CommandMetadata;
     readonly params: SetAxisVisibilityParams;
     constructor(params: SetAxisVisibilityParams, metadata?: Partial<CommandMetadata>);
@@ -1222,7 +1222,7 @@ class SetAxisVisibilityCommand implements Command<SetAxisVisibilityParams> {
  * Controls grid line visibility for one axis.
  */
 class SetGridVisibilityCommand implements Command<SetGridVisibilityParams> {
-    readonly type: "set-grid-visibility";
+    readonly type: "setGridVisibility";
     readonly metadata: CommandMetadata;
     readonly params: SetGridVisibilityParams;
     constructor(params: SetGridVisibilityParams, metadata?: Partial<CommandMetadata>);
@@ -1239,7 +1239,7 @@ class SetGridVisibilityCommand implements Command<SetGridVisibilityParams> {
  * spec already held, a revert being built through this same constructor.
  */
 class SetGridLineStyleCommand implements Command<SetGridLineStyleParams> {
-    readonly type: "set-grid-line-style";
+    readonly type: "setGridLineStyle";
     readonly metadata: CommandMetadata;
     readonly params: SetGridLineStyleParams;
     constructor(params: SetGridLineStyleParams, metadata?: Partial<CommandMetadata>);
@@ -1253,7 +1253,7 @@ class SetGridLineStyleCommand implements Command<SetGridLineStyleParams> {
  * legend and `center` for a vertical one.
  */
 class SetLegendAlignCommand implements Command<SetLegendAlignParams> {
-    readonly type: "set-legend-align";
+    readonly type: "setLegendAlign";
     readonly metadata: CommandMetadata;
     readonly params: SetLegendAlignParams;
     readonly target: EditTarget;
@@ -1269,7 +1269,7 @@ class SetLegendAlignCommand implements Command<SetLegendAlignParams> {
  * Direct labels leave the legend region empty, so this moves layout as well as paint.
  */
 class SetLegendDisplayCommand implements Command<SetLegendDisplayParams> {
-    readonly type: "set-legend-display";
+    readonly type: "setLegendDisplay";
     readonly metadata: CommandMetadata;
     readonly params: SetLegendDisplayParams;
     readonly target: EditTarget;
@@ -1282,7 +1282,7 @@ class SetLegendDisplayCommand implements Command<SetLegendDisplayParams> {
  * changed, so a held gesture folded into one undo step returns to where it began.
  */
 class SetLegendPlacementCommand implements Command<SetLegendPlacementParams> {
-    readonly type: "set-legend-placement";
+    readonly type: "setLegendPlacement";
     readonly metadata: CommandMetadata;
     readonly params: SetLegendPlacementParams;
     readonly target: EditTarget;
@@ -1295,7 +1295,7 @@ class SetLegendPlacementCommand implements Command<SetLegendPlacementParams> {
  * 'auto' lets the renderer choose the best position; 'none' hides the legend entirely.
  */
 class SetLegendPositionCommand implements Command<SetLegendPositionParams> {
-    readonly type: "set-legend-position";
+    readonly type: "setLegendPosition";
     readonly metadata: CommandMetadata;
     readonly params: SetLegendPositionParams;
     readonly target: EditTarget;
@@ -1308,7 +1308,7 @@ class SetLegendPositionCommand implements Command<SetLegendPositionParams> {
  * When set to 'none', no headline is rendered above/below the chart.
  */
 class SetHeadlineShowCommand implements Command<SetHeadlineShowParams> {
-    readonly type: "set-headline-show";
+    readonly type: "setHeadlineShow";
     readonly metadata: CommandMetadata;
     readonly params: SetHeadlineShowParams;
     readonly target: EditTarget;
@@ -1321,7 +1321,7 @@ class SetHeadlineShowCommand implements Command<SetHeadlineShowParams> {
  * 'auto' lets the renderer pick a size based on available space.
  */
 class SetHeadlineSizeCommand implements Command<SetHeadlineSizeParams> {
-    readonly type: "set-headline-size";
+    readonly type: "setHeadlineSize";
     readonly metadata: CommandMetadata;
     readonly params: SetHeadlineSizeParams;
     readonly target: EditTarget;
@@ -1333,7 +1333,7 @@ class SetHeadlineSizeCommand implements Command<SetHeadlineSizeParams> {
  * Sets where the headline is placed relative to the chart (e.g. above, below).
  */
 class SetHeadlinePositionCommand implements Command<SetHeadlinePositionParams> {
-    readonly type: "set-headline-position";
+    readonly type: "setHeadlinePosition";
     readonly metadata: CommandMetadata;
     readonly params: SetHeadlinePositionParams;
     readonly target: EditTarget;
@@ -1346,7 +1346,7 @@ class SetHeadlinePositionCommand implements Command<SetHeadlinePositionParams> {
  * Determines what reference point is used to show change in the headline metric.
  */
 class SetHeadlineCompareWithCommand implements Command<SetHeadlineCompareWithParams> {
-    readonly type: "set-headline-compare-with";
+    readonly type: "setHeadlineCompareWith";
     readonly metadata: CommandMetadata;
     readonly params: SetHeadlineCompareWithParams;
     readonly target: EditTarget;
@@ -1359,7 +1359,7 @@ class SetHeadlineCompareWithCommand implements Command<SetHeadlineCompareWithPar
  * 'auto' lets the renderer choose precision based on the data range.
  */
 class SetNumberFormatDecimalsCommand implements Command<SetNumberFormatDecimalsParams> {
-    readonly type: "set-number-format-decimals";
+    readonly type: "setNumberFormatDecimals";
     readonly metadata: CommandMetadata;
     readonly params: SetNumberFormatDecimalsParams;
     readonly target: EditTarget;
@@ -1372,7 +1372,7 @@ class SetNumberFormatDecimalsCommand implements Command<SetNumberFormatDecimalsP
  * 'auto' lets the renderer pick the most readable abbreviation based on value magnitude.
  */
 class SetNumberFormatAbbreviationCommand implements Command<SetNumberFormatAbbreviationParams> {
-    readonly type: "set-number-format-abbreviation";
+    readonly type: "setNumberFormatAbbreviation";
     readonly metadata: CommandMetadata;
     readonly params: SetNumberFormatAbbreviationParams;
     readonly target: EditTarget;
@@ -1404,7 +1404,7 @@ class SetNumberFormatAbbreviationCommand implements Command<SetNumberFormatAbbre
  * index, so undo restores both the entry and its position in the cascade.
  */
 class SetStyleRuleCommand implements Command<SetStyleRuleParams> {
-    readonly type: "set-style-rule";
+    readonly type: "setStyleRule";
     readonly metadata: CommandMetadata;
     readonly params: SetStyleRuleParams;
     constructor(params: SetStyleRuleParams, metadata?: Partial<CommandMetadata>);
@@ -1420,7 +1420,7 @@ type StyleRuleEdit = WithNullablePaint<StyleRule>;
  * One write returns that write's revert. More than one returns a {@link SequenceCommand}, so undo is one step.
  */
 class SetObservationsColorCommand implements Command<SetObservationsColorParams> {
-    readonly type: "set-observations-color";
+    readonly type: "setObservationsColor";
     readonly metadata: CommandMetadata;
     readonly params: SetObservationsColorParams;
     constructor(params: SetObservationsColorParams, metadata?: Partial<CommandMetadata>);
@@ -1439,7 +1439,7 @@ const readColorChoices: (scale: SceneScale | undefined) => readonly string[];
  * Reverts with a {@link RemoveHighlightCommand} for the same id.
  */
 class AddHighlightCommand implements Command<AddHighlightParams> {
-    readonly type: "add-highlight";
+    readonly type: "addHighlight";
     readonly metadata: CommandMetadata;
     readonly params: AddHighlightParams;
     /**
@@ -1468,7 +1468,7 @@ type AddHighlightOptions = {
     predicate: Predicate;
     /** Identity of the highlight; minted when omitted. */
     id?: string;
-    /** Visual unit a match expands to; defaults to `data-point`. */
+    /** Visual unit a match expands to; defaults to `observation`. */
     scope?: MatchScope;
     /** Restrict evaluation to a single layer; omit to evaluate against every layer. */
     layerId?: string;
@@ -1483,7 +1483,7 @@ type AddHighlightOptions = {
  * it occupied, so undo restores highlight order rather than appending.
  */
 class RemoveHighlightCommand implements Command<RemoveHighlightParams> {
-    readonly type: "remove-highlight";
+    readonly type: "removeHighlight";
     readonly metadata: CommandMetadata;
     readonly params: RemoveHighlightParams;
     constructor(params: RemoveHighlightParams, metadata?: Partial<CommandMetadata>);
@@ -1498,7 +1498,7 @@ class RemoveHighlightCommand implements Command<RemoveHighlightParams> {
  * stays visible in the spec; `'desaturate'` grays the marks out instead.
  */
 class SetHighlightDimStyleCommand implements Command<SetHighlightDimStyleParams> {
-    readonly type: "set-highlight-dim-style";
+    readonly type: "setHighlightDimStyle";
     readonly metadata: CommandMetadata;
     readonly params: SetHighlightDimStyleParams;
     constructor(params: SetHighlightDimStyleParams, metadata?: Partial<CommandMetadata>);
@@ -1532,7 +1532,7 @@ const findEquivalentHighlight: (highlights: readonly ResolvedHighlightSpec[], ca
  * and to know which scopes would only repaint what is already there.
  *
  * A predicate names the observations a highlight was written from; a keyed scope carries each match onward,
- * so a `'series'` highlight covers observations its predicate never matched. Both halves run through what
+ * so a `'group'` highlight covers observations its predicate never matched. Both halves run through what
  * the highlights compile stage itself uses — the same predicate compiler, and
  * {@link readScopeKey} for how far a scope reaches — so this and the canvas cannot part ways.
  */
@@ -1554,7 +1554,7 @@ const findHighlightsAtObservation: ({ layer, highlights, observation, parsingLoc
  * same rule, so one command undoes both halves of a replacement.
  */
 class AddAnnotationCommand<TKind extends AnnotationKind = AnnotationKind> implements Command<AddAnnotationParams<TKind>> {
-    readonly type: "add-annotation";
+    readonly type: "addAnnotation";
     readonly metadata: CommandMetadata;
     readonly params: AddAnnotationParams<TKind>;
     constructor(options: AddAnnotationOptions<TKind>, metadata?: Partial<CommandMetadata>);
@@ -1590,7 +1590,7 @@ type AddAnnotationOptions<TKind extends AnnotationKind = AnnotationKind> = {
  * when every patched field already holds the value being written.
  */
 class UpdateAnnotationCommand<TKind extends AnnotationKind = AnnotationKind> implements Command<UpdateAnnotationParams<TKind>> {
-    readonly type: "update-annotation";
+    readonly type: "updateAnnotation";
     readonly metadata: CommandMetadata;
     readonly params: UpdateAnnotationParams<TKind>;
     constructor(params: UpdateAnnotationParams<TKind>, metadata?: Partial<CommandMetadata>);
@@ -1609,7 +1609,7 @@ type AnnotationPatch<TKind extends AnnotationKind = AnnotationKind> = Partial<Om
  * panel is not invertible. A move is relative: applying it twice moves twice.
  */
 class MoveAnnotationCommand implements Command<MoveAnnotationParams> {
-    readonly type: "move-annotation";
+    readonly type: "moveAnnotation";
     readonly metadata: CommandMetadata;
     readonly params: MoveAnnotationParams;
     constructor(params: MoveAnnotationParams, metadata?: Partial<CommandMetadata>);
@@ -1625,7 +1625,7 @@ class MoveAnnotationCommand implements Command<MoveAnnotationParams> {
  * it occupied, so undo restores paint order rather than appending.
  */
 class RemoveAnnotationCommand implements Command<RemoveAnnotationParams> {
-    readonly type: "remove-annotation";
+    readonly type: "removeAnnotation";
     readonly metadata: CommandMetadata;
     readonly params: RemoveAnnotationParams;
     constructor(params: RemoveAnnotationParams, metadata?: Partial<CommandMetadata>);
@@ -1639,7 +1639,7 @@ class RemoveAnnotationCommand implements Command<RemoveAnnotationParams> {
  * whole, like {@link SetStyleRuleCommand}; the revert carries what each held before.
  */
 class SetDifferenceArrowStyleCommand implements Command<SetDifferenceArrowStyleParams> {
-    readonly type: "set-difference-arrow-style";
+    readonly type: "setDifferenceArrowStyle";
     readonly metadata: CommandMetadata;
     readonly params: SetDifferenceArrowStyleParams;
     constructor(params: SetDifferenceArrowStyleParams, metadata?: Partial<CommandMetadata>);
@@ -1782,7 +1782,7 @@ const OBSERVATION_ATTACHMENT_KINDS: readonly ["sticker", "pinnedNumber", "commen
  * layer cannot name it; nothing is offered rather than a target matching an observation's siblings.
  *
  * Every target is read back before it is offered and must still name the observation it was built from.
- * Rows value-identical to it share its predicate at every scope, and a `data-point` target carries the row it
+ * Rows value-identical to it share its predicate at every scope, and a `observation` target carries the row it
  * was built from to take that one alone. A value the column's format rewrites on the way back leaves the
  * observation unnameable. The read-back scans no rows where the observation's own value reads back, so the
  * pointer can ask this every frame.
@@ -2554,17 +2554,17 @@ type AddLayerParams = {
     index?: number;
 };
 
+/** Name of a built-in aesthetic that can be mapped, such as `'x'` or `'color'`. */
+type AestheticKey = keyof KnownAesthetics;
+
 /** A row showing one aesthetic's value. */
-interface AesTooltipField {
+interface AestheticTooltipField {
     /** Row label. When omitted, the label is resolved from the mapped variable's friendly name. */
     readonly key?: string;
-    readonly aes: string;
+    readonly aesthetic: string;
     /** Heads the tooltip with this value instead of a row, for geoms without a categorical `x` (a sankey's node). */
     readonly heading?: boolean;
 }
-
-/** Name of a built-in aesthetic that can be mapped, such as `'x'` or `'color'`. */
-type AestheticKey = keyof KnownAesthetics;
 
 /**
  * Aesthetic value can be:
@@ -2614,7 +2614,7 @@ type AggregationFunction = 'count' | 'sum' | 'mean' | 'median' | 'mode' | 'min' 
  * eight edge/corner points; `center` is the box center. Omitted means the geom-natural
  * point (e.g. a bar's top-edge midpoint).
  */
-type AnchorAlign = 'center' | 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+type AnchorAlign = 'center' | 'top' | 'right' | 'bottom' | 'left' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
 
 /**
  * What a geom reads besides the observation itself to place an anchor. `position` is the sole
@@ -2748,7 +2748,7 @@ interface AnnotationPointAnchor {
  * pass overwrites them once the target's box is known.
  */
 interface AnnotationRefDeferral {
-    type: 'annotation-ref';
+    type: 'annotationRef';
     /** Explicit id of the target annotation. */
     ref: string;
     /** Which point of the target's box to resolve to; defaulted to `'center'` at compile time. */
@@ -2829,7 +2829,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
         readonly axis: "y";
         readonly role: "max";
         readonly valueKind: "value";
-        readonly aes: "y";
+        readonly aesthetic: "y";
     }];
     readonly aesthetics: readonly [{
         readonly kind: "visual";
@@ -2851,7 +2851,7 @@ class AreaGeom extends Geom<AreaGeomParams> {
     readonly resolvePercentageValueStrategy: (layer: SceneLayer) => PercentageValueStrategy;
     readonly composite = true;
     readonly legend: LegendPolicy;
-    readonly highlightStrategy: "overlay-anchor";
+    readonly highlightStrategy: "overlayAnchor";
     /** The band between `yMin` and the value is painted, so a cursor inside it is on the observation. */
     readonly spatialKind: SpatialKind;
     /**
@@ -2905,7 +2905,7 @@ interface ArrowSpec {
 }
 
 /** Whether an arrow end carries an arrowhead. */
-type ArrowheadStyle = 'none' | 'line-arrow';
+type ArrowheadStyle = 'none' | 'lineArrow';
 
 /** The shape a declaration in each domain takes as authored. */
 interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
@@ -3096,7 +3096,7 @@ class BarGeom extends Geom<BarGeomParams> {
         readonly axis: "y";
         readonly role: "max";
         readonly valueKind: "value";
-        readonly aes: "y";
+        readonly aesthetic: "y";
     }];
     readonly aesthetics: readonly [{
         readonly kind: "visual";
@@ -3111,7 +3111,7 @@ class BarGeom extends Geom<BarGeomParams> {
     readonly scaleConstraints: ScaleConstraints;
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip", "polar"];
-    readonly highlightStrategy: "observation-rerender";
+    readonly highlightStrategy: "observationRerender";
     readonly supportedCoordTypes: readonly ["cartesian", "polar", "flip"];
     readonly spatialKind: SpatialKind;
     /** Stacked/filled segments read best with centered labels, matching the auto placement for stacks. */
@@ -3173,25 +3173,6 @@ interface BaseCoordParams {
  */
 type BorderRadiusToken = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
-/**
- * The "Made with Graphy" provenance badge. A discovery signal (not a lock) — distinct from
- * `source`, which is the user's own attribution.
- */
-interface BrandMarkConfig {
-    enabled: boolean;
-    placement: BrandMarkPlacement;
-    variant: BrandMarkVariant;
-}
-
-/** Where the Graphy provenance badge anchors on the chart frame. */
-type BrandMarkPlacement = 'footer' | 'header';
-
-/**
- * Visual treatment for the badge when the frame is large enough for the full pill.
- * Below 200 px wide the renderer always collapses to the circular mini form regardless.
- */
-type BrandMarkVariant = 'full' | 'mini';
-
 interface BuildObservationsTargetInput {
     layer: SceneLayer;
     observationIndex: number;
@@ -3200,7 +3181,7 @@ interface BuildObservationsTargetInput {
 }
 
 /**
- * Color interpolation space for a ramp's stops. `'lab'` is the engine default and near uniform to the
+ * Color interpolation space for a colormap's stops. `'lab'` is the engine default and near uniform to the
  * eye; `'rgb'` reproduces d3's own default output; `'hcl'` matches Vega-Lite's.
  */
 const COLOR_INTERPOLATION_SPACES: readonly ["rgb", "lab", "hcl", "hsl"];
@@ -3231,30 +3212,6 @@ interface CartesianCoordSystem {
 interface CategoricalValueFormat {
     type: 'text';
 }
-
-/** The part of a chart its type owns, restored verbatim by a revert. */
-interface ChartTypeState {
-    coords: ResolvedCoordSpec;
-    layers: ResolvedLayerSpec[];
-    scales: ResolvedScaleSpecBase[];
-    mapping: AesMapping;
-}
-
-/**
- * The facts a chart's type names at once. Under polar `theta` tells a pie from a rose, `position` from
- * a race-track and `innerRadius` from a donut.
- */
-type ChartTypeSummary = {
-    coordType: 'cartesian' | 'flip';
-    geom: GeomName;
-    position: PositionAdjustment;
-} | {
-    coordType: 'polar';
-    geom: GeomName;
-    position: PositionAdjustment;
-    theta: PolarTheta;
-    innerRadius: number;
-} | ComboChartTypeSummary;
 
 /** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
 type ChromeStyleSelect = Extract<StyleSelect, {
@@ -3296,7 +3253,7 @@ type ColorScheme = 'light' | 'dark';
  * A chart drawn as two layers so its halves can differ: bars under a line, or lines throughout. The
  * geoms are the {@link ComboType}'s to name, which is why this arm carries no `geom` of its own.
  */
-type ComboChartTypeSummary = {
+type ComboGraphTypeSummary = {
     coordType: 'cartesian';
     comboType: ComboType;
 };
@@ -3419,7 +3376,7 @@ type ContinuousScaleOptions = {
      * aesthetics (x, y). A numeric `[min, max]`; aesthetic-specific defaults apply when omitted
      * (size `[4, 20]`, alpha `[0.1, 1]`, strokeWidth `[1, 4]`).
      *
-     * A continuous `color` scale takes a color ramp instead — see {@link ColorContinuousScaleOptions}.
+     * A continuous `color` scale takes a colormap instead — see {@link ColorContinuousScaleOptions}.
      * @example scale.size.continuous({ range: [2, 30] })
      */
     range?: [number, number];
@@ -3436,15 +3393,15 @@ type ContinuousScaleSpec = {
     domainMin?: number | null;
     domainMax?: number | null;
     /**
-     * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a ramp of
+     * Output range. A numeric `[min, max]` for magnitude aesthetics (size, alpha, strokeWidth); a colormap of
      * two-or-more color strings for a continuous `color` scale, interpolated in the
      * {@link ContinuousScaleSpec.interpolate} space. A color scale with none takes the theme's sequential
-     * list, or its diverging list when `domainMid` is set, else the built-in ramp of that class.
+     * list, or its diverging list when `domainMid` is set, else the built-in colormap of that class.
      */
     range?: ReadonlyArray<number | string> | null;
-    /** Interpolation space for a color ramp's stops. Inert for non-color aesthetics. */
+    /** Interpolation space for a colormap's stops. Inert for non-color aesthetics. */
     interpolate?: ColorInterpolationSpace;
-    /** Diverging midpoint — pins a color ramp's neutral stop to this value. Inert for non-color aesthetics. */
+    /** Diverging midpoint — pins a colormap's neutral stop to this value. Inert for non-color aesthetics. */
     domainMid?: number | null;
     /** Symmetrise the domain about `domainMid`. Defaults to `true` when `domainMid` is set; inert otherwise. */
     symmetric?: boolean;
@@ -3559,12 +3516,12 @@ type DashArray = readonly number[];
 type DataLabelAlign = 'start' | 'center' | 'end';
 
 /**
- * Value-axis anchors. `'panel-start'`/`'panel-end'` resolve against the panel instead of the
+ * Value-axis anchors. `'panelStart'`/`'panelEnd'` resolve against the panel instead of the
  * geom's box, so labels sit flush at the chart edge regardless of the geom's length. They stay
  * sign-aware like `'end'` and always inset inward, ignoring `position` on the value axis — past
  * the panel edge is off-canvas.
  */
-type DataLabelJustify = DataLabelAlign | 'panel-start' | 'panel-end';
+type DataLabelJustify = DataLabelAlign | 'panelStart' | 'panelEnd';
 
 /** Looks up how a layer's data labels are placed, over the built-in geoms folded with a `plugins` array. */
 interface DataLabelPlacementResolver {
@@ -3741,7 +3698,7 @@ interface DiagnosticsSink {
 type DifferenceArrowAnnotationStyleDeclarations = VocabularyDeclarations<(typeof STYLE_TARGETS.annotation.children.differenceArrow)['vocabulary']>;
 
 /** What a difference arrow's label measures: the raw gap, the relative change, or one value as a share of the other. */
-type DifferenceArrowLabelKind = 'absolute-difference' | 'relative-difference' | 'proportion';
+type DifferenceArrowLabelKind = 'absoluteDifference' | 'relativeDifference' | 'proportion';
 
 /** The vocabulary of a difference arrow's label. */
 type DifferenceArrowLabelStyleDeclarations = VocabularyDeclarations<(typeof STYLE_TARGETS.annotation.children.differenceArrow.children.label)['vocabulary']>;
@@ -3853,7 +3810,7 @@ interface GeomCompileResult {
     /** The reparameterized dataset (may have new computed variables) */
     data: Dataset;
     /** Any mapping overrides produced by the geom */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
 }
 
 /** Input to {@link Geom.compile}: the layer's post-stat dataset, effective mapping and geom params. */
@@ -3861,7 +3818,7 @@ interface GeomCompilerInput {
     /** The dataset after stat transformation */
     data: Dataset;
     /** The effective mapping for the layer (may carry the geom's custom positional aesthetics). */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     /** Geom-specific params */
     params: ResolvedLayerSpec['params'];
     /** The active coord type, for geoms whose defaults depend on the band's shape. */
@@ -3895,9 +3852,9 @@ type GeomKindReaders = {
 /** Context a geom's `validateMapping` hook receives to assert a bespoke mapping requirement. */
 interface GeomMappingValidationInput {
     /** The layer's effective mapping (root + layer merged). */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     /** Aesthetics the layer's stat computes at compile time, which count as "provided". */
-    computedVariables: ReadonlySet<string>;
+    computedAesthetics: ReadonlySet<string>;
     /** The layer's dataset before its stat runs, for a requirement on a mapped column's type. */
     data: Dataset;
 }
@@ -4008,6 +3965,49 @@ interface GeomSummaries {
 type GeomVocabulary = {
     [Property in KeysOfUnion<NodeVocabularies_2<GeomRoot>> & StyleProperty]: NodeVocabularies_2<GeomRoot> extends infer Vocab ? Vocab extends Record<Property, infer Domain extends StyleDomain> ? Domain : never : never;
 };
+
+/** The part of a chart its type owns, restored verbatim by a revert. */
+interface GraphTypeState {
+    coords: ResolvedCoordSpec;
+    layers: ResolvedLayerSpec[];
+    scales: ResolvedScaleSpecBase[];
+    mapping: AestheticMapping;
+}
+
+/**
+ * The facts a chart's type names at once. Under polar `theta` tells a pie from a rose, `position` from
+ * a race-track and `innerRadius` from a donut.
+ */
+type GraphTypeSummary = {
+    coordType: 'cartesian' | 'flip';
+    geom: GeomName;
+    position: PositionAdjustment;
+} | {
+    coordType: 'polar';
+    geom: GeomName;
+    position: PositionAdjustment;
+    theta: PolarTheta;
+    innerRadius: number;
+} | ComboGraphTypeSummary;
+
+/**
+ * The "Made with Graphy" badge, a discovery signal rather than a lock. Distinct from `source`, the
+ * user's own attribution.
+ */
+interface GraphyBadgeConfig {
+    visible: boolean;
+    position: GraphyBadgePosition;
+    variant: GraphyBadgeVariant;
+}
+
+/** Where the Graphy badge sits on the chart frame. */
+type GraphyBadgePosition = 'footer' | 'header';
+
+/**
+ * The badge's form when the frame is wide enough for the full pill. Below 200 px wide the renderer
+ * draws the mini circle regardless.
+ */
+type GraphyBadgeVariant = 'full' | 'mini';
 
 /**
  * Axes a grid command writes. `both` is one command under one edit target, so a drag over the whole
@@ -4152,11 +4152,11 @@ interface HighlightComposition {
      * draw the highlighted geoms at full strength; `null` when no re-render pass applies.
      */
     matchedLayer: SceneLayer | null;
-    /** Observations to paint as overlay markers under `'overlay-anchor'`. Empty for other strategies. */
+    /** Observations to paint as overlay markers under `'overlayAnchor'`. Empty for other strategies. */
     overlayCandidates: HighlightOverlayCandidate[];
 }
 
-/** Observation that qualifies for an overlay marker (`'overlay-anchor'` dot + value label). */
+/** Observation that qualifies for an overlay marker (`'overlayAnchor'` dot + value label). */
 interface HighlightOverlayCandidate {
     observation: Observation;
     /**
@@ -4170,14 +4170,14 @@ interface HighlightOverlayCandidate {
  * `highlightStrategy` and stamped onto `SceneLayer.highlight.strategy` by
  * the layer compiler. Tells the renderer how to consume {@link HighlightComposition}:
  *
- * - `'observation-rerender'`: re-render `composition.matchedLayer` through the same geom renderer
+ * - `'observationRerender'`: re-render `composition.matchedLayer` through the same geom renderer
  *   (on top of the dimmed base), no overlays. Used by per-observation surface geoms (bar, rule).
- * - `'overlay-anchor'`: series-scope matches still go through the `matchedLayer` re-render pass,
- *   but data-point / x-value matches surface instead as a dot + value label per
+ * - `'overlayAnchor'`: series-scope matches still go through the `matchedLayer` re-render pass,
+ *   but observation and xValue matches surface instead as a dot + value label per
  *   `composition.overlayCandidates` entry, placed at the geom's own anchor for that observation.
  *   Used by line, area, point.
  */
-type HighlightStrategy = 'observation-rerender' | 'overlay-anchor';
+type HighlightStrategy = 'observationRerender' | 'overlayAnchor';
 
 interface HighlightsAtObservationInput {
     /** The layer the observation belongs to; a highlight scoped to another one never covers it. */
@@ -4196,15 +4196,15 @@ interface HighlightsAtObservationInput {
  * Three kinds are *derived*: the pipeline resolves them from the layer's position/mapping, so the geom
  * names a role, not a column.
  * - `'index'`: positional index into the dataset — the fallback when no field is stable.
- * - `'x-group'`: the columns backing the layer's x + group aesthetics, resolved per chart from the
+ * - `'xGroup'`: the columns backing the layer's x + group aesthetics, resolved per chart from the
  *   mapping. The default for standard cartesian geoms, which can't name those columns themselves.
- * - `'x-y'`: the columns backing both position aesthetics, for a geom whose observations partition a
+ * - `'xY'`: the columns backing both position aesthetics, for a geom whose observations partition a
  *   grid rather than a series — a tile's x repeats down its column, with no group to tell those apart.
  *
  * `{ variable }` is *explicit*: identity is one data column the geom owns and names directly, for a
  * geom keyed by its own id (sankey nodes, voronoi sites) where the x+series roles don't apply.
  */
-type IdentityKey = 'index' | 'x-group' | 'x-y' | {
+type IdentityKey = 'index' | 'xGroup' | 'xY' | {
     readonly variable: string;
 };
 
@@ -4254,7 +4254,7 @@ interface InferredScaleSpec {
  * The order staggered point geoms enter in: reading order along the main axis, or by size for
  * bubbles, which falls back to main-axis order for points with no size.
  */
-type IntroStaggerOrder = 'main-axis' | 'value-ascending' | 'value-descending';
+type IntroStaggerOrder = 'mainAxis' | 'valueAscending' | 'valueDescending';
 
 /**
  * Any value that survives a `JSON.stringify` / `JSON.parse` round-trip unchanged.
@@ -4489,7 +4489,7 @@ class LineGeom extends Geom<LineGeomParams> {
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
     readonly composite = true;
     readonly legend: LegendPolicy;
-    readonly highlightStrategy: "overlay-anchor";
+    readonly highlightStrategy: "overlayAnchor";
     readonly spatialKind: SpatialKind;
     readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
     readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
@@ -4564,7 +4564,7 @@ interface MappableAesthetic<Key extends AestheticKey = AestheticKey> {
 
 /** The mapping and everything resolved from it, restored verbatim by a revert. */
 interface MappingState {
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     scales: ResolvedScaleSpecBase[];
     layers: ResolvedLayerSpec[];
 }
@@ -4572,11 +4572,11 @@ interface MappingState {
 /**
  * How far a match reaches from the observations a predicate hits.
  *
- * - `data-point`: those observations alone; siblings in the same series stay out.
- * - `series`: every observation in the same series (group) as a match.
- * - `x-value`: every observation sharing a match's x value, a slice across series.
+ * - `observation`: those observations alone; siblings in the same group stay out.
+ * - `group`: every observation in the same group as a match.
+ * - `xValue`: every observation sharing a match's x value, a slice across groups.
  */
-type MatchScope = 'data-point' | 'series' | 'x-value';
+type MatchScope = 'observation' | 'group' | 'xValue';
 
 /**
  * Resolved mean stat spec.
@@ -4699,7 +4699,7 @@ interface ObservationAnchorSpec {
  * runtime pass places the anchor on the boxes as painted.
  */
 interface ObservationBoxDeferral {
-    type: 'observation-box';
+    type: 'observationBox';
     observations: ObservationRef[];
     /** A point anchor's box-point; absent on a region. */
     align?: AnchorAlign;
@@ -4811,7 +4811,7 @@ interface PinnedNumberAnnotationSpec {
  * A pixel nudge.
  */
 interface PixelOffsetDeferral {
-    type: 'px-offset';
+    type: 'pxOffset';
     /** Horizontal nudge in device pixels, rightward positive. */
     x: number;
     /** Vertical nudge in device pixels, downward positive (top-left space). */
@@ -4842,7 +4842,7 @@ interface PlacedDataLabel {
     position: ResolvedDataLabelPosition;
     /**
      * The fill an `inside` label sits on, at the opacity it is painted with, so it may be translucent: the
-     * renderer composites it over the frame before picking the ink against it. Absent where the label sits on
+     * renderer composites it over the frame before picking the text color against it. Absent where the label sits on
      * no fill of its own.
      */
     backdropColor?: string;
@@ -4983,14 +4983,14 @@ class PointGeom extends Geom<PointGeomParams> {
         readonly name: "alpha";
     }];
     readonly summaries: GeomSummaries;
-    readonly highlightStrategy: "overlay-anchor";
+    readonly highlightStrategy: "overlayAnchor";
     readonly dataLabelCoordTypes: readonly ["cartesian", "flip"];
     readonly resolveAnchorPosition: (observation: Observation, { coordSystem }: AnchorContext) => AnchorPosition | null;
     /**
      * A point's label prints the bound `size` it is drawn at, but its position still stands for y — so an
      * annotation measuring it keeps the segment-y default.
      */
-    readonly resolveValueSource: (mapping: AesMapping, purpose: ValueSourcePurpose) => AestheticValue | null;
+    readonly resolveValueSource: (mapping: AestheticMapping, purpose: ValueSourcePurpose) => AestheticValue | null;
     readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
     compile({ data }: GeomCompilerInput): GeomCompileResult;
 }
@@ -5043,7 +5043,7 @@ interface PolarCoordSystem {
     /**
      * Angular offset of the first position, in radians (the spec's `startAngle` converted from degrees).
      * The angular transform bakes it into the `x` column and the guide renderer reuses it, so painted
-     * marks, spokes and rim labels share one origin.
+     * geoms, spokes and tick labels share one origin.
      */
     startAngle: number;
     /**
@@ -5257,9 +5257,9 @@ interface ResolvedConfigSpec {
 /**
  * Resolved content configuration (all fields populated).
  *
- * `null` on a text slot means "no content set". The matching `isXVisible` flag
- * is a separate visibility toggle that lets a value be preserved across show /
- * hide cycles without losing the text the user typed.
+ * `null` on a text slot means "no content set". The matching `show*` flag is a
+ * separate visibility toggle that lets a value be preserved across show / hide
+ * cycles without losing the text the user typed.
  */
 interface ResolvedContentSpec {
     title: TextContent | null;
@@ -5270,16 +5270,8 @@ interface ResolvedContentSpec {
     showCaption: boolean;
     source: SourceContent | null;
     showSource: boolean;
-    /**
-     * Structured provenance-badge config. Canonical source of truth for enabled /
-     * placement / variant after {@link resolveConfig}.
-     */
-    brandMark: BrandMarkConfig;
-    /**
-     * Legacy alias for {@link BrandMarkConfig.enabled}. Kept in sync by resolveConfig so
-     * existing callers keep working. Prefer `brandMark.enabled`.
-     */
-    isBrandMarkVisible: boolean;
+    /** The Graphy badge. A partial input merges onto the defaults. */
+    graphyBadge: GraphyBadgeConfig;
 }
 
 type ResolvedContinuousScaleSpec = Required<ContinuousScaleSpec>;
@@ -5401,7 +5393,7 @@ interface ResolvedFlipCoordSpec {
 
 /**
  * Resolved highlight. `id` is always present, `scope` is always set (defaults
- * to `'data-point'`), and the layer scope is carried as the targeted layer's
+ * to `'observation'`), and the layer scope is carried as the targeted layer's
  * stable `layerId` (or omitted when unscoped).
  */
 interface ResolvedHighlightSpec {
@@ -5434,7 +5426,7 @@ type ResolvedLayerSpec = {
 interface ResolvedLayerSpecBase {
     type: 'layer';
     id: string;
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     stat: ResolvedStatSpec;
     position: PositionAdjustment;
     yScaleType: YScaleType;
@@ -5661,7 +5653,7 @@ interface ResolvedSpec {
     /** The dataset backing the visualization. */
     data: Dataset;
     /** Global aesthetic mappings (data columns → visual channels). */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     /** Geometry layers to render. Each layer has resolved geom, stat, position, and params. */
     layers: ResolvedLayerSpec[];
     /** Resolved scale specs — one per aesthetic, all defaults filled, no 'inferred' types remaining. */
@@ -5809,12 +5801,12 @@ class RuleGeom extends Geom<RuleGeomParams> {
         readonly axis: "y";
         readonly role: "scalar";
         readonly valueKind: "value";
-        readonly aes: "y";
+        readonly aesthetic: "y";
     }, {
         readonly axis: "x";
         readonly role: "scalar";
         readonly valueKind: "value";
-        readonly aes: "x";
+        readonly aesthetic: "x";
     }];
     readonly highlightStrategy: null;
     readonly spatialKind: SpatialKind;
@@ -5822,7 +5814,7 @@ class RuleGeom extends Geom<RuleGeomParams> {
      * A rule reads a scalar from exactly one axis. Require a numeric value on `x` or `y` — but not
      * both — unless a stat produces it at compile time (e.g. `stat.mean()` populates `y`).
      */
-    readonly validateMapping: ({ mapping, computedVariables, }: GeomMappingValidationInput) => readonly UserInputIssue[];
+    readonly validateMapping: ({ mapping, computedAesthetics, }: GeomMappingValidationInput) => readonly UserInputIssue[];
     compile({ data: inputData, mapping }: GeomCompilerInput): GeomCompileResult;
 }
 
@@ -5885,7 +5877,7 @@ const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", 
  * target registry are checked against, so a typo there is a type error rather than a property no
  * entry can declare.
  */
-const STYLE_PROPERTY_NAMES: readonly ["fill", "overpaint", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "maxWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "haloColor", "haloAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
+const STYLE_PROPERTY_NAMES: readonly ["fill", "overpaint", "stroke", "alpha", "saturation", "blur", "brightness", "contrast", "cornerRadius", "strokeWidth", "maxWidth", "dashArray", "lineCap", "lineJoin", "strokeAlpha", "fillAlpha", "backingColor", "backingAlpha", "size", "symbol", "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "textTransform", "textDecoration", "textOutlineColor", "textOutlineWidth", "textShadow", "lineHeight", "textScale", "textColor", "offset", "gap", "length", "paddingInline", "paddingBlock", "padding", "margin", "shadow", "blendMode"];
 
 /**
  * The runtime states a style entry can scope to. States are paint-only — they never feed layout.
@@ -5956,52 +5948,6 @@ const STYLE_TARGETS: {
             readonly stroke: StyleTokenRef;
             readonly strokeWidth: 1;
         };
-        readonly children: {
-            readonly top: {
-                readonly select: {
-                    readonly target: "panelBorder";
-                    readonly edge: "top";
-                };
-                readonly vocabulary: {
-                    readonly stroke: "color";
-                    readonly strokeWidth: "pixels";
-                    readonly dashArray: "dashArray";
-                };
-            };
-            readonly right: {
-                readonly select: {
-                    readonly target: "panelBorder";
-                    readonly edge: "right";
-                };
-                readonly vocabulary: {
-                    readonly stroke: "color";
-                    readonly strokeWidth: "pixels";
-                    readonly dashArray: "dashArray";
-                };
-            };
-            readonly bottom: {
-                readonly select: {
-                    readonly target: "panelBorder";
-                    readonly edge: "bottom";
-                };
-                readonly vocabulary: {
-                    readonly stroke: "color";
-                    readonly strokeWidth: "pixels";
-                    readonly dashArray: "dashArray";
-                };
-            };
-            readonly left: {
-                readonly select: {
-                    readonly target: "panelBorder";
-                    readonly edge: "left";
-                };
-                readonly vocabulary: {
-                    readonly stroke: "color";
-                    readonly strokeWidth: "pixels";
-                    readonly dashArray: "dashArray";
-                };
-            };
-        };
     };
     readonly gridLine: {
         readonly select: {
@@ -6043,6 +5989,51 @@ const STYLE_TARGETS: {
                     readonly dashArray: readonly [2, 3];
                     readonly stroke: StyleTokenRef;
                     readonly strokeWidth: 1;
+                };
+            };
+        };
+    };
+    readonly axisLine: {
+        readonly select: {
+            readonly target: "axisLine";
+        };
+        readonly vocabulary: {
+            readonly cornerRadius: "pixels";
+            readonly lineCap: "lineCap";
+            readonly stroke: "color";
+            readonly strokeWidth: "pixels";
+            readonly dashArray: "dashArray";
+        };
+        readonly rest: {
+            readonly strokeWidth: 0;
+            readonly dashArray: readonly [];
+            readonly lineCap: "butt";
+            readonly cornerRadius: 0;
+            readonly stroke: StyleTokenRef;
+        };
+        readonly children: {
+            readonly x: {
+                readonly select: {
+                    readonly target: "axisLine";
+                    readonly axis: "x";
+                };
+                readonly vocabulary: {
+                    readonly lineCap: "lineCap";
+                    readonly stroke: "color";
+                    readonly strokeWidth: "pixels";
+                    readonly dashArray: "dashArray";
+                };
+            };
+            readonly y: {
+                readonly select: {
+                    readonly target: "axisLine";
+                    readonly axis: "y";
+                };
+                readonly vocabulary: {
+                    readonly lineCap: "lineCap";
+                    readonly stroke: "color";
+                    readonly strokeWidth: "pixels";
+                    readonly dashArray: "dashArray";
                 };
             };
         };
@@ -6918,8 +6909,8 @@ const STYLE_TARGETS: {
             readonly strokeAlpha: "unitInterval";
             readonly strokeWidth: "pixels";
             readonly dashArray: "dashArray";
-            readonly haloColor: "color";
-            readonly haloAlpha: "unitInterval";
+            readonly backingColor: "color";
+            readonly backingAlpha: "unitInterval";
             readonly offset: "pixels";
             readonly cornerRadius: "pixels";
         };
@@ -6942,14 +6933,14 @@ const STYLE_TARGETS: {
                     readonly strokeAlpha: "unitInterval";
                     readonly strokeWidth: "pixels";
                     readonly dashArray: "dashArray";
-                    readonly haloColor: "color";
-                    readonly haloAlpha: "unitInterval";
+                    readonly backingColor: "color";
+                    readonly backingAlpha: "unitInterval";
                     readonly offset: "pixels";
                     readonly cornerRadius: "pixels";
                 };
                 readonly rest: {
                     readonly strokeAlpha: 0.4;
-                    readonly haloAlpha: 0.5;
+                    readonly backingAlpha: 0.5;
                 };
             };
             readonly selected: {
@@ -6962,14 +6953,14 @@ const STYLE_TARGETS: {
                     readonly strokeAlpha: "unitInterval";
                     readonly strokeWidth: "pixels";
                     readonly dashArray: "dashArray";
-                    readonly haloColor: "color";
-                    readonly haloAlpha: "unitInterval";
+                    readonly backingColor: "color";
+                    readonly backingAlpha: "unitInterval";
                     readonly offset: "pixels";
                     readonly cornerRadius: "pixels";
                 };
                 readonly rest: {
                     readonly strokeAlpha: 0.85;
-                    readonly haloAlpha: 0.9;
+                    readonly backingAlpha: 0.9;
                 };
             };
         };
@@ -7865,7 +7856,7 @@ interface ScaleConstraints {
     /** Anchor this geom's y scale at a zero baseline — its marks rise from 0. */
     includeZero?: boolean;
     /**
-     * Infer this geom's color scale from the column behind it — a ramp for a measure — instead of the
+     * Infer this geom's color scale from the column behind it — a colormap for a measure — instead of the
      * default palette. What a geom drawing its value as color (a tile) asks for.
      */
     inferColorScale?: boolean;
@@ -7892,7 +7883,7 @@ type ScaleType = 'continuous' | 'discrete' | 'datetime' | 'identity';
 
 /**
  * Identifiers for scales. Superset of AestheticKey — includes `ySecondary`
- * which is a scale aesthetic key but NOT an aesthetic (layers still map to `y`).
+ * which is a scaled aesthetic but NOT an aesthetic (layers still map to `y`).
  */
 type ScaledAestheticKey = ScaledPositionAestheticKey | ScaledVisualAestheticKey;
 
@@ -7957,9 +7948,9 @@ interface SceneArrow {
 interface SceneAxisGuide {
     /**
      * Which scale this axis represents. Derive the axis it serves with
-     * `getAestheticFromScaleAestheticKey` (folds `ySecondary` into `y`).
+     * `getAestheticFromScaledAesthetic` (folds `ySecondary` into `y`).
      */
-    scaleAestheticKey: ScaledPositionAestheticKey;
+    scaledAesthetic: ScaledPositionAestheticKey;
     /**
      * Axis placement. Already reflects any flip, do not re-derive from the coord system's `mainAxis`.
      */
@@ -8151,7 +8142,7 @@ interface SceneLayer {
     spatialKind: SpatialKind;
     /**
      * What counts as "the same observation" for this layer, baked from the geom def. The runtime
-     * resolves a `'render-hit-test'` tester's returned key against this, and morphs/hover-stability
+     * resolves a `'renderHitTest'` tester's returned key against this, and morphs/hover-stability
      * use it across recompiles.
      */
     identityKey: IdentityKey;
@@ -8162,7 +8153,7 @@ interface SceneLayer {
     /** Whether this layer's groups can be named on the edge of the panel instead of in a legend. */
     supportsDirectLabels: boolean;
     /** Final mapping after merging root + layer + stat + geom overrides (may carry custom positional aesthetics). */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     position: PositionAdjustment;
     yScaleType: YScaleType;
     params: ResolvedLayerSpec['params'];
@@ -8429,14 +8420,14 @@ interface SceneTextAnnotation {
 
 /**
  * One field of a layer's tooltip, resolved at compile time. Every kind but `group` heads the tooltip with `heading`.
- * - `aes`: the value of an aesthetic, read through the layer mapping.
+ * - `aesthetic`: the value of an aesthetic, read through the layer mapping.
  * - `variable`: the value of a variable the geom derives, read from the observation.
  * - `range`: two aesthetics joined by an en dash.
  * - `group`: the layer's default rows, one per listed observation, labeled by color group or the `y` variable.
  */
 type SceneTooltipField = (SceneTooltipFieldBase & {
-    kind: 'aes';
-    aes: string;
+    kind: 'aesthetic';
+    aesthetic: string;
     heading: boolean;
 }) | (SceneTooltipFieldBase & {
     kind: 'variable';
@@ -8584,11 +8575,6 @@ type SetBarWidthParams = {
     width?: number;
 };
 
-/** The type to set, or — on a revert — the chart as it stood, since a chart no type describes has none to name. */
-type SetChartTypeParams = ChartTypeSummary | {
-    previous: ChartTypeState;
-};
-
 type SetContentCaptionParams = {
     /** New caption, or `null` to clear it. */
     caption: TextContent | null;
@@ -8633,6 +8619,11 @@ type SetDifferenceArrowStyleParams = {
     arrow?: DifferenceArrowAnnotationStyleDeclarations | null;
     /** The label entry's declarations; `null` removes the entry; absent leaves it alone. */
     label?: DifferenceArrowLabelStyleDeclarations | null;
+};
+
+/** The type to set, or — on a revert — the chart as it stood, since a chart no type describes has none to name. */
+type SetGraphTypeParams = GraphTypeSummary | {
+    previous: GraphTypeState;
 };
 
 /** Serialized parameters of {@link SetGridLineStyleCommand}. Only the style fields given are written. */
@@ -8921,22 +8912,22 @@ interface SourceContent {
  * coord-specific variant and can't mis-declare one.
  *
  * - `'buckets'` — marks bucket along an axis for nearest-position snapping (line crosshair).
- * - `'filled-buckets'` — buckets whose paint covers the band between the cross-axis bounds (area), so
+ * - `'filledBuckets'` — buckets whose paint covers the band between the cross-axis bounds (area), so
  *   a cursor inside the band is on the observation rather than snapped to its edge.
- * - `'spanned-buckets'` — buckets whose marks one stroke joins across the bucket itself, lowest to
+ * - `'spannedBuckets'` — buckets whose marks one stroke joins across the bucket itself, lowest to
  *   highest, with none running on to the next — a dumbbell's connector, a lollipop's stem — so that
  *   stroke's whole length is in its bucket's column. The stretch comes from the marks the bucket holds
  *   and from any interval each one declares, so a bucket of one still has length.
  * - `'rects'` — marks are rectangles: a bar, or a candle's body width over its wick.
  * - `'points'` — marks are discrete vertices (scatter).
  * - `'noop'` — nothing hit-testable.
- * - `'render-hit-test'` — geometry comes from a render-side layout algorithm rather than position
+ * - `'renderHitTest'` — geometry comes from a render-side layout algorithm rather than position
  *   scales, so only the renderer can hit-test it.
  *
- * Every shape but `'render-hit-test'` is derived from position scales at compile time, so the runtime
+ * Every shape but `'renderHitTest'` is derived from position scales at compile time, so the runtime
  * builds its index from the compiled data alone.
  */
-type SpatialKind = 'buckets' | 'filled-buckets' | 'spanned-buckets' | 'rects' | 'cells' | 'points' | 'noop' | 'render-hit-test';
+type SpatialKind = 'buckets' | 'filledBuckets' | 'spannedBuckets' | 'rects' | 'cells' | 'points' | 'noop' | 'renderHitTest';
 
 /** A stack's total at one x position, with where its label should be anchored. Drives stack-total labels. */
 interface StackTotalEntry {
@@ -8964,14 +8955,14 @@ abstract class Stat {
      * Aesthetics this stat will compute (e.g. count computes 'y'). Used by validation to skip existence checks.
      * Names a geom's custom positional aesthetics too, when the stat computes them (a boxplot's `q1`).
      */
-    abstract readonly computedVariables: ReadonlySet<string>;
+    abstract readonly computedAesthetics: ReadonlySet<string>;
     /**
      * The aesthetics this stat computes under one layer's resolved spec and params, which is what validation reads. A
      * stat whose settings decide what it computes (a summary asked for an interval or not) overrides this; the rest
-     * compute {@link computedVariables} whatever the settings. A built-in stat's settings live on its spec; a custom
+     * compute {@link computedAesthetics} whatever the settings. A built-in stat's settings live on its spec; a custom
      * stat's spec is only `{ type }`, so it reads its settings from the layer's `params`, as `computeStat` does.
      */
-    resolveComputedVariables(_spec: ResolvedStatSpec, _params?: Readonly<Record<string, unknown>>): ReadonlySet<string>;
+    resolveComputedAesthetics(_spec: ResolvedStatSpec, _params?: Readonly<Record<string, unknown>>): ReadonlySet<string>;
     compute(input: StatCompilerInput): StatCompileResult;
     /**
      * Runs on every layer, including one with zero rows: an empty frame still needs the stat's mapping so
@@ -8985,7 +8976,7 @@ interface StatCompileResult {
     /** The transformed dataset. */
     data: Dataset;
     /** Any mapping overrides produced by the stat (e.g., `y` → `'count'` for `CountStat`). */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
 }
 
 /** Input to {@link Stat.compile}: the layer's dataset and mapping plus the resolved stat spec to apply. */
@@ -8993,7 +8984,7 @@ interface StatCompilerInput {
     /** The input dataset. */
     data: Dataset;
     /** The effective mapping for the layer. */
-    mapping: AesMapping;
+    mapping: AestheticMapping;
     /** The resolved stat spec. Narrow by `spec.type` to access stat-specific params. */
     spec: ResolvedStatSpec;
     /**
@@ -9355,7 +9346,7 @@ interface SummaryStatSpec {
 }
 
 interface TemporalValueFormat {
-    type: 'datetime' | 'time' | 'date' | 'year' | 'quarter' | 'month_year' | 'month' | 'weekly_date_range_with_year' | 'weekly_date_range' | 'day_month';
+    type: 'datetime' | 'time' | 'date' | 'year' | 'quarter' | 'monthYear' | 'month' | 'weeklyDateRangeWithYear' | 'weeklyDateRange' | 'dayMonth';
     /**
      * Source-parsing metadata: the template the values were originally parsed from (e.g. 'dd-mm-yyyy').
      * It is not a formatting instruction and is not consumed when materializing output — the renderer
@@ -9387,7 +9378,7 @@ type TextContent = string | RichTextContent;
 
 /**
  * The config a theme may set: all of it but `content`, which holds what one graph says (its title,
- * its source) and the brand mark, none of them a theme's to decide.
+ * its source) and the Graphy badge, none of them a theme's to decide.
  */
 type ThemeConfig = Omit<ConfigSpec, 'content'>;
 
@@ -9460,15 +9451,15 @@ class TileGeom extends Geom<Record<string, never>> {
     /** A heatmap reads cell-by-cell, so the value labels every cell by default. */
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
     readonly dataLabelCoordTypes: readonly ["cartesian"];
-    readonly highlightStrategy: "observation-rerender";
+    readonly highlightStrategy: "observationRerender";
     readonly spatialKind: SpatialKind;
-    readonly identityKey: "x-y";
+    readonly identityKey: "xY";
     /**
      * The cell's encoded value, not its `x`/`y` bands — the header and the hovered cell already give those.
      * Omitting `key` labels the row with the value variable's friendly name.
      */
     readonly tooltip: TooltipContract;
-    readonly resolveValueSource: (mapping: AesMapping) => AestheticValue | null;
+    readonly resolveValueSource: (mapping: AestheticMapping) => AestheticValue | null;
     /** The cell center, so annotations land mid-tile. */
     readonly resolveAnchorPosition: (observation: Observation) => AnchorPosition | null;
     readonly getDataLabelPlacements: (context: PluginPlacementContext) => PlacementResult;
@@ -9554,7 +9545,7 @@ type TooltipContract = readonly TooltipField[];
  * One row of a geom's tooltip contract. Left out when the observation has no value, so one contract can cover
  * several observation kinds (a sankey's nodes and flows).
  */
-type TooltipField = AesTooltipField | RangeTooltipField;
+type TooltipField = AestheticTooltipField | RangeTooltipField;
 
 /**
  * Which hovered observations the tooltip lists.
@@ -9586,7 +9577,7 @@ interface TransformStrategy {
      * Variable names this transform adds to the dataset (e.g. a reshape's key column or a constant's
      * variable). Declared so consumers can discover introduced columns without branching on the type.
      */
-    getIntroducedVariables?: (transform: AnyTransformSpec) => VariableName[];
+    getDerivedVariables?: (transform: AnyTransformSpec) => VariableName[];
 }
 
 /** Serialized parameters of {@link UpdateAnnotationCommand}. */
@@ -9637,10 +9628,10 @@ interface UserInputIssue extends DiagnosticDetails {
  * - `year` — '2025'.
  * - `quarter` — 'Q1 2025'.
  * - `month` — 'January' (no year).
- * - `month_year` — 'Jan 2025'.
- * - `day_month` — 'January 5' (no year).
- * - `weekly_date_range` — 'January 5 – 11' (value + 6 days, no year).
- * - `weekly_date_range_with_year` — 'Jan 5 – 11, 2025'.
+ * - `monthYear` — 'Jan 2025'.
+ * - `dayMonth` — 'January 5' (no year).
+ * - `weeklyDateRange` — 'January 5 – 11' (value + 6 days, no year).
+ * - `weeklyDateRangeWithYear` — 'Jan 5 – 11, 2025'.
  * - `lookup` — resolved per observation; see {@link LookupValueFormat}.
  *
  * The `isXValueFormat` guards (e.g. {@link isLookupValueFormat}, {@link isTemporalValueFormat}) narrow

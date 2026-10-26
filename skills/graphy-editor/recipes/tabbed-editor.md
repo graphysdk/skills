@@ -139,7 +139,7 @@ export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Sp
       <div style={{ display: 'flex', gap: 16, height: 'calc(100dvh - 2rem)' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <EditableGraphRenderer mode="point-and-edit" />
+            <EditableGraphRenderer mode="pointAndEdit" />
           </div>
           <HistoryTrail />
         </div>

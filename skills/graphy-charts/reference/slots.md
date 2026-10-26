@@ -48,10 +48,10 @@ Exported types: `GraphSlots` for the prop; one `...SlotProps` type per slot (`He
 | Slot            | Receives                                                                                                                       | Default export   |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
 | `Tooltip`       | `content`                                                                                                                      | `DefaultTooltip` |
-| `Header`        | `ref`, `headerRect`, `mode`, `title`, `showTitle`, `subtitle`, `showSubtitle`, `headingStyle`, `subtitleStyle`, `brandMark`    | `DefaultHeader`  |
-| `Footer`        | `ref`, `footerRect`, `mode`, `caption`, `showCaption`, `source`, `showSource`, `captionStyle`, `sourceStyle`, `brandMark`      | `DefaultFooter`  |
+| `Header`        | `ref`, `headerRect`, `mode`, `title`, `showTitle`, `subtitle`, `showSubtitle`, `headingStyle`, `subtitleStyle`, `graphyBadge`  | `DefaultHeader`  |
+| `Footer`        | `ref`, `footerRect`, `mode`, `caption`, `showCaption`, `source`, `showSource`, `captionStyle`, `sourceStyle`, `graphyBadge`    | `DefaultFooter`  |
 | `Swatch`        | `shape`, `color`, `paint`, `surface`, `label`, `lineType`, `width`, `height`, `strokeWidth`, `alpha`, `cornerRadius`, `symbol` | `DefaultSwatch`  |
-| `Grid`          | `axes`, `panelBorderSizes`, `panelFrameRect`, `panelRect`                                                                      | `DefaultGrid`    |
+| `Grid`          | `axes`, `panelEdgeSizes`, `panelFrameRect`, `panelRect`                                                                        | `DefaultGrid`    |
 | `EditorSurface` | `frameElement`, `panelRect`, `formattedAxes`, `animateTransitions`                                                             | none             |
 
 `EditorSurface` is filled by `EditableGraphRenderer` from `@graphysdk/react/editable`. A read-only graph never sets it.
@@ -86,7 +86,7 @@ export const Renderer = () => <GraphRenderer slots={{ Tooltip: DarkTooltip }} />
 The header holds the title and subtitle. The layout measures the rendered element to reserve its height. Forward `ref` to the outer element and place it at `headerRect`.
 
 ```tsx
-import { BrandMark, GraphRenderer } from '@graphysdk/react';
+import { GraphyBadge, GraphRenderer } from '@graphysdk/react';
 import type { HeaderSlotProps } from '@graphysdk/react';
 
 const toPlainText = (content: HeaderSlotProps['title']): string => {
@@ -103,9 +103,9 @@ const BannerHeader = ({
   subtitle,
   showSubtitle,
   headingStyle,
-  brandMark,
+  graphyBadge,
 }: HeaderSlotProps) => {
-  if (!showTitle && !showSubtitle && brandMark === 'hidden') return null;
+  if (!showTitle && !showSubtitle && graphyBadge === null) return null;
   return (
     <div
       ref={ref}
@@ -117,7 +117,7 @@ const BannerHeader = ({
         </h2>
       )}
       {showSubtitle && <p style={{ margin: 0, opacity: 0.7 }}>{toPlainText(subtitle)}</p>}
-      {brandMark !== 'hidden' && <BrandMark visual={brandMark} placement="header" />}
+      {graphyBadge !== null && <GraphyBadge variant={graphyBadge} position="header" />}
     </div>
   );
 };
@@ -128,7 +128,7 @@ export const Renderer = () => <GraphRenderer slots={{ Header: BannerHeader }} />
 - `title` and `subtitle` are a string, rich text or `null`. Rich text is a tree of nodes with `type`, `text`, `content`, `marks` and `attrs`.
 - `headingStyle` and `subtitleStyle` are resolved `TextStyle` values: `fontSize`, `fontWeight`, `lineHeight`, `textColor`, plus optional `fontFamily`, `fontStyle`, `letterSpacing`, `textTransform`, `textDecoration`, `textOutlineColor`, `textOutlineWidth` and `textShadow`.
 - The layout reads only the measured height. The width is the graph's.
-- `brandMark` is `'hidden'`, `'mini'` or `'full'`, typed `BrandMarkVisual`. It is `'hidden'` when the mark is off, the frame is too small, or `config.content.brandMark.placement` puts the mark in the other region (`'footer'` is the default). The exported `BrandMark` paints it from `visual` and `placement`, so a custom header or footer keeps the badge. `resolveBrandMarkVisual(enabled, frameSize, variant)` gives the same value for a frame of your own.
+- `graphyBadge` is `'full'`, `'mini'` or `null`, typed `GraphyBadgeVariant | null`. It is `null` when the badge is off, the frame is too small, or `config.content.graphyBadge.position` puts the badge in the other region (`'footer'` is the default). The exported `GraphyBadge` paints it from `variant` and `position`, so a custom header or footer keeps the badge. `resolveGraphyBadgeVariant(visible, frameSize, variant)` gives the same value for a frame of your own.
 - A custom header opts out of inline title editing. `mode` tells it which graph mode it paints in.
 
 ## Footer slot
@@ -193,7 +193,7 @@ const SharpSwatch = (props: SwatchSlotProps) => {
 export const Renderer = () => <GraphRenderer slots={{ Swatch: SharpSwatch }} />;
 ```
 
-`shape` is `'square'`, `'line'`, `'area'`, `'circle'`, `'slice'` or `'interval'`, picked by the geom, typed `SwatchShape`. An `interval` swatch is a stem capped at both ends; it stands upright, and lies on its side when `mainAxis` is `'y'`, the chart's category axis under `coord.flip()`. `surface` is `'legend'`, `'tooltip'`, `'headline'`, `'callout'` or `'rule-label'`, typed `SwatchSurface`. `label` is the item's text where the surface has one. `paint` carries a gradient, pattern or image fill when the geom has one; `DefaultSwatch` draws it for squares and slices only. A swatch that reads only `color` drops those fills. Paint inside the `width` by `height` box you receive.
+`shape` is `'square'`, `'line'`, `'area'`, `'circle'`, `'slice'` or `'interval'`, picked by the geom, typed `SwatchShape`. An `interval` swatch is a stem capped at both ends; it stands upright, and lies on its side when `mainAxis` is `'y'`, the chart's category axis under `coord.flip()`. `surface` is `'legend'`, `'tooltip'`, `'headline'`, `'callout'` or `'ruleLabel'`, typed `SwatchSurface`. `label` is the item's text where the surface has one. `paint` carries a gradient, pattern or image fill when the geom has one; `DefaultSwatch` draws it for squares and slices only. A swatch that reads only `color` drops those fills. Paint inside the `width` by `height` box you receive.
 
 ## Grid slot
 
@@ -244,7 +244,7 @@ const DottedGrid = ({ axes, panelFrameRect, panelRect }: GridSlotProps) => {
 export const Renderer = () => <GraphRenderer slots={{ Grid: DottedGrid }} />;
 ```
 
-`axes` holds one `FormattedAxis` per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `scaleAestheticKey`, `visible`, `showGrid`, `showTicks`, `label`, `labelRotation` and `labelMaxWidthPx`. A radar's circular and radial axes are drawn elsewhere and have a `geometry` other than `'linear'`. `DefaultGrid` skips a line that would sit on a bordered panel edge; read `panelBorderSizes` to match.
+`axes` holds one `FormattedAxis` per position scale. Each tick has `value`, `position` (0 to 1 along the axis, y measured upwards) and `formattedLabel`. An axis also carries `scaledAesthetic`, `visible`, `showGrid`, `showTicks`, `label`, `labelRotation` and `labelMaxWidthPx`. A radar's circular and radial axes are drawn elsewhere and have a `geometry` other than `'linear'`. `panelEdgeSizes` gives the maximum border or axis-line width per edge. Like `DefaultGrid`, skip grid lines at edges with a positive width.
 
 ## Measured slots
 
@@ -440,7 +440,7 @@ The defaults of the measured slots (`Legend`, `Headline`, `AxisTicks`, `AxisLabe
 
 ## Pressable guides
 
-In `mode="point-and-edit"` a press on a tick label, an axis title, a legend pill, a direct label or a grid line selects that guide. The editor finds the guide through attributes on the node that paints it. A custom `Grid`, `AxisTicks`, `AxisLabel` or `Legend` joins by spreading the same attributes, only while `useGuidesTakePress()` is true.
+In `mode="pointAndEdit"` a press on a tick label, an axis title, a legend pill, a direct label or a grid line selects that guide. The editor finds the guide through attributes on the node that paints it. A custom `Grid`, `AxisTicks`, `AxisLabel` or `Legend` joins by spreading the same attributes, only while `useGuidesTakePress()` is true.
 
 ```tsx
 import { stampAxisEditTarget, useGuidesTakePress } from '@graphysdk/react';
@@ -454,11 +454,11 @@ const PressableTicks = ({ formattedAxes, tickRects }: AxisTicksSlotProps) => {
         const rect = tickRects[axis.position];
         if (axis.geometry !== 'linear' || !rect) return null;
         return (
-          <svg key={axis.scaleAestheticKey} x={rect.x} y={rect.y} width={rect.width} height={rect.height}>
+          <svg key={axis.scaledAesthetic} x={rect.x} y={rect.y} width={rect.width} height={rect.height}>
             {axis.ticks.map((tick, tickIndex) => (
               <g
                 key={String(tick.value)}
-                {...(takesPress ? stampAxisEditTarget(axis.scaleAestheticKey, tickIndex) : {})}
+                {...(takesPress ? stampAxisEditTarget(axis.scaledAesthetic, tickIndex) : {})}
                 cursor={takesPress ? 'pointer' : undefined}
               >
                 <text x={`${tick.position * 100}%`} y={rect.height / 2} textAnchor="middle" dominantBaseline="central">
@@ -474,10 +474,10 @@ const PressableTicks = ({ formattedAxes, tickRects }: AxisTicksSlotProps) => {
 };
 ```
 
-- Tick labels spread `stampAxisEditTarget(scaleAestheticKey, tickIndex)`. `tickIndex` counts that axis's `ticks`, so a double click on a band axis takes that band.
-- Axis titles spread `stampAxisEditTarget(scaleAestheticKey)` with no tick.
+- Tick labels spread `stampAxisEditTarget(scaledAesthetic, tickIndex)`. `tickIndex` counts that axis's `ticks`, so a double click on a band axis takes that band.
+- Axis titles spread `stampAxisEditTarget(scaledAesthetic)` with no tick.
 - Legend pills and direct labels spread `stampLegendEditTarget({ legendIndex, itemIndex })`, counting `formattedLegends` and that legend's `items`.
-- Grid lines spread `stampGridEditTarget(scaleAestheticKey)` on a group holding the stroke and a hit area, such as a transparent copy of the line with `strokeWidth={7}` and `pointerEvents="stroke"`.
+- Grid lines spread `stampGridEditTarget(scaledAesthetic)` on a group holding the stroke and a hit area, such as a transparent copy of the line with `strokeWidth={7}` and `pointerEvents="stroke"`.
 
 The attributes go on the element that paints the guide and takes the press, and that element must take pointer events. A node without them takes no press: a click there selects the graph. A grid line your slot hides takes its hit area with it.
 

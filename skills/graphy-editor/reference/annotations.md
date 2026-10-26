@@ -96,4 +96,4 @@ To pin a new annotation to a data point, build its anchor with `createObservatio
 
 ## Highlights from the (+) menu
 
-Highlight rows dispatch `AddHighlightCommand` with the scopes the geom supports: `data-point`, `series` or `x-value`. They hide scopes already covering the point, as reported by `findHighlightsAtObservation({ layer, highlights, observation, parsingLocale })`. In a custom UI, use that check and `findEquivalentHighlight(highlights, candidate)` to offer removal instead of adding a duplicate highlight.
+Highlight rows dispatch `AddHighlightCommand` with the scopes the geom supports: `observation`, `group` or `xValue`. They hide scopes already covering the point, as reported by `findHighlightsAtObservation({ layer, highlights, observation, parsingLocale })`. In a custom UI, use that check and `findEquivalentHighlight(highlights, candidate)` to offer removal instead of adding a duplicate highlight.

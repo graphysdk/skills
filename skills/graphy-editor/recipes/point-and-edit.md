@@ -93,7 +93,7 @@ export function SalesChartEditor() {
           <button onClick={reset}>Reset</button>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
-          <EditableGraphRenderer mode={isEditing ? 'point-and-edit' : 'readonly'} palettePresets={PALETTES} />
+          <EditableGraphRenderer mode={isEditing ? 'pointAndEdit' : 'readonly'} palettePresets={PALETTES} />
         </div>
       </div>
     </GraphProvider>

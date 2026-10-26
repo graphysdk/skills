@@ -103,7 +103,7 @@ const BrandBarsMenu = ({ target }: { target: ObservationsTarget }) => {
   );
 };
 // Only series have rows, so individual bars and bands cannot be selected.
-BrandBarsMenu.hasRows = (target: ObservationsTarget) => target.scope === 'series';
+BrandBarsMenu.hasRows = (target: ObservationsTarget) => target.scope === 'group';
 
 // Keep component definitions outside render to avoid remounting the menu.
 const editMenus: EditMenus = {
@@ -118,7 +118,7 @@ export function BrandedChartEditor() {
   return (
     <div style={{ height: 420 }}>
       <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-        <EditableGraphRenderer mode="point-and-edit" editMenus={editMenus} />
+        <EditableGraphRenderer mode="pointAndEdit" editMenus={editMenus} />
       </GraphProvider>
     </div>
   );

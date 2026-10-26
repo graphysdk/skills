@@ -47,7 +47,7 @@ export function Energy() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The nodes are the names the flows share, each as tall as the larger of what flows in and what flows out. Flows run left to right, a node in the column after every node that flows into it. A missing, zero or negative amount draws no flow. A flow from a node to itself, or one that would close a loop, is left out.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The nodes are the names the flows share, each as tall as the larger of what flows in and what flows out. Flows run left to right, a node in the column after every node that flows into it. A missing, zero or negative amount draws no flow. A flow from a node to itself, or one that would close a loop, is left out.
 
 ## Variants
 

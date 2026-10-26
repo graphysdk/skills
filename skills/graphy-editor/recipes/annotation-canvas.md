@@ -138,4 +138,4 @@ Details:
 - Hovering a bar shows the built-in (+) menu. Comments, pinned numbers, stickers, highlights and difference arrows use the same command history as the toolbar.
 - `zOrder: 'background'` keeps the band behind the bars, so clicks reach the bars.
 - Delete removes the selection, and Escape clears it. The toolbar's remove button demonstrates the command API.
-- Annotations cannot be dragged in `readonly` or `point-and-edit` mode. `point-and-edit` does not draw annotations.
+- Annotations cannot be dragged in `readonly` or `pointAndEdit` mode. `pointAndEdit` does not draw annotations.

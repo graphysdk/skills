@@ -50,7 +50,7 @@ export function Checkout() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The geom hides the grid lines itself. A stage with no count, or a negative one, draws no bar; its neighbors are joined across the gap.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The geom hides the grid lines itself. A stage with no count, or a negative one, draws no bar; its neighbors are joined across the gap.
 
 ## Variants
 

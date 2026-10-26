@@ -18,7 +18,7 @@ A custom editing UI can import only the commands from `/editable`.
 
 ```ts
 interface Command<TParams> {
-  readonly type: string; // 'set-content-title'
+  readonly type: string; // 'setContentTitle'
   readonly metadata: CommandMetadata; // { id, timestamp, description, author }
   readonly params: TParams; // plain JSON
   readonly target: EditTarget; // what the command is about, read from params
@@ -116,7 +116,7 @@ type EditTarget =
   | {
       kind: 'observations';
       layerId: string;
-      scope: 'data-point' | 'series' | 'x-value';
+      scope: 'observation' | 'group' | 'xValue';
       predicate: Predicate;
       observationIndex?: number;
     }
@@ -137,7 +137,7 @@ type EditTarget =
   | { kind: 'numberFormat' };
 ```
 
-An `observations` target names observations by their values, so it keeps pointing at the same bars when the chart is rebuilt. `scope` is one observation, a whole group (`series`) or every observation at one x value (`x-value`). Build one from a scene layer with `buildObservationsTarget({ layer, observationIndex, scope, parsingLocale })` from `@graphysdk/react/editable`, where `parsingLocale` is `scene.config.parsingLocale`. It returns `null` if the layer cannot identify that observation.
+An `observations` target names observations by their values, so it keeps pointing at the same bars when the chart is rebuilt. `scope` is one observation, a whole group (`group`) or every observation at one x value (`xValue`). Build one from a scene layer with `buildObservationsTarget({ layer, observationIndex, scope, parsingLocale })` from `@graphysdk/react/editable`, where `parsingLocale` is `scene.config.parsingLocale`. It returns `null` if the layer cannot identify that observation.
 
 `useGraphSelection()` reads the selection inside the provider. The handle's `getSelection`, `setSelection` and `subscribeSelection` serve the outside. After every command, undo and redo included, the provider removes targets that no longer exist in the spec. `areEditTargetsEqual` compares targets by value.
 
@@ -147,7 +147,7 @@ All classes are exported from `@graphysdk/react/editable`. Params are in [types]
 
 ### Chart type and mapping
 
-`SetChartTypeCommand` sets the coordinate system, geom, position and scales in one undo step. Params are `{ coordType: 'cartesian' | 'flip', geom, position }`, `{ coordType: 'polar', geom, position, theta, innerRadius }` or `{ coordType: 'cartesian', comboType }` with `comboType` one of `COMBO_TYPES` (`'grouped-bars' | 'stacked-bars' | 'lines'`). A heatmap is `geom: 'tile'`, allowed when `canBecomeHeatmap(spec)`. `readChartType(spec)` reads back the current type. `SetMappingCommand({ aesthetic, variable })` maps a column to an aesthetic, `x`, `y`, `color`, `size`, `label` and the rest, or `null` to unmap. `readMappableAesthetics(spec, aesthetics)` lists the columns each one accepts.
+`SetGraphTypeCommand` sets the coordinate system, geom, position and scales in one undo step. Params are `{ coordType: 'cartesian' | 'flip', geom, position }`, `{ coordType: 'polar', geom, position, theta, innerRadius }` or `{ coordType: 'cartesian', comboType }` with `comboType` one of `COMBO_TYPES` (`'groupedBars' | 'stackedBars' | 'lines'`). A heatmap is `geom: 'tile'`, allowed when `canBecomeHeatmap(spec)`. `readGraphType(spec)` reads back the current type. `SetMappingCommand({ aesthetic, variable })` maps a column to an aesthetic, `x`, `y`, `color`, `size`, `label` and the rest, or `null` to unmap. `readMappableAesthetics(spec, aesthetics)` lists the columns each one accepts.
 
 ### Layers
 

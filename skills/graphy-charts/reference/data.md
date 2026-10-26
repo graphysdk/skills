@@ -46,8 +46,8 @@ Every column gets one of three data types: numeric, temporal, or categorical. Th
 Inference checks, in order:
 
 1. A number, or a string that reads as a number (`'1,234.5'`, `'12k'`): `decimal`.
-2. A string that matches a date format for the parsing locale: `date`, `month_year`, `quarter`, `day_month`, `month`, `year`, or `datetime`.
-3. A weekly range such as `'Jan 1 – Jan 7'`: `weekly_date_range`, or `weekly_date_range_with_year` when both parts carry a year.
+2. A string that matches a date format for the parsing locale: `date`, `monthYear`, `quarter`, `dayMonth`, `month`, `year`, or `datetime`.
+3. A weekly range such as `'Jan 1 – Jan 7'`: `weeklyDateRange`, or `weeklyDateRangeWithYear` when both parts carry a year.
 4. A `Date` object: `date`.
 5. A string ending in `%`: `percentage`.
 6. A string starting or ending with a currency symbol (`'$1,200'`, `'€45'`): `currency`.
@@ -119,7 +119,7 @@ Temporal cells can be `Date` objects, ISO strings (`'2024-02-01T00:00:00Z'` read
 
 Short and long month names both work. Dates are parsed to UTC and shown in UTC. The first non-empty cell fixes one format for the column; cells in another format become `null`.
 
-A format with no year (`month`, `day_month`, `weekly_date_range`) is shown without a year. To order such values, the engine gives them a synthetic year: it walks the column in row order, one sequence per group, starting in the current year, and moves to the next year each time a date falls earlier in the year than the one before it. `Jan … Dec, Jan, Feb` reads as 14 months in a row. Reordering the rows moves the axis.
+A format with no year (`month`, `dayMonth`, `weeklyDateRange`) is shown without a year. To order such values, the engine gives them a synthetic year: it walks the column in row order, one sequence per group, starting in the current year, and moves to the next year each time a date falls earlier in the year than the one before it. `Jan … Dec, Jan, Feb` reads as 14 months in a row. Reordering the rows moves the axis.
 
 ## Parsing locale and formatting locale
 

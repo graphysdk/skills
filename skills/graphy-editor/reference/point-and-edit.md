@@ -1,6 +1,6 @@
 # Point and edit
 
-Set `mode="point-and-edit"` on `EditableGraphRenderer` to let users click a chart element and edit it in a nearby menu. Menu edits use commands and share undo history and `onSpecChange` with the rest of the editor.
+Set `mode="pointAndEdit"` on `EditableGraphRenderer` to let users click a chart element and edit it in a nearby menu. Menu edits use commands and share undo history and `onSpecChange` with the rest of the editor.
 
 Contents: selection, menu rows, selection levels, visibility, keyboard controls, outlines, styling and custom menus.
 
@@ -112,12 +112,12 @@ The Palette row needs `palettePresets` on `EditableGraphRenderer`:
 
 ```tsx
 <EditableGraphRenderer
-  mode="point-and-edit"
+  mode="pointAndEdit"
   palettePresets={{ Warm: ['#E03030', '#E08A30', '#E0C030'], Cool: ['#2060E0', '#30A0E0', '#30D0C0'] }}
 />
 ```
 
-The Theme option writes `range: null` to restore the theme's colors. The row is hidden without presets, and on a chart whose color scale is not discrete, such as a heatmap. The Chart menu itself opens only when a layer supports data labels or a line or area is drawn. The chart type is not in this menu. Change it with `SetChartTypeCommand` or the panel's `GraphTypeSection`.
+The Theme option writes `range: null` to restore the theme's colors. The row is hidden without presets, and on a chart whose color scale is not discrete, such as a heatmap. The Chart menu itself opens only when a layer supports data labels or a line or area is drawn. The chart type is not in this menu. Change it with `SetGraphTypeCommand` or the panel's `GraphTypeSection`.
 
 ## Levels
 
@@ -151,7 +151,7 @@ Hiding one vertical axis leaves the other alone. The panel's y axis section hide
 
 Hovered and selected targets have dashed outlines in the chart's text color. The hover outline is fainter. It follows the geom's shape: a bar's rectangle, a line's path, a point's circle, a grid line's stroke, an inset frame for the chart.
 
-Style it through the stylesheet as `style.editOutline`, with `hover` and `selected` parts: `stroke`, `strokeWidth`, `strokeAlpha`, `dashArray`, `offset`, `cornerRadius`, `haloColor` and `haloAlpha`. The defaults are the text color, 1.5 px, `[3.5, 2.5]`, an offset of 3 px, and the chart background behind the dashes. Set `dashArray: []` for a solid outline and `haloAlpha: 0` to drop the backing.
+Style it through the stylesheet as `style.editOutline`, with `hover` and `selected` parts: `stroke`, `strokeWidth`, `strokeAlpha`, `dashArray`, `offset`, `cornerRadius`, `backingColor` and `backingAlpha`. The defaults are the text color, 1.5 px, `[3.5, 2.5]`, an offset of 3 px, and the chart background behind the dashes. Set `dashArray: []` for a solid outline and `backingAlpha: 0` to drop the backing.
 
 ## Restyling the menu
 
@@ -219,14 +219,14 @@ const BrandBarsMenu = ({ target }: { target: ObservationsTarget }) => {
   );
 };
 // Optional: say when the menu has rows, so a target with none is not selectable.
-BrandBarsMenu.hasRows = (target: ObservationsTarget) => target.scope === 'series';
+BrandBarsMenu.hasRows = (target: ObservationsTarget) => target.scope === 'group';
 
 const editMenus: EditMenus = {
   geoms: { bar: BrandBarsMenu, point: null },
   legend: null,
 };
 
-<EditableGraphRenderer mode="point-and-edit" editMenus={editMenus} />;
+<EditableGraphRenderer mode="pointAndEdit" editMenus={editMenus} />;
 ```
 
 - `geoms` is keyed by geom name, a built-in or a custom one, and applies to every rendering of that geom. `layers` is keyed by geom, then the chart's coord, then the layer's position, so menus can vary by chart type, such as pie slices and columns.

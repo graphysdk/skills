@@ -143,7 +143,7 @@ export function ChartWithHostMenu() {
   return (
     <div style={{ height: 420 }}>
       <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-        <EditableGraphRenderer mode="point-and-edit" editMenus={editMenus} />
+        <EditableGraphRenderer mode="pointAndEdit" editMenus={editMenus} />
         <HostMenu />
       </GraphProvider>
     </div>

@@ -88,7 +88,7 @@ const GROUPS = [
   {
     title: 'Mapping & layers',
     pkg: 'viz-engine',
-    symbols: ['AesMapping', 'AestheticKey', 'LayerSpec', 'CustomGeomLayerSpec'],
+    symbols: ['AestheticMapping', 'AestheticKey', 'LayerSpec', 'CustomGeomLayerSpec'],
   },
   {
     title: 'Transforms & stats',
@@ -139,10 +139,10 @@ const GROUPS = [
     pkg: 'viz-engine',
     symbols: [
       'DEFAULT_COLOR_PALETTE',
-      'ColorRamp',
-      'DEFAULT_SEQUENTIAL_RAMP',
-      'DEFAULT_DIVERGING_RAMP',
-      'sampleColorRamp',
+      'Colormap',
+      'DEFAULT_SEQUENTIAL_STOPS',
+      'DEFAULT_DIVERGING_STOPS',
+      'sampleColormap',
     ],
   },
   {

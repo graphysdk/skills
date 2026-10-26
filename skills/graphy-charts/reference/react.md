@@ -16,7 +16,7 @@ Contents
 - Hooks inside the tree
 - Commands and onSpecChange
 - Text measurement and server rendering
-- The brand mark
+- The Graphy badge
 - Pitfalls
 
 Exact types: types.md § Provider & renderer, § Animation, § Diagnostics.
@@ -65,7 +65,7 @@ Props:
 
 Exported types: `GraphProviderProps`, `ColorScheme`, `Scene` and `ResolvedSpec`.
 
-`@graphysdk/react` and `@graphysdk/react-renderer` export a `GraphProvider` with the same props. The one from `@graphysdk/react` turns the brand mark on by default. See "The brand mark".
+`@graphysdk/react` and `@graphysdk/react-renderer` export a `GraphProvider` with the same props. The one from `@graphysdk/react` turns the Graphy badge on by default. See "The Graphy badge".
 
 ## GraphRenderer
 
@@ -85,7 +85,7 @@ Props:
 - `onResize`: called with `{ width, height, unmeasured }` whenever the container changes size.
 - `animation`: `true`, `false`, or an object. See "Animation".
 - `showTooltips`: default `true`. `false` hides the tooltip whatever `config.tooltip.mode` says.
-- `mode`: `'readonly'` (default), `'editable'` or `'point-and-edit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
+- `mode`: `'readonly'` (default), `'editable'` or `'pointAndEdit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
 - `slots`: replace how a region paints. See slots.md.
 
 Exported types: `GraphRendererProps`, `GraphMode`, and the `GRAPH_MODES` constant with `readonly`, `editable` and `pointAndEdit` keys.
@@ -129,7 +129,7 @@ const introOnly = <GraphRenderer animation={{ transitions: false }} />;
 
 // Tune the entrance.
 const slowIntro = (
-  <GraphRenderer animation={{ intro: { durationScale: 2, stagger: true, staggerOrder: 'value-ascending' } }} />
+  <GraphRenderer animation={{ intro: { durationScale: 2, stagger: true, staggerOrder: 'valueAscending' } }} />
 );
 
 // Play the entrance when the graph scrolls into view.
@@ -139,7 +139,7 @@ const lazyIntro = <GraphRenderer animation={{ intro: { trigger: 'inView' } }} />
 const capped = <GraphRenderer animation={{ maxAnimatedGeoms: 300 }} />;
 ```
 
-- `intro`: the entrance. `false` or `{ enabled, trigger, durationScale, stagger, staggerOrder }`. `trigger` is `'mount'` (default) or `'inView'`, which waits until 40% of the panel is on screen and plays on mount where there is no `IntersectionObserver`. `staggerOrder` is `'main-axis'`, `'value-ascending'` or `'value-descending'`. The entrance plays once. A later change of coordinate system swaps the geom layers in without one.
+- `intro`: the entrance. `false` or `{ enabled, trigger, durationScale, stagger, staggerOrder }`. `trigger` is `'mount'` (default) or `'inView'`, which waits until 40% of the panel is on screen and plays on mount where there is no `IntersectionObserver`. `staggerOrder` is `'mainAxis'`, `'valueAscending'` or `'valueDescending'`. The entrance plays once. A later change of coordinate system swaps the geom layers in without one.
 - `transitions`: whether geoms move to their new place when the data changes. Default on.
 - `maxAnimatedGeoms`: above this many geoms nothing animates. Default 1500. A line or an area counts as one geom.
 
@@ -352,9 +352,9 @@ The renderer measures text with a canvas so ticks, legends and labels get exactl
 
 A server-rendered page carries no graph markup. The text measurer provider renders nothing until its effect has run, and responsive sizing waits for the first container measurement. The graph appears on the client after mount.
 
-## The brand mark
+## The Graphy badge
 
-The "Made with Graphy" badge is a spec setting, `config.content.brandMark`. `@graphysdk/react` sets it on when the spec says nothing. `@graphysdk/react-renderer` leaves it off. An explicit `brandMark.enabled` or `content.isBrandMarkVisible` is kept by both packages.
+The "Made with Graphy" badge is a spec setting, `config.content.graphyBadge`. `@graphysdk/react` sets it on when the spec says nothing. `@graphysdk/react-renderer` leaves it off. An explicit `graphyBadge.visible` is kept by both packages.
 
 ```tsx
 import { config, createSpec, geom, pipe, scale } from '@graphysdk/react';
@@ -364,11 +364,11 @@ const spec = pipe(
   geom.bar(),
   scale.x(),
   scale.y(),
-  config({ content: { brandMark: { enabled: false } } })
+  config({ content: { graphyBadge: { visible: false } } })
 );
 ```
 
-The badge hides itself below 120 by 80 pixels and shrinks to a circle below 200 pixels wide. `brandMark.placement` is `'footer'` (default) or `'header'`. `brandMark.variant` is `'full'` (default) or `'mini'`, and `'mini'` forces the circle at any size.
+The badge hides itself below 120 by 80 pixels and shrinks to a circle below 200 pixels wide. `graphyBadge.position` is `'footer'` (default) or `'header'`. `graphyBadge.variant` is `'full'` (default) or `'mini'`, and `'mini'` forces the circle at any size.
 
 ## Pitfalls
 
@@ -377,4 +377,4 @@ The badge hides itself below 120 by 80 pixels and shrinks to a circle below 200 
 - `plugins` and `theme` are frozen at mount. Passing a different value later does nothing until the provider remounts.
 - `mode="editable"` on the plain `GraphRenderer` gives no editing UI. Use `EditableGraphRenderer` from `@graphysdk/react/editable`.
 - `onSpecChange` fires for committed commands, undo and redo, not when you pass a new `spec` prop. A transient dispatch fires nothing until `commit()`, the next committed dispatch, or a data, palette or scheme change closes the run.
-- The provider from `@graphysdk/react-renderer` shows no brand mark. Import `GraphProvider` from one package consistently.
+- The provider from `@graphysdk/react-renderer` shows no Graphy badge. Import `GraphProvider` from one package consistently.

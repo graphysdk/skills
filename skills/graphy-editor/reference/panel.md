@@ -41,7 +41,7 @@ import { GraphProvider } from '@graphysdk/react';
 import { AxisSection, EditableGraphRenderer, EditorPanel } from '@graphysdk/react/editable';
 
 <GraphProvider spec={spec} data={data} onSpecChange={setSpec} colorScheme="dark">
-  <EditableGraphRenderer mode="point-and-edit" />
+  <EditableGraphRenderer mode="pointAndEdit" />
   <EditorPanel.Root>
     <AxisSection axis="y" />
   </EditorPanel.Root>

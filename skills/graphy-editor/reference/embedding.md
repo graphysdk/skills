@@ -20,13 +20,13 @@ import { EditableGraphRenderer } from '@graphysdk/react/editable';
 `EditableGraphRenderer` adds an editing layer to `GraphRenderer`. Choose its behavior with `mode`:
 
 - `'readonly'` (default): view only. Commands from code still work.
-- `'point-and-edit'`: click a part of the chart and change it from a menu. See [point and edit](point-and-edit.md).
+- `'pointAndEdit'`: click a part of the chart and change it from a menu. See [point and edit](point-and-edit.md).
 - `'editable'`: annotations, drags, inline text, the (+) menu. See [annotations](annotations.md).
 
 A plain `GraphRenderer` with `mode="editable"` renders no editing layer, though the mode still hides tooltips. Switch modes through the `mode` prop:
 
 ```tsx
-<EditableGraphRenderer mode={isEditing ? 'point-and-edit' : 'readonly'} />
+<EditableGraphRenderer mode={isEditing ? 'pointAndEdit' : 'readonly'} />
 ```
 
 Hover, animation and the editor's own state survive a mode change. Swapping components remounts the chart and loses them. The undo history lives in `GraphProvider`, so it survives both. Switching between the two editing modes clears the selection.

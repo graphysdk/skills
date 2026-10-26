@@ -257,7 +257,7 @@ const spec = pipe(
 
 - `position: 'auto'` lets the engine fit, flip, or drop labels. When any label is wider than its bar, every label in the layer rotates (not on flipped bars). A label too long for a dodged bar moves outside, and is dropped if it would leave the panel. A label that does not fit a stacked or filled segment is dropped.
 - An explicit position renders as asked, except that `'outside'` on stacked or filled cartesian bars becomes `'inside'` with a DATA_LABEL_PLACEMENT_COERCED warning. Pie wedges keep `'outside'`.
-- `justify` also accepts `'panel-start'` and `'panel-end'`, which pin labels to the panel edge. It defaults to `'center'` for stacked and filled bars. Under polar coords and on stacked or filled bars the panel anchors are replaced by `'start'` and `'end'`, with the same warning.
+- `justify` also accepts `'panelStart'` and `'panelEnd'`, which pin labels to the panel edge. It defaults to `'center'` for stacked and filled bars. Under polar coords and on stacked or filled bars the panel anchors are replaced by `'start'` and `'end'`, with the same warning.
 - `offset` defaults to 4 for bars, wedges, and points and 8 for lines and areas. Stack totals ignore it and sit 6px off the stack end.
 - Polar bars default `format` to `'percentage'`.
 - `showStackTotals` only applies to `position: 'stack'`; elsewhere it warns DATA_LABEL_SETTING_IGNORED.
@@ -289,7 +289,7 @@ scale.y.sqrt();
 - `domainMin` and `domainMax` pin one end; the other end follows the data. A lone `domainMin: 0` with all-negative data keeps zero at the top.
 - Bars and areas always hold zero on their value axis, so `domainMin: 0` is redundant there, and a `domainMin` above zero is overridden with an INCOMPATIBLE_SCALE_DOMAIN warning. Points and lines do not hold zero.
 - A log scale needs a domain that is all positive or all negative. One that includes zero falls back to linear with INCOMPATIBLE_SCALE_DOMAIN.
-- When `domainMid` falls strictly inside the domain, the color scale is diverging. Use an odd number of stops to specify a neutral middle color. An even count in the selected `range` or theme palette blends the two central colors and emits EVEN_DIVERGING_RAMP; the supplied ramp still renders.
+- When `domainMid` falls strictly inside the domain, the color scale is diverging. Use an odd number of stops to specify a neutral middle color. An even count in the selected `range` or theme palette blends the two central colors and emits EVEN_DIVERGING_RAMP; the supplied colormap still renders.
 - `nice` rounds the domain to round values. On by default for continuous, off for datetime, skipped on log scales. An inferred `scale.y()` turns it off under `position: 'fill'`.
 - `clamp` defaults to false for position scales and true for size, alpha, strokeWidth, and color.
 - A discrete `domain` lists the bands in order and drops everything else. `padding` defaults to 0.1 of the band step. Tiles default it to 0, and `coord.polar()` forces it to 0 for every discrete scale.
@@ -320,9 +320,9 @@ import { scale } from '@graphysdk/react';
 scale.color.discrete();
 // Groups with colors from the brief, in band order.
 scale.color.discrete({ range: ['#B84737', '#0B8666', '#3D63A8'] });
-// A numeric variable: the theme's sequential list, else the brick ramp.
+// A numeric variable: the theme's sequential list, else the brick colormap.
 scale.color.continuous();
-// Values that cross zero: the theme's diverging list, else the engine's blue-gray-brick ramp, neutral at zero.
+// Values that cross zero: the theme's diverging list, else the engine's blue-gray-brick colormap, neutral at zero.
 scale.color.continuous({ domainMid: 0 });
 
 // Only when the brief gives the colors for a numeric variable.
@@ -488,7 +488,7 @@ config({
     showCaption: true, // captions and sources are hidden by default
     source: { label: 'Finance team', url: 'https://example.com' },
     showSource: true,
-    brandMark: { enabled: true, placement: 'footer', variant: 'full' },
+    graphyBadge: { visible: true, position: 'footer', variant: 'full' },
   },
   headline: {
     show: 'total', // 'total' | 'average' | 'current' | 'none' ('conversion' exists but is not implemented)
@@ -539,7 +539,7 @@ Tooltip:
 Other notes:
 
 - `title`, `subtitle`, and `caption` accept a string or a rich text node (types.md § Config, `RichTextContent`).
-- `isBrandMarkVisible` is an older alias of `brandMark.enabled`. The `@graphysdk/react` provider turns the mark on unless the spec says otherwise (react.md). The mark shrinks to the mini form below 200px width and hides below 120 × 80.
+- The `@graphysdk/react` provider turns the Graphy badge on unless the spec says otherwise (react.md). The badge shrinks to the mini form below 200px width and hides below 120 × 80.
 - `parsingLocale` is how the data is read. The display locale is the provider's `formattingLocale` (data.md § Parsing locale and formatting locale).
 - Grid, axis, and legend paint (colors, fonts, dashes) is styling, not config. See styling.md.
 

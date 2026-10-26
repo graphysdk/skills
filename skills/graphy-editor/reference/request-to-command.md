@@ -2,7 +2,7 @@
 
 Use these commands for common editing requests. Import them from `@graphysdk/react/editable`; see [types](types.md) for parameters. The last column lists UI controls for the same edit.
 
-Inspect the chart before choosing a command. `readChartType(scene.spec)` returns its type. `scene.spec.layers` gives the layer ids and geoms. `scene.spec.mapping` gives the mapped columns. `readMappableAesthetics(scene.spec, ['x', 'y', 'color', 'size', 'label'])` says which columns each aesthetic accepts. A command that targets a missing layer or sets the current value does nothing, so check the target and current value before dispatching.
+Inspect the chart before choosing a command. `readGraphType(scene.spec)` returns its type. `scene.spec.layers` gives the layer ids and geoms. `scene.spec.mapping` gives the mapped columns. `readMappableAesthetics(scene.spec, ['x', 'y', 'color', 'size', 'label'])` says which columns each aesthetic accepts. A command that targets a missing layer or sets the current value does nothing, so check the target and current value before dispatching.
 
 Before writing code, replay the commands with `scripts/replay-commands.mjs`. See the end of this file.
 
@@ -10,9 +10,9 @@ Before writing code, replay the commands with `scripts/replay-commands.mjs`. See
 
 | Request                                        | Command                                                                                                              | Also                                     |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Make it a line chart, a donut, stacked bars    | `SetChartTypeCommand({ coordType, geom, position })` or `{ coordType: 'polar', geom, position, theta, innerRadius }` | panel `GraphTypeSection`                 |
-| Make it a combo, bars plus a line              | `SetChartTypeCommand({ coordType: 'cartesian', comboType: 'grouped-bars' })`, when `canBecomeCombo(spec)`            | panel `GraphTypeSection`, `ComboSection` |
-| Make it a heatmap                              | `SetChartTypeCommand({ coordType: 'cartesian', geom: 'tile', position: 'identity' })`, when `canBecomeHeatmap(spec)` | panel `GraphTypeSection`                 |
+| Make it a line chart, a donut, stacked bars    | `SetGraphTypeCommand({ coordType, geom, position })` or `{ coordType: 'polar', geom, position, theta, innerRadius }` | panel `GraphTypeSection`                 |
+| Make it a combo, bars plus a line              | `SetGraphTypeCommand({ coordType: 'cartesian', comboType: 'groupedBars' })`, when `canBecomeCombo(spec)`             | panel `GraphTypeSection`, `ComboSection` |
+| Make it a heatmap                              | `SetGraphTypeCommand({ coordType: 'cartesian', geom: 'tile', position: 'identity' })`, when `canBecomeHeatmap(spec)` | panel `GraphTypeSection`                 |
 | Plot revenue instead of sales, color by region | `SetMappingCommand({ aesthetic: 'y', variable: 'revenue' })`, `null` to unmap                                        | panel `MappingSection`                   |
 | Make the donut hole bigger, rotate the pie     | `SetPolarInnerRadiusCommand({ innerRadius })`, `SetPolarStartAngleCommand({ startAngle })`                           | panel `PolarSection`                     |
 | Use my palette                                 | `SetScaleRangeCommand({ scaledAesthetic: 'color', range: [...] })`, `null` for the theme's                           | menu Chart with `palettePresets`         |
@@ -52,7 +52,7 @@ Assign layer IDs when authoring so commands can target the correct layer. `layer
 | Add a second series on its own axis         | `AddLayerCommand({ layer })` with `yScaleType: 'secondary'`, see [commands](commands.md)                                                                                                    |                                           |
 | Put this series on the right axis           | `SetLayerYScaleTypeCommand({ layerId, yScaleType: 'secondary' })`                                                                                                                           | panel `AxisSection`                       |
 | Remove a layer                              | `RemoveLayerCommand({ layerId })`                                                                                                                                                           |                                           |
-| Highlight Q4, dim the rest                  | `AddHighlightCommand({ predicate: { variable: 'quarter', eq: 'Q4' }, scope: 'x-value' })`, `SetHighlightDimStyleCommand({ dimStyle })`                                                      | (+) menu in editable mode                 |
+| Highlight Q4, dim the rest                  | `AddHighlightCommand({ predicate: { variable: 'quarter', eq: 'Q4' }, scope: 'xValue' })`, `SetHighlightDimStyleCommand({ dimStyle })`                                                       | (+) menu in editable mode                 |
 
 ## Axes, grid, legend
 
@@ -98,10 +98,10 @@ node <path to this skill>/scripts/replay-commands.mjs ./chart.mjs ./commands.jso
 
 ```json
 [
-  { "type": "set-content-title", "params": { "title": "Sales by quarter" } },
-  { "type": "set-bar-width", "params": { "width": 0.5 }, "transient": true },
+  { "type": "setContentTitle", "params": { "title": "Sales by quarter" } },
+  { "type": "setBarWidth", "params": { "width": 0.5 }, "transient": true },
   "commit",
-  { "type": "set-layer-position", "params": { "layerId": "bars", "position": "stack" } }
+  { "type": "setLayerPosition", "params": { "layerId": "bars", "position": "stack" } }
 ]
 ```
 

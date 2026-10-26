@@ -56,7 +56,7 @@ export function Prices() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. Sessions sit one per band at equal spacing, so a weekend takes no room. The price axis fits the prices; it does not hold zero. A session rises when its close is at or above its open, so a doji counts as rising. The close stands in for the layer's `y`: a highlight or headline reading `y` reads the close. A `y` in the root mapping does not reach the layer.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. Sessions sit one per band at equal spacing, so a weekend takes no room. The price axis fits the prices; it does not hold zero. A session rises when its close is at or above its open, so a doji counts as rising. The close stands in for the layer's `y`: a highlight or headline reading `y` reads the close. A `y` in the root mapping does not reach the layer.
 
 ## Variants
 

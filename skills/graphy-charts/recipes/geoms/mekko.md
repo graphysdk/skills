@@ -53,7 +53,7 @@ export function Markets() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. Each column is as wide as its total's share of the grand total and the columns run in data order. Each cell is as tall as its amount's share of its column; the cells stack in the order their group first appears, so a group holds the same place in every column. Rows that repeat a column and group are summed into one cell. A missing, zero or negative amount draws no cell.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. Each column is as wide as its total's share of the grand total and the columns run in data order. Each cell is as tall as its amount's share of its column; the cells stack in the order their group first appears, so a group holds the same place in every column. Rows that repeat a column and group are summed into one cell. A missing, zero or negative amount draws no cell.
 
 Both axes run from 0 to 100%. The x axis is ticked with each column's name at its center and draws no grid line through the columns. The y axis reads each cell's share of its column and has no title by default; give it one with `config({ axes: { y: { label: 'Share of market' } } })`.
 

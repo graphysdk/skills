@@ -57,7 +57,7 @@ export function Recovery() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The value axis fits the intervals. On its own an error bar does not hold zero; under bars, the bars hold it.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The value axis fits the intervals. On its own an error bar does not hold zero; under bars, the bars hold it.
 
 ## Variants
 

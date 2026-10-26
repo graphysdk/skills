@@ -297,11 +297,11 @@ class TreemapGeom extends Geom<TreemapParams> {
   ] as const;
   override readonly derivedVariables = ['group'] as const;
   override readonly tooltip = [
-    { key: 'Item', aes: 'label' },
-    { key: 'Value', aes: 'value' },
+    { key: 'Item', aesthetic: 'label' },
+    { key: 'Value', aesthetic: 'value' },
   ] as const;
 
-  override readonly spatialKind = 'render-hit-test';
+  override readonly spatialKind = 'renderHitTest';
 
   compile({ data, params, mapping }: GeomCompilerInput): GeomCompileResult {
     // `params` arrives merged over `defaultParams`.
@@ -577,7 +577,7 @@ export const kit = createGraphyKit({
 - From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
 - `label` and `value` are required data aesthetics. `group` is optional; without it the leaves form one flat treemap.
 - The color scale trains on the dataset `compile` returns, not on the input. `color` must name a column of that dataset: the derived `group`, listed in `derivedVariables` so the unknown-variable check accepts it. `color: 'sector'` compiles with no diagnostic and paints every tile the fallback gray.
-- `spatialKind: 'render-hit-test'` needs an identity the geom owns (`identityKey: { variable: 'markId' }`). On the default `'x-group'` every hit resolves to nothing and the engine reports `RENDER_HIT_TEST_IDENTITY`.
+- `spatialKind: 'renderHitTest'` needs an identity the geom owns (`identityKey: { variable: 'markId' }`). On the default `'xGroup'` every hit resolves to nothing and the engine reports `RENDER_HIT_TEST_IDENTITY`.
 - `hitTest` is a factory: it runs once per data or panel-size change and returns the per-cursor tester. The cursor is panel-local `[0, 1]` with a top-left origin, the frame the layout wrote. Return `{ key: markId }` or `null`.
 - `getColor` reads the data tier only, so `style.geom({ fill })` overrides do not reach the tiles. To honor them, read `toPaintColor(styleReaders.get('fill', observation))` from the render input instead.
 - Params (`padding`, `groupGap`, `groupHeader`) are unit fractions of the panel. `compile` receives them merged over `defaultParams`.

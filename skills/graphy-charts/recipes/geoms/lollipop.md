@@ -49,7 +49,7 @@ export function ReadingShare() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The value axis always holds zero. A negative value hangs its stem below the baseline.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The value axis always holds zero. A negative value hangs its stem below the baseline.
 
 ## Variants
 

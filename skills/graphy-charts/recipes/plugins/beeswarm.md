@@ -154,7 +154,7 @@ const FALLBACK_COLOR = '#888888';
 class BeeswarmGeom extends Geom {
   readonly type = 'beeswarm' as const;
   override readonly defaultParams = {};
-  // The hit-test returns a row index, so the identity is the row. The default `'x-group'` would leave
+  // The hit-test returns a row index, so the identity is the row. The default `'xGroup'` would leave
   // the hover lookup empty.
   override readonly identityKey = 'index' as const;
   override readonly supportedCoordTypes = ['cartesian'] as const;
@@ -166,11 +166,11 @@ class BeeswarmGeom extends Geom {
     { kind: 'visual', name: 'color' },
   ] as const;
   override readonly tooltip = [
-    { key: 'Name', aes: 'name' },
-    { key: 'Group', aes: 'color' },
+    { key: 'Name', aesthetic: 'name' },
+    { key: 'Group', aesthetic: 'color' },
   ] as const;
   // The geometry exists only in the render half, so the render half answers the hover query.
-  override readonly spatialKind = 'render-hit-test';
+  override readonly spatialKind = 'renderHitTest';
 
   // Row order is the identity, so the data passes through unchanged.
   compile({ data }: GeomCompilerInput): GeomCompileResult {
@@ -291,6 +291,6 @@ export const kit = createGraphyKit({
 
 - No third-party dependency. Everything imports from `@graphysdk/react`.
 - The geom declares one x position role and no y, so only `kit.scale.x` is needed. Map `color` to a group column for per-group colors and a legend.
-- `spatialKind: 'render-hit-test'` requires either a `hitTest` factory or an overlay render on the contract. Registering a tester with `useGeomHitTest` inside the layer instead reports `MISSING_RENDER_HIT_TEST`.
+- `spatialKind: 'renderHitTest'` requires either a `hitTest` factory or an overlay render on the contract. Registering a tester with `useGeomHitTest` inside the layer instead reports `MISSING_RENDER_HIT_TEST`.
 - The dodge uses a fixed pixel radius, so the layout changes with panel size. The neighbor search is quadratic in the number of points per column of x.
 - Paint reads `styleReaders.get('fill', observation)`, so `style.geom({ fill })` overrides apply. On hover the base layer dims through the stylesheet's `dimmed` state and the hover dot is drawn above it at full strength.

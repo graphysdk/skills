@@ -95,7 +95,7 @@ import {
 
 <ControlRegistryProvider controls={houseControls}>
   <GraphProvider spec={spec} data={data} onSpecChange={setSpec}>
-    <EditableGraphRenderer mode="point-and-edit" />
+    <EditableGraphRenderer mode="pointAndEdit" />
     <EditorPanel.Root>
       <BarSection />
       <GridSection />

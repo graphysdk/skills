@@ -26,7 +26,7 @@ Contents
 `highlight(predicate, options)` marks the observations that match. What the renderer draws depends on the geom.
 
 - Bar and tile: unmatched observations dim, matched ones are redrawn at full strength.
-- Line, area and point: a `'data-point'` or `'x-value'` match draws a marker dot with a value label at each matched observation and dims nothing. Only scope `'series'` dims the other groups.
+- Line, area and point: a `'observation'` or `'xValue'` match draws a marker dot with a value label at each matched observation and dims nothing. Only scope `'group'` dims the other groups.
 - Rule: never highlights.
 
 ```ts
@@ -70,11 +70,11 @@ Comparison keys: `eq`, `oneOf`, `lt`, `lte`, `gt`, `gte`, `range` (inclusive). T
 
 Options:
 
-- `scope`: how far a match spreads. `'data-point'` (default) keeps only the matched observations. `'series'` keeps every observation in the same group as a match. `'x-value'` keeps every observation at the same x value.
+- `scope`: how far a match spreads. `'observation'` (default) keeps only the matched observations. `'group'` keeps every observation in the same group as a match. `'xValue'` keeps every observation at the same x value.
 - `layerId`: only evaluate on the layer with that id (`geom.bar({ id: 'bars' })`) and the non-interactive layers repeating its mapping, such as `geom.point({ interactive: false })` over a line. Other layers are untouched.
 - `id`: a stable id for the highlight.
 
-Several `highlight()` calls union their matches, the same as one `or` predicate. To put one line in focus and fade the others, use scope `'series'`:
+Several `highlight()` calls union their matches, the same as one `or` predicate. To put one line in focus and fade the others, use scope `'group'`:
 
 ```ts
 import { createSpec, geom, highlight, pipe, scale } from '@graphysdk/react';
@@ -85,7 +85,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.color.discrete(),
-  highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'series', layerId: 'lines' })
+  highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'group', layerId: 'lines' })
 );
 ```
 
@@ -259,7 +259,7 @@ const spec = pipe(
 ```
 
 - `position`: `'auto'` (default, the engine fits, flips or drops labels), `'inside'` or `'outside'`.
-- `justify` and `align` place an explicit label on the geom's box. `justify` runs along the value axis (`'start'`, `'center'`, `'end'`, `'panel-start'`, `'panel-end'`). `align` runs across it (`'start'`, `'center'`, `'end'`).
+- `justify` and `align` place an explicit label on the geom's box. `justify` runs along the value axis (`'start'`, `'center'`, `'end'`, `'panelStart'`, `'panelEnd'`). `align` runs across it (`'start'`, `'center'`, `'end'`).
 - `offset`: pixels between the geom and the label.
 - `format`: `'absolute'` or `'percentage'`.
 - `showStackTotals`: one total per stack, on `position: 'stack'` only, styled by `style.dataLabel.aggregate`.
@@ -309,7 +309,7 @@ Every annotation is positioned by an anchor that re-resolves on each compile, so
 - `selection`: `{ anchorType: 'selection', predicate, align: 'top' }`, a point on the box around every observation the predicate matches. `align` is required here.
 - `annotation`: `{ anchorType: 'annotation', ref: 'note', align: 'bottom' }`, a point on another annotation's box.
 
-`align` picks a point on the box: `'center'`, `'top'`, `'right'`, `'bottom'`, `'left'`, `'top-left'`, `'top-right'`, `'bottom-left'`, `'bottom-right'`. Axis and annotation anchors default to `'center'`. `offset` nudges the result: `{ x, y, unit: 'panel' | 'px' }`, panel fractions by default. The y axis points down, so a negative `y` moves up. Under `coord.polar()` a point anchor's offset is ignored.
+`align` picks a point on the box: `'center'`, `'top'`, `'right'`, `'bottom'`, `'left'`, `'topLeft'`, `'topRight'`, `'bottomLeft'`, `'bottomRight'`. Axis and annotation anchors default to `'center'`. `offset` nudges the result: `{ x, y, unit: 'panel' | 'px' }`, panel fractions by default. The y axis points down, so a negative `y` moves up. Under `coord.polar()` a point anchor's offset is ignored.
 
 Region anchors, for shapes and images:
 
@@ -376,7 +376,7 @@ const spec = pipe(
     start: { anchorType: 'panel', x: 0.3, y: 0.15 },
     end: { anchorType: 'observation', anchorValue: 'Q4', align: 'top' },
     startArrowheadStyle: 'none',
-    endArrowheadStyle: 'line-arrow',
+    endArrowheadStyle: 'lineArrow',
   }),
   styles({
     overrides: [style.annotation.arrow({ stroke: '#1c7ed6', strokeWidth: 3, dashArray: [] }, { annotation: 'to-q4' })],
@@ -384,7 +384,7 @@ const spec = pipe(
 );
 ```
 
-Arrowhead styles: `'none'` or `'line-arrow'`. Defaults: `'none'` at the start, `'line-arrow'` at the end. An endpoint on an observation, selection or annotation anchor with a directional `align` and no `offset` stops 4 px short of the edge, so the head does not touch the geom. An explicit `offset` replaces that gap. `style.annotation.arrow` takes `stroke`, `strokeWidth`, `dashArray`; `style.annotation.arrow.outline` (`stroke`, `strokeWidth`, `shadow`) paints a contrasting outline around the shaft, off by default.
+Arrowhead styles: `'none'` or `'lineArrow'`. Defaults: `'none'` at the start, `'lineArrow'` at the end. An endpoint on an observation, selection or annotation anchor with a directional `align` and no `offset` stops 4 px short of the edge, so the head does not touch the geom. An explicit `offset` replaces that gap. `style.annotation.arrow` takes `stroke`, `strokeWidth`, `dashArray`; `style.annotation.arrow.outline` (`stroke`, `strokeWidth`, `shadow`) paints a contrasting outline around the shaft, off by default.
 
 ## Difference arrows
 
@@ -403,7 +403,7 @@ const spec = pipe(
     id: 'eu-growth',
     start: { anchorValue: 'Jan', groupValue: 'EU' },
     end: { anchorValue: 'Apr', groupValue: 'EU' },
-    label: 'relative-difference',
+    label: 'relativeDifference',
     labelCrossPosition: 0.5,
   }),
   styles({
@@ -415,7 +415,7 @@ const spec = pipe(
 );
 ```
 
-`label`: `'absolute-difference'`, `'relative-difference'` or `'proportion'`. `labelCrossPosition` places the label along the arrow, 0 at the start, 1 at the end (default 0.5). `style.annotation.differenceArrow` takes `stroke` and `strokeWidth`; `strokeWidth` also sizes the route around the observations. Without a `stroke` entry the arrow takes the group color when both endpoints sit on the same layer and group and paint the same color; otherwise the built-in `annotationArrow` token. The label's border takes the arrow's color unless the label declares `stroke`. Two ends on different bases (one per y axis, or two measures in one reshaped column) warn INCOMPARABLE_ARROW_ENDPOINTS and still draw. A label that spills past the panel edge stays outside by default; `config({ panel: { overflow: { differenceArrows: { x: 'inside', y: 'inside' } } } })` keeps it inside.
+`label`: `'absoluteDifference'`, `'relativeDifference'` or `'proportion'`. `labelCrossPosition` places the label along the arrow, 0 at the start, 1 at the end (default 0.5). `style.annotation.differenceArrow` takes `stroke` and `strokeWidth`; `strokeWidth` also sizes the route around the observations. Without a `stroke` entry the arrow takes the group color when both endpoints sit on the same layer and group and paint the same color; otherwise the built-in `annotationArrow` token. The label's border takes the arrow's color unless the label declares `stroke`. Two ends on different bases (one per y axis, or two measures in one reshaped column) warn INCOMPARABLE_ARROW_ENDPOINTS and still draw. A label that spills past the panel edge stays outside by default; `config({ panel: { overflow: { differenceArrows: { x: 'inside', y: 'inside' } } } })` keeps it inside.
 
 ## Shapes and images
 
@@ -559,11 +559,11 @@ const spec = pipe(
   geom.bar(),
   scale.x(),
   scale.y(),
-  annotation.differenceArrow({ start: { anchorValue: 2023 }, end: { anchorValue: 2025 }, label: 'relative-difference' })
+  annotation.differenceArrow({ start: { anchorValue: 2023 }, end: { anchorValue: 2025 }, label: 'relativeDifference' })
 );
 ```
 
-One group in focus, the rest as context. The line geom only dims with scope `'series'`:
+One group in focus, the rest as context. The line geom only dims with scope `'group'`:
 
 ```ts
 import { config, createSpec, geom, highlight, pipe, scale, style, styles } from '@graphysdk/react';
@@ -574,7 +574,7 @@ const spec = pipe(
   scale.x(),
   scale.y(),
   scale.color.discrete(),
-  highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'series' }),
+  highlight({ variable: 'product', eq: 'Alpha' }, { scope: 'group' }),
   config({ legend: { position: 'right', display: 'direct' } }),
   styles({
     defaults: [style.geom({ saturation: 0, alpha: 0.3 }, { state: 'dimmed' }), style.geom.line({ strokeWidth: 3 })],
@@ -584,7 +584,7 @@ const spec = pipe(
 
 ## Pitfalls
 
-- A `'data-point'` highlight on a line, area or point layer marks the observations instead of dimming the rest. Use scope `'series'` to fade the other groups.
+- A `'observation'` highlight on a line, area or point layer marks the observations instead of dimming the rest. Use scope `'group'` to fade the other groups.
 - Use the same value as in your rows for `anchorValue` and predicate values. A month parsed as a date still matches by the text you passed in.
 - Keep vertical `geom.rule` values on a numeric x scale.
 - `style.geom.rule({ color })` is dropped with a warning. Rules and lines stroke, so declare `stroke`.

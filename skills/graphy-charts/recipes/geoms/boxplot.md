@@ -56,7 +56,7 @@ export function ResponseTimes() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. Quartiles interpolate as R, NumPy and d3 do. Whiskers reach the furthest value within 1.5 interquartile ranges of the box. The value axis fits every value, outliers included; it does not hold zero.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. Quartiles interpolate as R, NumPy and d3 do. Whiskers reach the furthest value within 1.5 interquartile ranges of the box. The value axis fits every value, outliers included; it does not hold zero.
 
 ## Variants
 

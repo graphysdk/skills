@@ -45,14 +45,14 @@ const initialSpec: Spec = pipe(
 );
 
 const MODES: { value: GraphMode; label: string }[] = [
-  { value: 'point-and-edit', label: 'Edit' },
+  { value: 'pointAndEdit', label: 'Edit' },
   { value: 'editable', label: 'Annotate' },
   { value: 'readonly', label: 'Read only' },
 ];
 
 export function TwoModeEditor() {
   const [spec, setSpec] = useState(initialSpec);
-  const [mode, setMode] = useState<GraphMode>('point-and-edit');
+  const [mode, setMode] = useState<GraphMode>('pointAndEdit');
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef);
 

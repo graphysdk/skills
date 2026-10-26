@@ -52,7 +52,7 @@ export function PayGap() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The value axis fits the data; it does not hold zero. A band with one dot draws the dot and no connector. With three or more dots the connector spans the smallest to the largest. Leave `color` unmapped for one color and no legend.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The value axis fits the data; it does not hold zero. A band with one dot draws the dot and no connector. With three or more dots the connector spans the smallest to the largest. Leave `color` unmapped for one color and no legend.
 
 ## Variants
 

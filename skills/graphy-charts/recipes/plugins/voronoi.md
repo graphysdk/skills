@@ -196,7 +196,7 @@ class VoronoiGeom extends Geom<VoronoiParams> {
     fillOpacity: 0.35,
   };
 
-  // The hit-test returns a cell's `markId`, so the identity is that column. The default `'x-group'`
+  // The hit-test returns a cell's `markId`, so the identity is that column. The default `'xGroup'`
   // would leave the hover lookup empty.
   override readonly identityKey = { variable: VORONOI_COLUMNS.markId } as const;
 
@@ -215,12 +215,12 @@ class VoronoiGeom extends Geom<VoronoiParams> {
   ] as const;
 
   override readonly tooltip = [
-    { key: 'Name', aes: 'label' },
-    { key: 'Group', aes: 'category' },
+    { key: 'Name', aesthetic: 'label' },
+    { key: 'Group', aesthetic: 'category' },
   ];
 
   // The cells are computed here, not from position scales, so the render half answers the hover query.
-  override readonly spatialKind = 'render-hit-test';
+  override readonly spatialKind = 'renderHitTest';
 
   compile({ data, params, mapping }: GeomCompilerInput): GeomCompileResult {
     const resolved = { ...this.defaultParams, ...(params as Partial<VoronoiParams>) };

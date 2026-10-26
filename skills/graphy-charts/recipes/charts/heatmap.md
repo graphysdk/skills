@@ -63,7 +63,7 @@ Tiles show their value as a data label by default. Turn it off with `geom.tile({
 
 ### Custom color range
 
-Only when the brief gives the colors. The bare call above takes the theme's sequential list, else the engine's brick ramp. Values that cross zero take the diverging variant below. A `range` is two or more stops and decides over the theme.
+Only when the brief gives the colors. The bare call above takes the theme's sequential list, else the engine's brick colormap. Values that cross zero take the diverging variant below. A `range` is two or more stops and decides over the theme.
 
 ```ts
 const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
@@ -71,7 +71,7 @@ const colorScale = scale.color.continuous({ range: ['#f7fbff', '#08306b'] });
 
 ### Diverging values around zero
 
-Pin the neutral color to zero. The theme's diverging list, else the engine's blue, gray, brick ramp, supplies the colors. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
+Pin the neutral color to zero. The theme's diverging list, else the engine's blue, gray, brick colormap, supplies the colors. `domainMid` also turns on `symmetric`, so equal magnitudes get equal intensity. Pass `symmetric: false` to keep the raw extent.
 
 ```ts
 const colorScale = scale.color.continuous({ domainMid: 0 });
@@ -110,7 +110,7 @@ const spec = pipe(
 
 ### Percent strings
 
-Values like `'86%'` are read as percentages. The color ramp and labels follow.
+Values like `'86%'` are read as percentages. The colormap and labels follow.
 
 ### Sparse grid
 

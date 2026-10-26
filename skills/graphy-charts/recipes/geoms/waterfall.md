@@ -52,7 +52,7 @@ export function ProfitBridge() {
 }
 ```
 
-Create the kit once at module scope. `kit.GraphProvider` shows "Made with Graphy" by default; `config({ content: { brandMark: { enabled: false } } })` turns it off. The value axis fits the running totals and holds zero. The total runs in data order: sort the rows, not the axis. A discrete `domain` that reorders the bands moves the bars but not the total.
+Create the kit once at module scope. `kit.GraphProvider` shows the Graphy badge by default; `config({ content: { graphyBadge: { visible: false } } })` turns it off. The value axis fits the running totals and holds zero. The total runs in data order: sort the rows, not the axis. A discrete `domain` that reorders the bands moves the bars but not the total.
 
 ### Measures
 

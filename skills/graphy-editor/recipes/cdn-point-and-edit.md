@@ -23,7 +23,7 @@ This HTML page runs without a bundler, as an artifact or a standalone file. The 
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793022188121/dist/editable.browser.mjs"
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793027249956/dist/editable.browser.mjs"
         }
       }
     </script>
@@ -74,7 +74,7 @@ This HTML page runs without a bundler, as an artifact or a standalone file. The 
         return createElement(
           GraphProvider,
           { spec, data, handleRef, onSpecChange: setSpec, colorScheme: query.matches ? 'dark' : 'light' },
-          createElement(EditableGraphRenderer, { mode: 'point-and-edit', palettePresets })
+          createElement(EditableGraphRenderer, { mode: 'pointAndEdit', palettePresets })
         );
       }
 

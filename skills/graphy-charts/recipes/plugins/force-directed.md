@@ -298,11 +298,11 @@ class ForceDirectedGeom extends Geom<ForceDirectedParams> {
   ] as const;
   override readonly derivedVariables = ['node'] as const;
   override readonly tooltip = [
-    { key: 'Name', aes: 'label' },
-    { key: 'Value', aes: 'value' },
+    { key: 'Name', aesthetic: 'label' },
+    { key: 'Value', aesthetic: 'value' },
   ] as const;
 
-  override readonly spatialKind = 'render-hit-test';
+  override readonly spatialKind = 'renderHitTest';
 
   // The compile half derives only the topology (nodes, weights, index pairs) and emits no positions. The
   // render half runs the simulation.
@@ -769,7 +769,7 @@ export const kit = createGraphyKit({
 - From `@graphysdk/viz-engine`: `createDatasetFromKindPartitions`, `readAuthoredNumber`, `readAuthoredString`, `readVariableName`, and the `IdentityKey` type. Everything else comes from `@graphysdk/react`.
 - `source`, `target`, and `value` are required data aesthetics. The geom derives `node`: a node's own name, an edge's source name.
 - The color scale trains on the dataset `compile` returns, not on the input. `color` must name a column of that dataset: the derived `node`, listed in `derivedVariables` so the unknown-variable check accepts it. `color: 'source'` compiles with no diagnostic and paints everything the fallback gray.
-- The live `render` (`options: { live: true }`) paints above the hover capture layer and owns pointer events, so drag and hover work without a `hitTest`. Each `pushHover(key, cursor)` resolves against the `'render-hit-test'` index, so the geom still declares `spatialKind: 'render-hit-test'` and an `identityKey` of its own; without them the geom paints but no hover or tooltip appears (`LIVE_RENDER_REQUIRES_RENDER_HIT_TEST`). Do not also declare `hitTest`: that is `CONFLICTING_RENDER_HIT_TEST`, and only the live render is used.
+- The live `render` (`options: { live: true }`) paints above the hover capture layer and owns pointer events, so drag and hover work without a `hitTest`. Each `pushHover(key, cursor)` resolves against the `'renderHitTest'` index, so the geom still declares `spatialKind: 'renderHitTest'` and an `identityKey` of its own; without them the geom paints but no hover or tooltip appears (`LIVE_RENDER_REQUIRES_RENDER_HIT_TEST`). Do not also declare `hitTest`: that is `CONFLICTING_RENDER_HIT_TEST`, and only the live render is used.
 - `renderHover` and `renderHoverCompanions` are required by the contract; return `null`. The geom paints its own hover (the neighborhood fade), and the central tooltip anchors at the pushed cursor.
 - Positions are not in the scene: the layout re-settles on each mount and resize. The simulation runs in panel units (`panelRect.width` by `panelRect.height`), and `live.readPanelPoint(event)` converts a pointer to the same units, so a drag follows the pointer at any graph size.
 - `getColor` reads the data tier only, so `style.geom({ fill })` overrides do not reach the nodes. To honor them, read `toPaintColor(styleReaders.get('fill', observation))` from the render input instead.
