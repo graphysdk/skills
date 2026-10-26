@@ -157,5 +157,7 @@ Details:
 - Bounds update on every recompile and resize. `client` also follows page movement.
 - Graphy's overlay still opens without rows. Targets without a menu or visibility button cannot be selected, and no prop hides the entire overlay. Use the `EditorSurface` slot to replace the whole editing layer.
 - `Rows` switches on `target.kind`. Add a `never` check for exhaustive handling of the `EditTarget` union; TypeScript will then report missing cases.
+- Read selected values with `readObservationsTargetData({ scene, target })`, using `useSceneSelector((compiled) => compiled)`. It returns `Data` after the layer's transforms and stat, before stacking, with each mapped variable once. Reshaped variables keep their assigned names; a sum of `sales` uses `sales`, and a count uses `count`. On a key collision, stat outputs use their own names, with a numeric suffix if needed (`count_2`).
+- The payload includes source column labels and value formats, except lookup formats that vary by observation. Dates and formats are copied. The function returns `null` if the layer is missing or cannot evaluate the predicate. A valid predicate matching nothing returns columns with `rows: []`.
 - The hide buttons use the same commands as Graphy's visibility button, which can show the target again.
 - The chart handles Escape while focus is in the chart or Graphy's menu. This menu handles Escape itself because its buttons are outside the chart. Clear the selection with `handle.setSelection([])`.
