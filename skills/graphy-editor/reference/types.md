@@ -1158,7 +1158,7 @@ class ToggleContentVisibilityCommand implements Command<ToggleContentVisibilityP
 
 /**
  * Sets the custom text label for an axis.
- * When set to null, the axis uses its default label derived from the data mapping.
+ * When set to null, the axis uses its default label derived from the data mapping; an empty string removes the title.
  */
 class SetAxisLabelCommand implements Command<SetAxisLabelParams> {
     readonly type: "setAxisLabel";
@@ -8507,9 +8507,9 @@ interface SelectionRegionAnchor {
 }
 
 /**
- * Axis title, where `null` means explicitly no label. Only `ySecondary` may omit it: that drops the
- * override so the axis inherits the primary y axis label. A primary axis always holds a resolved
- * label, so an omission has nothing to mean there.
+ * Axis title, where `null` takes the mapped variable's friendly label and `''` removes the title.
+ * Only `ySecondary` may omit it: that drops the override so the axis inherits the primary y axis
+ * label. A primary axis always holds a resolved label, so an omission has nothing to mean there.
  */
 type SetAxisLabelParams = {
     axis: AxisKey;
@@ -9704,7 +9704,7 @@ interface XAxisConfig {
      */
     visible: boolean;
     /**
-     * Axis title text. null means explicitly no label.
+     * Axis title text. `null` takes the mapped variable's friendly label, `''` removes the title.
      * @default null
      */
     label: string | null;
@@ -9729,7 +9729,7 @@ interface YAxisConfig {
      */
     visible: boolean;
     /**
-     * Axis title text. null means explicitly no label.
+     * Axis title text. `null` takes the mapped variable's friendly label, `''` removes the title.
      * @default null
      */
     label: string | null;

@@ -515,7 +515,7 @@ Legend:
 
 Axes:
 
-- `label: null` (the default) shows the column's `label` from the data when one is declared, otherwise no title. An empty string does the same.
+- `label: null` (the default) shows the column's `label` from the data when one is declared, otherwise no title. An empty string removes the title.
 - `grid.visible: null` lets the geom decide: bars hide the x grid, tiles hide both. `ticks.mode: 'edges'` keeps only the two domain ends of a numeric or date axis; band axes ignore it.
 - `position` must match the axis orientation; on a flipped graph x runs vertically.
 

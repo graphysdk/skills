@@ -4889,7 +4889,7 @@ interface XAxisConfig {
      */
     visible: boolean;
     /**
-     * Axis title text. null means explicitly no label.
+     * Axis title text. `null` takes the mapped variable's friendly label, `''` removes the title.
      * @default null
      */
     label: string | null;
@@ -4920,7 +4920,7 @@ interface YAxisConfig {
      */
     visible: boolean;
     /**
-     * Axis title text. null means explicitly no label.
+     * Axis title text. `null` takes the mapped variable's friendly label, `''` removes the title.
      * @default null
      */
     label: string | null;

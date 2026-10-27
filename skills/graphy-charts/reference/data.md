@@ -33,7 +33,7 @@ const data: Data = {
 
 A cell is a `number`, a `string`, a `Date`, or `null`. The spec maps a column by `key`: `createSpec({ x: 'month', y: 'revenue', color: 'region' })`.
 
-`label` is display text. Legends and tooltips show it and fall back to the key. An axis title is `config({ axes: { x: { label } } })` when set, else the column's `label`, else no title.
+`label` is display text. Legends and tooltips show it and fall back to the key. An axis title is `config({ axes: { x: { label } } })` when set, else the column's `label`, else no title. `label: ''` removes it.
 
 Only columns listed in `columns` are read. Extra keys on a row are ignored.
 
