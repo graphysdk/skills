@@ -1,6 +1,6 @@
-# Point and edit
+# Edit mode
 
-Set `mode="pointAndEdit"` on `EditableGraphRenderer` to let users click a chart element and edit it in a nearby menu. Menu edits use commands and share undo history and `onSpecChange` with the rest of the editor.
+Set `mode="edit"` on `EditableGraphRenderer` to let users click a chart element and edit it in a nearby menu. Menu edits use commands and share undo history and `onSpecChange` with the rest of the editor.
 
 Contents: selection, menu rows, selection levels, visibility, keyboard controls, outlines, styling and custom menus.
 
@@ -112,7 +112,7 @@ The Palette row needs `palettePresets` on `EditableGraphRenderer`:
 
 ```tsx
 <EditableGraphRenderer
-  mode="pointAndEdit"
+  mode="edit"
   palettePresets={{ Warm: ['#E03030', '#E08A30', '#E0C030'], Cool: ['#2060E0', '#30A0E0', '#30D0C0'] }}
 />
 ```
@@ -145,7 +145,7 @@ Hiding one vertical axis leaves the other alone. The panel's y axis section hide
 - Tab moves through the menu's controls. While something is selected and the chart has controls of its own on screen, Tab cycles them instead of leaving the chart.
 - Arrow keys move the choice in the legend grid and the palette row. A held key commits on key up as one undo step.
 - Undo and redo are the host's job. Bind them with `useGraphHistoryShortcuts(handleRef)`.
-- Delete and Backspace do nothing in point and edit. They remove annotations in editable mode only.
+- Delete and Backspace do nothing in edit mode. They remove annotations in annotate mode only.
 
 ## The outline
 
@@ -226,7 +226,7 @@ const editMenus: EditMenus = {
   legend: null,
 };
 
-<EditableGraphRenderer mode="pointAndEdit" editMenus={editMenus} />;
+<EditableGraphRenderer mode="edit" editMenus={editMenus} />;
 ```
 
 - `geoms` is keyed by geom name, a built-in or a custom one, and applies to every rendering of that geom. `layers` is keyed by geom, then the chart's coord, then the layer's position, so menus can vary by chart type, such as pie slices and columns.
@@ -264,4 +264,4 @@ const editMenus: EditMenus = { geoms: { bar: BarsWithBrandRow, point: PointsColo
 
 The chart menu and its chart type rows are not exported.
 
-Custom `AxisTicks`, `AxisLabel`, `Legend` and `Grid` slots join point and edit by stamping what they draw, from `@graphysdk/react`: `stampAxisEditTarget(axis, tickIndex?)` on a tick label or, without an index, the title; `stampLegendEditTarget({ legendIndex, itemIndex })` on a pill; `stampGridEditTarget(axis)` on the group holding one grid line. Spread the stamp and give the element a hit area only while `useGuidesTakePress()` returns true, as the built-in renderers do. Without the stamp a click on the slot's element selects the chart.
+Custom `AxisTicks`, `AxisLabel`, `Legend` and `Grid` slots join edit mode by stamping what they draw, from `@graphysdk/react`: `stampAxisEditTarget(axis, tickIndex?)` on a tick label or, without an index, the title; `stampLegendEditTarget({ legendIndex, itemIndex })` on a pill; `stampGridEditTarget(axis)` on the group holding one grid line. Spread the stamp and give the element a hit area only while `useGuidesTakePress()` returns true, as the built-in renderers do. Without the stamp a click on the slot's element selects the chart.

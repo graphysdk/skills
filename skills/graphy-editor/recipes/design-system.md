@@ -4,7 +4,7 @@ Customize the editor with CSS variables, replacement controls and custom section
 
 ## 1. Editor tokens
 
-The panel and point and edit menu use these CSS variables when set, otherwise their defaults. Set shared values on `:root`. Popups have `data-graphy-color-scheme`, which lets you style menus for dark charts separately.
+The panel and edit menu use these CSS variables when set, otherwise their defaults. Set shared values on `:root`. Popups have `data-graphy-color-scheme`, which lets you style menus for dark charts separately.
 
 ```css
 :root {
@@ -95,7 +95,7 @@ import {
 
 <ControlRegistryProvider controls={houseControls}>
   <GraphProvider spec={spec} data={data} onSpecChange={setSpec}>
-    <EditableGraphRenderer mode="pointAndEdit" />
+    <EditableGraphRenderer mode="edit" />
     <EditorPanel.Root>
       <BarSection />
       <GridSection />

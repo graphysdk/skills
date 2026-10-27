@@ -440,7 +440,7 @@ The defaults of the measured slots (`Legend`, `Headline`, `AxisTicks`, `AxisLabe
 
 ## Pressable guides
 
-In `mode="pointAndEdit"` a press on a tick label, an axis title, a legend pill, a direct label or a grid line selects that guide. The editor finds the guide through attributes on the node that paints it. A custom `Grid`, `AxisTicks`, `AxisLabel` or `Legend` joins by spreading the same attributes, only while `useGuidesTakePress()` is true.
+In `mode="edit"` a press on a tick label, an axis title, a legend pill, a direct label or a grid line selects that guide. The editor finds the guide through attributes on the node that paints it. A custom `Grid`, `AxisTicks`, `AxisLabel` or `Legend` joins by spreading the same attributes, only while `useGuidesTakePress()` is true.
 
 ```tsx
 import { stampAxisEditTarget, useGuidesTakePress } from '@graphysdk/react';

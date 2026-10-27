@@ -37,7 +37,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
           "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.0/jsx-runtime/+esm",
           "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/+esm",
           "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/client/+esm",
-          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793034769315/dist/editable.browser.mjs",
+          "@graphysdk/react": "https://cdn.jsdelivr.net/npm/@graphysdk/react@1.9.0-beta.1793091028339/dist/editable.browser.mjs",
           "@graphysdk/theme-blueprint": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-blueprint@latest/dist/index.mjs",
           "@graphysdk/theme-botanical": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-botanical@latest/dist/index.mjs",
           "@graphysdk/theme-comic": "https://cdn.jsdelivr.net/npm/@graphysdk/theme-comic@latest/dist/index.mjs",
@@ -74,8 +74,8 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
       import { spreadsheet } from '@graphysdk/theme-spreadsheet';
       import { watercolor } from '@graphysdk/theme-watercolor';
       const MODES = [
-        { value: 'pointAndEdit', label: 'Edit', icon: 'M5 3l14 8-6 2-3 6z', isFilled: true },
-        { value: 'editable', label: 'Annotate', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
+        { value: 'edit', label: 'Edit', icon: 'M5 3l14 8-6 2-3 6z', isFilled: true },
+        { value: 'annotate', label: 'Annotate', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
         {
           value: 'readonly',
           label: 'Read only',
@@ -348,8 +348,8 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
   }
 `;
       const HINTS = {
-        pointAndEdit: 'Click something in the chart to make it your own.',
-        editable: 'Hover over the chart and use (+) to add a note.',
+        edit: 'Click something in the chart to make it your own.',
+        annotate: 'Hover over the chart and use (+) to add a note.',
         readonly: 'Hover over the chart to explore the numbers.',
       };
       const subscribeToColorScheme = (onChange) => {
@@ -485,7 +485,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
                 {
                   label: 'Chart settings',
                   icon: SETTINGS_PATH,
-                  hidden: mode !== 'pointAndEdit',
+                  hidden: mode !== 'edit',
                   onClick: () => handleRef.current?.setSelection([{ kind: 'graph' }]),
                 },
               ]
@@ -511,7 +511,7 @@ A complete page with no bundler. The import map points `@graphysdk/react` at the
       export const Showcase = ({ colorScheme: preferredScheme } = {}) => {
         const [example, setExample] = useState('trail');
         const [themeName, setThemeName] = useState('default');
-        const [mode, setMode] = useState('pointAndEdit');
+        const [mode, setMode] = useState('edit');
         // Stable authored specs preserve edits across mode changes and provider remounts.
         const [specs, setSpecs] = useState(createExampleSpecs);
         const handleRef = useRef(null);

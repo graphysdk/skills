@@ -1,4 +1,4 @@
-# Point and edit with persistence
+# Edit mode with persistence
 
 Let users edit a chart by clicking it. This example adds an edit toggle, undo and redo, reset, and local storage persistence without a panel.
 
@@ -93,7 +93,7 @@ export function SalesChartEditor() {
           <button onClick={reset}>Reset</button>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
-          <EditableGraphRenderer mode={isEditing ? 'pointAndEdit' : 'readonly'} palettePresets={PALETTES} />
+          <EditableGraphRenderer mode={isEditing ? 'edit' : 'readonly'} palettePresets={PALETTES} />
         </div>
       </div>
     </GraphProvider>

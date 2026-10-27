@@ -107,4 +107,4 @@ Details:
 - Add commands generate IDs when constructed. Replaying a serialized command uses the same object ID rather than creating another object.
 - A command does nothing if its value is already set, so agents can resend commands without checking that value first.
 - If a command produces a result that fails to compile, `onError` reports the failure and the last valid chart remains visible.
-- Commands work in `readonly` mode. `mode` controls canvas interactions; use `pointAndEdit` to let users edit by clicking the chart.
+- Commands work in `readonly` mode. `mode` controls canvas interactions; use `edit` to let users edit by clicking the chart.

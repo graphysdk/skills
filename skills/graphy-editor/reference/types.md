@@ -130,7 +130,7 @@ const useGraphHistory: () => GraphHistory;
  *
  *   return (
  *     <GraphProvider spec={input} data={data} handleRef={handleRef}>
- *       <GraphRenderer mode="editable" />
+ *       <GraphRenderer mode="annotate" />
  *     </GraphProvider>
  *   );
  * };
@@ -233,13 +233,13 @@ interface GraphProviderProps {
 /**
  * Chart display and interaction mode.
  * - 'readonly': Normal chart display with full interactivity but no editing (default)
- * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
- * - 'pointAndEdit': A press on the chart selects what it hit: an observation, its band, or the chart
+ * - 'annotate': Chart with annotation and inline text editing capabilities
+ * - 'edit': A press on the chart selects what it hit: an observation, its band, a guide, or the chart
  */
 const GRAPH_MODES: {
     readonly readonly: "readonly";
-    readonly editable: "editable";
-    readonly pointAndEdit: "pointAndEdit";
+    readonly annotate: "annotate";
+    readonly edit: "edit";
 };
 
 /**
@@ -1828,7 +1828,7 @@ interface RichTextContent {
  * @example
  * ```tsx
  * <GraphProvider spec={input} data={data}>
- *   <EditableGraphRenderer mode={isEditing ? 'editable' : 'readonly'} />
+ *   <EditableGraphRenderer mode={isEditing ? 'annotate' : 'readonly'} />
  * </GraphProvider>
  * ```
  */

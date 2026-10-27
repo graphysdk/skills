@@ -1,6 +1,6 @@
 # Tabbed editor with the built-in panel
 
-Place a chart in point and edit mode beside the built-in panel. Add tabs to group panel sections and a list of recent edits. See the panel reference for supported edits and limitations.
+Place a chart in edit mode beside the built-in panel. Add tabs to group panel sections and a list of recent edits. See the panel reference for supported edits and limitations.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -139,7 +139,7 @@ export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Sp
       <div style={{ display: 'flex', gap: 16, height: 'calc(100dvh - 2rem)' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <EditableGraphRenderer mode="pointAndEdit" />
+            <EditableGraphRenderer mode="edit" />
           </div>
           <HistoryTrail />
         </div>
@@ -158,6 +158,6 @@ Details:
 - `key={tab.id}` closes all sections when switching tabs. Set `defaultExpandedSection` to open a section by default.
 - Sections hide when they do not apply. For example, `PolarSection` is hidden on Cartesian charts, and `ComboSection` is hidden outside combo charts. You can mount all sections and let each check the chart.
 - The history list reads `undoStack`. Each drag or typing session creates one entry.
-- Panel edits call `onSpecChange`, so they use the same persistence callback as point and edit.
+- Panel edits call `onSpecChange`, so they use the same persistence callback as edit mode.
 
 To mount the panel outside the provider, such as in a drawer or another React root, pass the handle from `handleRef`. See the panel reference.

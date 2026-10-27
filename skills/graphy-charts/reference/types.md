@@ -766,7 +766,7 @@ interface GraphSlots {
     Grid?: ComponentType<GridSlotProps>;
     Swatch?: ComponentType<SwatchSlotProps>;
     /**
-     * The chart's editor layer, mounted over the frame in `mode="editable"`. Only
+     * The chart's editor layer, mounted over the frame in `mode="annotate"`. Only
      * `@graphysdk/react-renderer/editable` exports something that fills it, so a read-only embed bundles
      * no editing code.
      */
@@ -779,7 +779,7 @@ interface GraphSlots {
 
 /**
  * Props for the Header slot, overridable via `slots.Header` on `GraphRenderer`. Title editing in
- * `editable` mode is internal to this default — it hands off to the editor `/editable` supplies —
+ * `annotate` mode is internal to this default — it hands off to the editor `/editable` supplies —
  * and an override replacing the region opts out of it.
  */
 interface HeaderSlotProps {
@@ -802,7 +802,7 @@ interface HeaderSlotProps {
 
 /**
  * Props for the Footer slot, overridable via `slots.Footer` on `GraphRenderer`. Caption editing in
- * `editable` mode is internal to this default — it hands off to the editor `/editable` supplies —
+ * `annotate` mode is internal to this default — it hands off to the editor `/editable` supplies —
  * and an override replacing the region opts out of it.
  */
 interface FooterSlotProps {
@@ -5055,7 +5055,7 @@ interface EditOutlineRegion extends MorphingEditOutlineShape {
     fillRule?: 'nonzero' | 'evenodd';
 }
 
-/** One shape point and edit outlines. It carries no paint: the editor draws the outline round it in its own look. */
+/** One shape edit mode outlines. It carries no paint: the editor draws the outline round it in its own look. */
 type EditOutlineShape = EditOutlineRegion | EditOutlineStroke | EditOutlineDots;
 
 /**
@@ -5086,13 +5086,13 @@ interface EditOutlineStroke extends MorphingEditOutlineShape {
 /**
  * Chart display and interaction mode.
  * - 'readonly': Normal chart display with full interactivity but no editing (default)
- * - 'editable': Chart with inline editing capabilities for labels, titles, etc.
- * - 'pointAndEdit': A press on the chart selects what it hit: an observation, its band, or the chart
+ * - 'annotate': Chart with annotation and inline text editing capabilities
+ * - 'edit': A press on the chart selects what it hit: an observation, its band, a guide, or the chart
  */
 const GRAPH_MODES: {
     readonly readonly: "readonly";
-    readonly editable: "editable";
-    readonly pointAndEdit: "pointAndEdit";
+    readonly annotate: "annotate";
+    readonly edit: "edit";
 };
 
 interface GeomCircleProps {
@@ -5250,7 +5250,7 @@ interface GeomRenderContract<G extends GeomName | string = string, C extends Coo
     renderHover: (input: HoverRenderInput<G, C>) => ReactNode;
     renderHoverCompanions: (input: HoverCompanionsRenderInput<G, C>) => ReactNode;
     /**
-     * Editing only: the shapes point and edit outlines for the observations in `layer`, as data in panel pixels.
+     * Editing only: the shapes edit mode outlines for the observations in `layer`, as data in panel pixels.
      * A region is what they cover, one path where there are many, with rounded corners traced into it; a line is
      * a stroke at the width it is drawn; round marks are dots at their size. Omit it and the editor outlines each
      * observation's bounding box.

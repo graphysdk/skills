@@ -1,6 +1,6 @@
 # Both editing modes on one page
 
-Use point and edit mode to change chart settings, and editable mode for annotations, highlights and inline text. This example switches between both editing modes and read-only mode.
+Use edit mode to change chart settings, and annotate mode for annotations, highlights and inline text. This example switches between both editing modes and read-only mode.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -45,14 +45,14 @@ const initialSpec: Spec = pipe(
 );
 
 const MODES: { value: GraphMode; label: string }[] = [
-  { value: 'pointAndEdit', label: 'Edit' },
-  { value: 'editable', label: 'Annotate' },
+  { value: 'edit', label: 'Edit' },
+  { value: 'annotate', label: 'Annotate' },
   { value: 'readonly', label: 'Read only' },
 ];
 
 export function TwoModeEditor() {
   const [spec, setSpec] = useState(initialSpec);
-  const [mode, setMode] = useState<GraphMode>('pointAndEdit');
+  const [mode, setMode] = useState<GraphMode>('edit');
   const handleRef = useRef<GraphHandle>(null);
   useGraphHistoryShortcuts(handleRef);
 

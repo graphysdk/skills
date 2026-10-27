@@ -1,10 +1,10 @@
-# Annotations and editable mode
+# Annotations and annotate mode
 
-`mode="editable"` on `EditableGraphRenderer` enables annotation selection, dragging, resizing, inline text editing and the (+) menu on data points. See the graphy-charts storytelling reference for annotation builders and options.
+`mode="annotate"` on `EditableGraphRenderer` enables annotation selection, dragging, resizing, inline text editing and the (+) menu on data points. See the graphy-charts storytelling reference for annotation builders and options.
 
 Contents: what the mode adds, anchors, the model, commands, the (+) menu, inline text, keyboard.
 
-## What editable mode adds
+## What annotate mode adds
 
 - Selection. Click a text, shape, image, arrow or difference arrow annotation to select it. Nothing else is click-selectable in this mode. Stickers, comments and pinned numbers are added and removed from the (+) menu.
 - Drags. A drag shows a live preview and commits one command on drop. Text and shapes resize from their handles. Arrows redraw endpoint by endpoint. A difference arrow's ends drag onto other data points.

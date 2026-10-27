@@ -11,7 +11,7 @@ Contents
 - A panel section renders nothing
 - A section or control throws about `IntlProvider`
 - The panel is light on a dark page
-- The point and edit menu ignores my CSS
+- The edit menu ignores my CSS
 - A section I wrote with `defaultExpandedSection` stays closed
 - The accordion state leaks between tabs
 - Two sections open at once, or one never opens
@@ -25,7 +25,7 @@ Contents
 
 ## Nothing happens when I click a bar
 
-- `mode` is not `'pointAndEdit'`. In `editable`, annotations, the title, the caption and the (+) button support editing; bars do not. In `readonly`, canvas editing is disabled.
+- `mode` is not `'edit'`. In `annotate`, annotations, the title, the caption and the (+) button support editing; bars do not. In `readonly`, canvas editing is disabled.
 - The chart uses a plain `GraphRenderer`. Only `EditableGraphRenderer` from `@graphysdk/react/editable` has the editing layer.
 - The target has no editing controls: a line's single point, a heatmap tile, a layer colored by a number, a band of stacked bars, a geom from a geom package. Only targets with a menu row or visibility toggle can be hovered and selected. Register a menu with `editMenus` to make it selectable.
 
@@ -40,7 +40,7 @@ Pass `palettePresets` to `EditableGraphRenderer`. The row also requires a discre
 ## Cmd+Z does nothing
 
 - The host must bind shortcuts. Call `useGraphHistoryShortcuts(handleRef)` with the `handleRef` you gave `GraphProvider`.
-- Focus is in a text input, textarea or contenteditable element anywhere on the page. The hook leaves those shortcuts to the field. Fields in the pre-built panel handle chart undo themselves. Fields in the point and edit menu keep their native undo.
+- Focus is in a text input, textarea or contenteditable element anywhere on the page. The hook leaves those shortcuts to the field. Fields in the pre-built panel handle chart undo themselves. Fields in the edit menu keep their native undo.
 - The previous spec no longer compiles, for example because its data lost a required column. `undo()` returns `false` and keeps the undo entry so you can retry when the data supports it.
 - A new `spec` object cleared the history. See the next section.
 
@@ -67,7 +67,7 @@ It is rendered outside `EditorPanel.Root`. The root mounts the editor's translat
 - Inside the provider the panel follows the chart's `colorScheme`. Set it on `GraphProvider`.
 - Outside the provider, with only a `handle`, the chart's color scheme is unavailable. Wrap the panel in `ThemeProvider` from `@graphysdk/react` with the scheme.
 
-## The point and edit menu ignores my CSS
+## The edit menu ignores my CSS
 
 - The menu renders in a portal outside the chart element, so it does not inherit CSS variables set only on that element. Set `--graphy-editor-*` and `--graphy-editor-menu-*` on `:root`, or on `[data-graphy-color-scheme='dark']` for dark charts.
 - The chart's stylesheet does not style the editor. Editor fonts and colors are separate to keep controls readable.
@@ -90,7 +90,7 @@ Both editing modes hide tooltips regardless of `showTooltips`. They return in `r
 
 ## Annotations are gone
 
-Point and edit does not draw annotations. Switch to `editable` to see and edit them.
+Edit mode does not draw annotations. Switch to `annotate` to see and edit them.
 
 ## The chart remounted and lost its selection and hover
 

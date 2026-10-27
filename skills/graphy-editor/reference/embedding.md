@@ -20,13 +20,13 @@ import { EditableGraphRenderer } from '@graphysdk/react/editable';
 `EditableGraphRenderer` adds an editing layer to `GraphRenderer`. Choose its behavior with `mode`:
 
 - `'readonly'` (default): view only. Commands from code still work.
-- `'pointAndEdit'`: click a part of the chart and change it from a menu. See [point and edit](point-and-edit.md).
-- `'editable'`: annotations, drags, inline text, the (+) menu. See [annotations](annotations.md).
+- `'edit'`: click a part of the chart and change it from a menu. See [edit](edit.md).
+- `'annotate'`: annotations, drags, inline text, the (+) menu. See [annotations](annotations.md).
 
-A plain `GraphRenderer` with `mode="editable"` renders no editing layer, though the mode still hides tooltips. Switch modes through the `mode` prop:
+A plain `GraphRenderer` with `mode="annotate"` renders no editing layer, though the mode still hides tooltips. Switch modes through the `mode` prop:
 
 ```tsx
-<EditableGraphRenderer mode={isEditing ? 'pointAndEdit' : 'readonly'} />
+<EditableGraphRenderer mode={isEditing ? 'edit' : 'readonly'} />
 ```
 
 Hover, animation and the editor's own state survive a mode change. Swapping components remounts the chart and loses them. The undo history lives in `GraphProvider`, so it survives both. Switching between the two editing modes clears the selection.
@@ -37,12 +37,12 @@ Hover, animation and the editor's own state survive a mode change. Swapping comp
 
 `EditableGraphRenderer` takes every `GraphRenderer` prop (`sizing`, `animation`, `showTooltips`, `slots`, `onResize`, `mode`) plus two of its own:
 
-- `palettePresets`: named color lists, `{ Warm: ['#E03030', '#E08A30'] }`. The Chart menu in point and edit offers them after the theme's colors. Without it the Palette row is hidden.
-- `editMenus`: your own point and edit menus, searched before Graphy's. `null` removes a menu. See [point and edit](point-and-edit.md).
+- `palettePresets`: named color lists, `{ Warm: ['#E03030', '#E08A30'] }`. The Chart menu in edit mode offers them after the theme's colors. Without it the Palette row is hidden.
+- `editMenus`: your own edit menus, searched before Graphy's. `null` removes a menu. See [edit](edit.md).
 
 `EditableGraphRenderer` supplies the `EditorSurface` slot. Override it through `slots` to replace the editing layer. Use `EditorSurfaceSlotProps` from `@graphysdk/react` for your component.
 
-Both editing modes hide tooltips regardless of `showTooltips`. Point and edit also hides annotations and the chart's normal hover styling. Inline text editing and the (+) menu are available only in editable mode.
+Both editing modes hide tooltips regardless of `showTooltips`. Edit mode also hides annotations and the chart's normal hover styling. Inline text editing and the (+) menu are available only in annotate mode.
 
 ## CSS
 
@@ -96,7 +96,7 @@ A command whose result fails to compile is reported through `onError` on the pro
 
 Each option supports a broader set of edits:
 
-1. The point and edit menu: colors, line style, axis title and range, grid style, legend position, data labels, palette.
+1. The edit menu: colors, line style, axis title and range, grid style, legend position, data labels, palette.
 2. The pre-built panel: the supplied sections. The list in [panel](panel.md) is complete.
 3. Commands: everything the menu and the panel do, plus layers, mapping, scales, styles, annotations and highlights. See [commands](commands.md).
 4. A new spec built with the authoring API, passed as `spec`. This clears the undo history, so prefer a command when one exists.

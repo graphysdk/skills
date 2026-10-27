@@ -41,7 +41,7 @@ import { GraphProvider } from '@graphysdk/react';
 import { AxisSection, EditableGraphRenderer, EditorPanel } from '@graphysdk/react/editable';
 
 <GraphProvider spec={spec} data={data} onSpecChange={setSpec} colorScheme="dark">
-  <EditableGraphRenderer mode="pointAndEdit" />
+  <EditableGraphRenderer mode="edit" />
   <EditorPanel.Root>
     <AxisSection axis="y" />
   </EditorPanel.Root>
@@ -76,7 +76,7 @@ Every section takes `title`, `layout` (`'fixed' | 'collapsible' | 'inline'`, def
 | `AppearanceSection`                                 | Frame corner radius, how highlights fade the rest                                                                                                                                                                                                                         |
 | `TextSizeSection`                                   | One multiplier over the theme's text sizes                                                                                                                                                                                                                                |
 | `CalloutsSection`                                   | Adds a text, arrow, box or difference arrow annotation per button                                                                                                                                                                                                         |
-| `TitleSection`, `SubtitleSection`, `CaptionSection` | Visibility and text. Hiding keeps the text. Also editable on the canvas in editable mode. A rich-text value disables the field and stays canvas-only.                                                                                                                     |
+| `TitleSection`, `SubtitleSection`, `CaptionSection` | Visibility and text. Hiding keeps the text. Also editable on the canvas in annotate mode. A rich-text value disables the field and stays canvas-only.                                                                                                                     |
 | `SourceSection`                                     | Visibility, name and URL of the source line                                                                                                                                                                                                                               |
 | `GoalSection`                                       | The goal line: on or off from its header, value, label                                                                                                                                                                                                                    |
 | `TrendsAndAveragesSection`                          | A trend line with its method, or an average line per group                                                                                                                                                                                                                |
@@ -176,7 +176,7 @@ const controls: ControlRegistry = { Slider: MySlider };
 Apply the registry in either place:
 
 - `<EditorPanel.Root controls={controls}>` for one panel.
-- `<ControlRegistryProvider controls={controls}>` around a chart and its panels. It reaches every panel inside, the rows of the point and edit menu and the color pickers in the annotation toolbars. A panel's own `controls` override the provider inside that panel.
+- `<ControlRegistryProvider controls={controls}>` around a chart and its panels. It reaches every panel inside, the rows of the edit menu and the color pickers in the annotation toolbars. A panel's own `controls` override the provider inside that panel.
 
 A replacement must honor its contract. A continuous control that never calls `onCommit` leaves the run open until the next edit. One that commits every change splits a drag into many undo entries. `ControlTooltip` names an icon-only option in your own control the way the built-ins do.
 

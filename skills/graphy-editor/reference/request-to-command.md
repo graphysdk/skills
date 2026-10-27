@@ -25,7 +25,7 @@ Before writing code, replay the commands with `scripts/replay-commands.mjs`. See
 
 | Request                             | Command                                                                                                                                   | Also                                    |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Change the title, subtitle, caption | `SetContentTitleCommand({ title })`, `SetContentSubtitleCommand`, `SetContentCaptionCommand`, `null` clears                               | panel sections, inline in editable mode |
+| Change the title, subtitle, caption | `SetContentTitleCommand({ title })`, `SetContentSubtitleCommand`, `SetContentCaptionCommand`, `null` clears                               | panel sections, inline in annotate mode |
 | Add a source line                   | `SetContentSourceCommand({ source: { label, url } })`                                                                                     | panel `SourceSection`                   |
 | Hide the title                      | `ToggleContentVisibilityCommand({ part: 'title', visible: false })`                                                                       | panel `TitleSection`                    |
 | Show the total above the chart      | `SetHeadlineShowCommand({ show: 'total' })`, then `SetHeadlineSizeCommand`, `SetHeadlinePositionCommand`, `SetHeadlineCompareWithCommand` | panel `HeadlineSection`                 |
@@ -52,7 +52,7 @@ Assign layer IDs when authoring so commands can target the correct layer. `layer
 | Add a second series on its own axis         | `AddLayerCommand({ layer })` with `yScaleType: 'secondary'`, see [commands](commands.md)                                                                                                    |                                           |
 | Put this series on the right axis           | `SetLayerYScaleTypeCommand({ layerId, yScaleType: 'secondary' })`                                                                                                                           | panel `AxisSection`                       |
 | Remove a layer                              | `RemoveLayerCommand({ layerId })`                                                                                                                                                           |                                           |
-| Highlight Q4, dim the rest                  | `AddHighlightCommand({ predicate: { variable: 'quarter', eq: 'Q4' }, scope: 'xValue' })`, `SetHighlightDimStyleCommand({ dimStyle })`                                                       | (+) menu in editable mode                 |
+| Highlight Q4, dim the rest                  | `AddHighlightCommand({ predicate: { variable: 'quarter', eq: 'Q4' }, scope: 'xValue' })`, `SetHighlightDimStyleCommand({ dimStyle })`                                                       | (+) menu in annotate mode                 |
 
 ## Axes, grid, legend
 
@@ -73,10 +73,10 @@ Assign layer IDs when authoring so commands can target the correct layer. `layer
 
 | Request                                          | Command                                                                                                            | Also                                   |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
-| Add a note, an arrow, a box                      | `AddAnnotationCommand({ kind, annotation })` with the kind's defaults spread in, see [annotations](annotations.md) | panel `CalloutsSection`, editable mode |
-| Pin the value, add a comment or sticker to a bar | `AddAnnotationCommand` with an observation anchor from `createObservationAnchorBuilder(layer)`                     | (+) menu in editable mode              |
-| Move it, resize it, restyle it                   | `MoveAnnotationCommand`, `UpdateAnnotationCommand`, `SetStyleRuleCommand` with `style.annotation.*`                | drags and toolbars in editable mode    |
-| Remove it                                        | `RemoveAnnotationCommand({ id })`                                                                                  | Delete in editable mode                |
+| Add a note, an arrow, a box                      | `AddAnnotationCommand({ kind, annotation })` with the kind's defaults spread in, see [annotations](annotations.md) | panel `CalloutsSection`, annotate mode |
+| Pin the value, add a comment or sticker to a bar | `AddAnnotationCommand` with an observation anchor from `createObservationAnchorBuilder(layer)`                     | (+) menu in annotate mode              |
+| Move it, resize it, restyle it                   | `MoveAnnotationCommand`, `UpdateAnnotationCommand`, `SetStyleRuleCommand` with `style.annotation.*`                | drags and toolbars in annotate mode    |
+| Remove it                                        | `RemoveAnnotationCommand({ id })`                                                                                  | Delete in annotate mode                |
 
 ## Several edits as one
 

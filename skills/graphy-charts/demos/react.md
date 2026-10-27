@@ -43,13 +43,13 @@ import { phosphor } from '@graphysdk/theme-phosphor';
 import { spreadsheet } from '@graphysdk/theme-spreadsheet';
 import { watercolor } from '@graphysdk/theme-watercolor';
 
-type Mode = 'pointAndEdit' | 'editable' | 'readonly';
+type Mode = 'edit' | 'annotate' | 'readonly';
 type Example = 'trail' | 'coffee' | 'cinema';
 type ThemeName = 'default' | 'blueprint' | 'botanical' | 'comic' | 'phosphor' | 'spreadsheet' | 'watercolor';
 
 const MODES: Array<{ value: Mode; label: string; icon: string; isFilled?: boolean }> = [
-  { value: 'pointAndEdit', label: 'Edit', icon: 'M5 3l14 8-6 2-3 6z', isFilled: true },
-  { value: 'editable', label: 'Annotate', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
+  { value: 'edit', label: 'Edit', icon: 'M5 3l14 8-6 2-3 6z', isFilled: true },
+  { value: 'annotate', label: 'Annotate', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
   {
     value: 'readonly',
     label: 'Read only',
@@ -327,8 +327,8 @@ const showcaseCss = `
 `;
 
 const HINTS: Record<Mode, string> = {
-  pointAndEdit: 'Click something in the chart to make it your own.',
-  editable: 'Hover over the chart and use (+) to add a note.',
+  edit: 'Click something in the chart to make it your own.',
+  annotate: 'Hover over the chart and use (+) to add a note.',
   readonly: 'Hover over the chart to explore the numbers.',
 };
 const subscribeToColorScheme = (onChange: () => void) => {
@@ -478,7 +478,7 @@ const ChartPill = ({
             {
               label: 'Chart settings',
               icon: SETTINGS_PATH,
-              hidden: mode !== 'pointAndEdit',
+              hidden: mode !== 'edit',
               onClick: () => handleRef.current?.setSelection([{ kind: 'graph' }]),
             },
           ]
@@ -505,7 +505,7 @@ const ChartPill = ({
 export const Showcase = ({ colorScheme: preferredScheme }: { colorScheme?: 'light' | 'dark' } = {}) => {
   const [example, setExample] = useState<Example>('trail');
   const [themeName, setThemeName] = useState<ThemeName>('default');
-  const [mode, setMode] = useState<Mode>('pointAndEdit');
+  const [mode, setMode] = useState<Mode>('edit');
   // Stable authored specs preserve edits across mode changes and provider remounts.
   const [specs, setSpecs] = useState(createExampleSpecs);
   const handleRef = useRef<GraphHandle>(null);

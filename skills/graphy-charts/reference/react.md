@@ -85,10 +85,10 @@ Props:
 - `onResize`: called with `{ width, height, unmeasured }` whenever the container changes size.
 - `animation`: `true`, `false`, or an object. See "Animation".
 - `showTooltips`: default `true`. `false` hides the tooltip whatever `config.tooltip.mode` says.
-- `mode`: `'readonly'` (default), `'editable'` or `'pointAndEdit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
+- `mode`: `'readonly'` (default), `'annotate'` or `'edit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
 - `slots`: replace how a region paints. See slots.md.
 
-Exported types: `GraphRendererProps`, `GraphMode`, and the `GRAPH_MODES` constant with `readonly`, `editable` and `pointAndEdit` keys.
+Exported types: `GraphRendererProps`, `GraphMode`, and the `GRAPH_MODES` constant with `readonly`, `annotate` and `edit` keys.
 
 ## Sizing
 
@@ -375,6 +375,6 @@ The badge hides itself below 120 by 80 pixels and shrinks to a circle below 200 
 - A `spec` built inline in the component body is a new object every render, and every render recompiles. Build it at module scope or in `useMemo`.
 - The parent of a responsive graph needs a height. With no height the graph is zero pixels tall.
 - `plugins` and `theme` are frozen at mount. Passing a different value later does nothing until the provider remounts.
-- `mode="editable"` on the plain `GraphRenderer` gives no editing UI. Use `EditableGraphRenderer` from `@graphysdk/react/editable`.
+- `mode="annotate"` on the plain `GraphRenderer` gives no editing UI. Use `EditableGraphRenderer` from `@graphysdk/react/editable`.
 - `onSpecChange` fires for committed commands, undo and redo, not when you pass a new `spec` prop. A transient dispatch fires nothing until `commit()`, the next committed dispatch, or a data, palette or scheme change closes the run.
 - The provider from `@graphysdk/react-renderer` shows no Graphy badge. Import `GraphProvider` from one package consistently.

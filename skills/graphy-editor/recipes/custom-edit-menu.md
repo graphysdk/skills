@@ -1,6 +1,6 @@
 # A custom edit menu
 
-Replace the bar controls in Graphy's point and edit menu with your own. Graphy still provides the title, visibility button for guides, and level selector when multiple levels have rows. Read values from the chart and update them through commands so the controls reflect other edits and undo.
+Replace the bar controls in Graphy's edit menu with your own. Graphy still provides the title, visibility button for guides, and level selector when multiple levels have rows. Read values from the chart and update them through commands so the controls reflect other edits and undo.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -118,7 +118,7 @@ export function BrandedChartEditor() {
   return (
     <div style={{ height: 420 }}>
       <GraphProvider spec={spec} data={data} handleRef={handleRef} onSpecChange={setSpec}>
-        <EditableGraphRenderer mode="pointAndEdit" editMenus={editMenus} />
+        <EditableGraphRenderer mode="edit" editMenus={editMenus} />
       </GraphProvider>
     </div>
   );

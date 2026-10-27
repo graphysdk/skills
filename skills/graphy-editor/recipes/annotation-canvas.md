@@ -1,6 +1,6 @@
 # Annotation editing with no panel
 
-Use `mode="editable"` to let users drag free annotations and add annotations from the (+) menu. This example also adds and removes annotations through toolbar commands.
+Use `mode="annotate"` to let users drag free annotations and add annotations from the (+) menu. This example also adds and removes annotations through toolbar commands.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -123,7 +123,7 @@ export function AnnotationCanvas() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 480 }}>
         <AnnotationToolbar handle={handleRef} />
         <div style={{ flex: 1, minHeight: 0 }}>
-          <EditableGraphRenderer mode="editable" />
+          <EditableGraphRenderer mode="annotate" />
         </div>
       </div>
     </GraphProvider>
@@ -138,4 +138,4 @@ Details:
 - Hovering a bar shows the built-in (+) menu. Comments, pinned numbers, stickers, highlights and difference arrows use the same command history as the toolbar.
 - `zOrder: 'background'` keeps the band behind the bars, so clicks reach the bars.
 - Delete removes the selection, and Escape clears it. The toolbar's remove button demonstrates the command API.
-- Annotations cannot be dragged in `readonly` or `pointAndEdit` mode. `pointAndEdit` does not draw annotations.
+- Annotations cannot be dragged in `readonly` or `edit` mode. `edit` mode does not draw annotations.
