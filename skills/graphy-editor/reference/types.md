@@ -9090,8 +9090,9 @@ interface StyleCornerRadiusSides {
  * - `strokeWidth` — stroke width in pixels for line and area outlines, grid lines, panel-border
  *   edges and the borders of boxes, bars, points and tiles; `0` is an explicit no-border and hides a
  *   chrome stroke, reserving no space for it.
- * - `maxWidth` — the most a cartesian bar spans across its band, in pixels, centered in the band. A
- *   stack shares the narrowest cap among its segments. Undeclared, a bar fills its band.
+ * - `maxWidth` — the most a cartesian bar spans across its band, in pixels, centered in the band.
+ *   Undeclared, a bar fills its band. One cap for the whole layer: a rule declaring it under a
+ *   `where` or `state` drops it with a warning.
  * - `dashArray` — the dash rhythm of a stroke: dash and gap lengths in stroke widths, `[]` solid.
  * - `strokeAlpha` — area outline opacity, `0..1`, independent of the fill's `alpha`.
  * - `fillAlpha` — peak opacity of the gradient wash beneath a line, `0..1`. Undeclared draws no wash.

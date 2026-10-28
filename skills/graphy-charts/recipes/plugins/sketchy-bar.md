@@ -158,7 +158,7 @@ interface SketchyBar {
 
 /**
  * Paints every bar of the layer. `createBarBoundsReader` handles stacked, dodged and flipped bars, and narrows
- * each to its column's `maxWidth` as the built-in bar paints it.
+ * each to the layer's `maxWidth` as the built-in bar paints it.
  */
 const SketchyBars = ({ layer, coordSystem, styleReaders, panelRect }: SketchyBarsProps) => {
   const bars = useMemo<SketchyBar[]>(() => {

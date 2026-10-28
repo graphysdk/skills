@@ -257,17 +257,17 @@ Scaled positions use `[0, 1]` with y pointing up. For SVG attributes, use `toPer
 
 Every reader takes an observation from `layer.data`. Position readers, `getSize`, `getAlpha`, and `getStrokeWidth` return a number or `null`. `getColor` and `getLineType` return `undefined` when the channel is not mapped. `getGroup` returns the group value.
 
-| Reader                                                             | Returns                                                                          |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `getX`, `getY`                                                     | The point position in `[0, 1]`.                                                  |
-| `getXMin`, `getXMax`, `getYMin`, `getYMax`                         | Interval ends, written for `min` and `max` roles.                                |
-| `getScaledAesthetic(observation, 'open')`                          | A `scalar` role's scaled position.                                               |
-| `getYRaw`                                                          | The segment value before stacking.                                               |
-| `createBarBoundsReader(layer, mainAxis, styleReaders, panelRect)`  | The painted rect, narrowed to the column's `maxWidth`. Build it once per render. |
-| `getTileRectBounds(observation)`                                   | The same for a tile, from its interval columns.                                  |
-| `getAngleExtent`, `getRadiusExtent`                                | Polar extents.                                                                   |
-| `getColor`, `getSize`, `getAlpha`, `getStrokeWidth`, `getLineType` | Scaled visual channels from the data.                                            |
-| `getGroup`                                                         | The observation's group value.                                                   |
+| Reader                                                             | Returns                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `getX`, `getY`                                                     | The point position in `[0, 1]`.                                                 |
+| `getXMin`, `getXMax`, `getYMin`, `getYMax`                         | Interval ends, written for `min` and `max` roles.                               |
+| `getScaledAesthetic(observation, 'open')`                          | A `scalar` role's scaled position.                                              |
+| `getYRaw`                                                          | The segment value before stacking.                                              |
+| `createBarBoundsReader(layer, mainAxis, styleReaders, panelRect)`  | The painted rect, narrowed to the layer's `maxWidth`. Build it once per render. |
+| `getTileRectBounds(observation)`                                   | The same for a tile, from its interval columns.                                 |
+| `getAngleExtent`, `getRadiusExtent`                                | Polar extents.                                                                  |
+| `getColor`, `getSize`, `getAlpha`, `getStrokeWidth`, `getLineType` | Scaled visual channels from the data.                                           |
+| `getGroup`                                                         | The observation's group value.                                                  |
 
 `getColor` sees only the color scale. Read paint through `styleReaders` so stylesheet overrides reach the geom.
 

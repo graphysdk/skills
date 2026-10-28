@@ -390,7 +390,7 @@ interface CapsuleBarsProps {
 }
 
 // Normal and hover rendering use the same geometry and style readers. The bounds reader reads the whole
-// layer, so a hovered bar narrows to its column's `maxWidth` like the rest.
+// layer, so a hovered bar narrows to the layer's `maxWidth` like the rest.
 const CapsuleBars = ({ layer, observations, mainAxis, panelRect, state }: CapsuleBarsProps) => {
   const styleReaders = useGeomStyleReader(layer);
   const generateKey = createStableKeyGenerator(layer.data, layer.mapping, layer.id);
