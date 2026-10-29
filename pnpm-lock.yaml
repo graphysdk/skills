@@ -7,17 +7,17 @@ settings:
 catalogs:
   default:
     '@graphysdk/data-import-utils':
-      specifier: 1.9.0-beta.1793264335679
-      version: 1.9.0-beta.1793264335679
+      specifier: 1.9.0-beta.1793272487821
+      version: 1.9.0-beta.1793272487821
     '@graphysdk/react':
-      specifier: 1.9.0-beta.1793264335679
-      version: 1.9.0-beta.1793264335679
+      specifier: 1.9.0-beta.1793272487821
+      version: 1.9.0-beta.1793272487821
     '@graphysdk/react-renderer':
-      specifier: 1.9.0-beta.1793264335679
-      version: 1.9.0-beta.1793264335679
+      specifier: 1.9.0-beta.1793272487821
+      version: 1.9.0-beta.1793272487821
     '@graphysdk/viz-engine':
-      specifier: 1.9.0-beta.1793264335679
-      version: 1.9.0-beta.1793264335679
+      specifier: 1.9.0-beta.1793272487821
+      version: 1.9.0-beta.1793272487821
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
@@ -28,13 +28,13 @@ importers:
     dependencies:
       '@graphysdk/react':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679
+        version: 1.9.0-beta.1793272487821
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -53,13 +53,13 @@ importers:
         version: 0.3.216(@anthropic-ai/sdk@0.112.4(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@graphysdk/data-import-utils':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679
+        version: 1.9.0-beta.1793272487821
       '@graphysdk/react-renderer':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)
+        version: 1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)
       '@graphysdk/viz-engine':
         specifier: 'catalog:'
-        version: 1.9.0-beta.1793264335679
+        version: 1.9.0-beta.1793272487821
       '@hono/node-server':
         specifier: ^1.19.14
         version: 1.19.14(hono@4.12.31)
@@ -649,11 +649,11 @@ packages:
       typescript:
         optional: true
 
-  '@graphysdk/data-import-utils@1.9.0-beta.1793264335679':
-    resolution: {integrity: sha512-5YyEFDBo7V6tCmbPcjNG1k/UhBQk266f+HUKvF4WXZSx6XbzXNqKM482scfRCsN4SdBinm8Gxiq5FfswBn1gjg==}
+  '@graphysdk/data-import-utils@1.9.0-beta.1793272487821':
+    resolution: {integrity: sha512-sG6KY7p9+CMQ/dCN4ue328swTe/JWuMDxPb0F9a32E6RkIi8NtwQra7WliII286DadA+lQXAliiCC3igHd4bfw==}
 
-  '@graphysdk/react-renderer@1.9.0-beta.1793264335679':
-    resolution: {integrity: sha512-0McXteuGn/jYslkVlY/pxE3fIv5FCkxUIEMAOTbAFecEvCccCNmEWAVt48g/HV75/AjtkpUwQwZ07SMTKR6zKA==}
+  '@graphysdk/react-renderer@1.9.0-beta.1793272487821':
+    resolution: {integrity: sha512-oluqR9mucPCMQj1/2Zv35PFZzuLpGK9+cIlQ32A7LbDJwox7DoW6pbnuJh4y8b6FhSvfuRaZGLl7bk+cm4HUvg==}
     peerDependencies:
       '@tiptap/core': ^3.0.0
       '@tiptap/extension-bold': ^3.0.0
@@ -703,8 +703,8 @@ packages:
       '@tiptap/react':
         optional: true
 
-  '@graphysdk/react@1.9.0-beta.1793264335679':
-    resolution: {integrity: sha512-izqa5mKG81/Dq9xF0AX84VR+iH5TlpEeknZG19OryNG0J4uSUdZj/5tRhGhOSGxheN+3U5tanQ2I5KMu8/I6yA==}
+  '@graphysdk/react@1.9.0-beta.1793272487821':
+    resolution: {integrity: sha512-cGnj8ENdhHhlJhcZ0Wq3ap3kCNScRQwrk+7phndOgw2hUeT0Ec6GkscNOtjyJhwluBKmWduPH6Uxq/MBmnQgMw==}
     peerDependencies:
       '@tiptap/core': ^3.0.0
       '@tiptap/extension-bold': ^3.0.0
@@ -754,13 +754,13 @@ packages:
       '@tiptap/react':
         optional: true
 
-  '@graphysdk/telemetry@1.9.0-beta.1793264335679':
-    resolution: {integrity: sha512-b/YJdT6DL2X090ksB4oMe8l4/oITWsrbGp8jMDF2rYSZmItvQ8/b7wj+1PFnPlaR7DAom1pOT9JxvT5L/eO6Dw==}
+  '@graphysdk/telemetry@1.9.0-beta.1793272487821':
+    resolution: {integrity: sha512-cgwRw5u+NKeMlWkNaOibP7HAnXNHKi5XExrPf1VT01WG76xWNZJ1/JYDSt5M2lW8PFqeV9igoAPiChh1KkLKjg==}
     peerDependencies:
-      '@graphysdk/viz-engine': ^1.9.0-beta.1793264335679
+      '@graphysdk/viz-engine': ^1.9.0-beta.1793272487821
 
-  '@graphysdk/viz-engine@1.9.0-beta.1793264335679':
-    resolution: {integrity: sha512-MnsrluWdyJ/GUglyXDUVeI2C150HGCIZsyOmMq6KIYFzAXAyFP89aNi8ILIJQjhluBup9SnxZPt+1iWeQ9n5LA==}
+  '@graphysdk/viz-engine@1.9.0-beta.1793272487821':
+    resolution: {integrity: sha512-iQJ23k6FqicyvKJrzqeZobRL/fQ24cwefNrzpwVurCcgfvfn/DCd4ULCP+ULiJlTbAc7Fn4kuvf+vbzcGymbgg==}
 
   '@hono/node-server@1.19.14':
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
@@ -2675,16 +2675,16 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@graphysdk/data-import-utils@1.9.0-beta.1793264335679':
+  '@graphysdk/data-import-utils@1.9.0-beta.1793272487821':
     dependencies:
       exceljs: 4.4.0
       papaparse: 5.5.4
 
-  '@graphysdk/react-renderer@1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+  '@graphysdk/react-renderer@1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
       '@base-ui/react': 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@floating-ui/react-dom': 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@graphysdk/viz-engine': 1.9.0-beta.1793264335679
+      '@graphysdk/viz-engine': 1.9.0-beta.1793272487821
       '@vanilla-extract/css': 1.21.1
       '@vanilla-extract/dynamic': 2.1.5
       clsx: 2.1.1
@@ -2723,11 +2723,11 @@ snapshots:
       - typescript
       - use-sync-external-store
 
-  '@graphysdk/react@1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)':
+  '@graphysdk/react@1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)':
     dependencies:
-      '@graphysdk/react-renderer': 1.9.0-beta.1793264335679(5aad7dcc2d5e48e0508df442c5bbe6b3)
-      '@graphysdk/telemetry': 1.9.0-beta.1793264335679(@graphysdk/viz-engine@1.9.0-beta.1793264335679)
-      '@graphysdk/viz-engine': 1.9.0-beta.1793264335679
+      '@graphysdk/react-renderer': 1.9.0-beta.1793272487821(5aad7dcc2d5e48e0508df442c5bbe6b3)
+      '@graphysdk/telemetry': 1.9.0-beta.1793272487821(@graphysdk/viz-engine@1.9.0-beta.1793272487821)
+      '@graphysdk/viz-engine': 1.9.0-beta.1793272487821
       react: 19.2.7
     optionalDependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
@@ -2756,11 +2756,11 @@ snapshots:
       - typescript
       - use-sync-external-store
 
-  '@graphysdk/telemetry@1.9.0-beta.1793264335679(@graphysdk/viz-engine@1.9.0-beta.1793264335679)':
+  '@graphysdk/telemetry@1.9.0-beta.1793272487821(@graphysdk/viz-engine@1.9.0-beta.1793272487821)':
     dependencies:
-      '@graphysdk/viz-engine': 1.9.0-beta.1793264335679
+      '@graphysdk/viz-engine': 1.9.0-beta.1793272487821
 
-  '@graphysdk/viz-engine@1.9.0-beta.1793264335679':
+  '@graphysdk/viz-engine@1.9.0-beta.1793272487821':
     dependencies:
       color2k: 2.0.4
       d3-delaunay: 6.0.4
