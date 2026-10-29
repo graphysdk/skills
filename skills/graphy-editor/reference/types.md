@@ -323,9 +323,10 @@ interface Command<TParams extends Record<string, unknown> = Record<string, unkno
      *
      * Dispatch loop a renderer runs to reflect a command in the view: apply it to the live
      * `Scene.spec`, and on a non-`null` result recompile the returned spec —
-     * `const result = command.apply(scene.spec); if (!result) return; recompile({ spec: result.spec })`.
+     * `const result = command.apply(scene.spec, context); if (!result) return; recompile({ spec: result.spec })`.
+     * Without a `context`, a command reads only the built-in geoms.
      */
-    apply: (spec: ResolvedSpec) => CommandApplyResult | null;
+    apply: (spec: ResolvedSpec, context?: CommandContext) => CommandApplyResult | null;
 }
 
 /**
@@ -1425,10 +1426,10 @@ class SetObservationsColorCommand implements Command<SetObservationsColorParams>
     readonly params: SetObservationsColorParams;
     constructor(params: SetObservationsColorParams, metadata?: Partial<CommandMetadata>);
     get target(): EditTarget;
-    apply(spec: ResolvedSpec): CommandApplyResult | null;
+    apply(spec: ResolvedSpec, context?: CommandContext): CommandApplyResult | null;
 }
 
-const readObservationsColorRoute: (spec: ResolvedSpec, target: ObservationsTarget) => readonly ObservationsColorRule[] | null;
+const readObservationsColorRoute: (spec: ResolvedSpec, target: ObservationsTarget, findGeom?: CommandContext["findGeom"]) => readonly ObservationsColorRule[] | null;
 
 /** The colors a color row offers: the ones the color scale hands its groups. */
 const readColorChoices: (scale: SceneScale | undefined) => readonly string[];
@@ -1669,7 +1670,7 @@ class SequenceCommand implements Command<SequenceParams> {
     constructor(params: {
         readonly commands: readonly Command[];
     }, metadata?: Partial<CommandMetadata>);
-    apply(spec: ResolvedSpec): CommandApplyResult | null;
+    apply(spec: ResolvedSpec, context?: CommandContext): CommandApplyResult | null;
 }
 
 type SequenceParams = {
@@ -2016,7 +2017,7 @@ const LegendEditMenu: TargetEditMenu<'legend'>;
 /** The color row for a selection. Renders nothing where the command has nowhere to write. */
 const ColorRow: {
     ({ target }: ResolvedObservations): JSX.Element | null;
-    hasRows(target: ObservationsTarget, { scene }: EditMenuRowsInputs): boolean;
+    hasRows(target: ObservationsTarget, { scene, findGeom }: EditMenuRowsInputs): boolean;
 };
 
 /**
@@ -3259,6 +3260,12 @@ type ComboGraphTypeSummary = {
 };
 
 type ComboType = (typeof COMBO_TYPES)[number];
+
+/** What the dispatcher knows beyond the spec, so a command can read a plugin geom's declarations. */
+interface CommandContext {
+    /** The geom a layer names, plugins included, or `null` for one the chart does not register. */
+    findGeom: (geomName: string) => Geom<unknown> | null;
+}
 
 /**
  * Descriptor that knows how to deserialize a specific command type.
@@ -4729,6 +4736,8 @@ interface ObservationsColorRule {
     layerId: string;
     geomKind: string;
     property: 'fill' | 'stroke';
+    /** A part that takes `color` as the observations do, such as a funnel's connector. Absent for the observations. */
+    part?: string;
     /** Absent when the rule colors the whole layer. */
     where?: Predicate;
 }
@@ -9920,10 +9929,12 @@ interface EditMenuRows<Target> {
     hasRows?: (target: Target, inputs: EditMenuRowsInputs) => boolean;
 }
 
-/** What an edit menu reads to say whether it has rows: the scene, and the placement strategies plugins extend. */
+/** What an edit menu reads to say whether it has rows: the scene, and the lookups plugins extend. */
 interface EditMenuRowsInputs {
     scene: Scene;
     dataLabelPlacement: DataLabelPlacementResolver;
+    /** Left out, only the built-in geoms are read. */
+    findGeom?: CommandContext['findGeom'];
 }
 
 /** The edit menus Graphy or a host registers, where `null` answers with none and `undefined` reads as left out. */

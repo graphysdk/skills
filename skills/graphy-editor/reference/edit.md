@@ -39,7 +39,7 @@ Controls in the rows come from the control registry, so a `ControlRegistryProvid
 
 Every row names the command it dispatches. Exact params are in [types](types.md).
 
-### Bar and point groups
+### Bar, point and custom geom groups
 
 | Row        | Control                                                                                                    | Command                                          |
 | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -48,6 +48,8 @@ Every row names the command it dispatches. Exact params are in [types](types.md)
 The row requires an editable color. A layer is not selectable if its color encodes a number or its geom has no fill or stroke of its own.
 
 The chips are the chart's palette. A chip click is one undo step. A picker drag streams and commits when the picker closes. The target is the selection, so a group, a band and one observation each write their own style rule. A band of stacked bars has no color row, since recoloring it would recolor every group.
+
+A custom geom with no edit menu of its own gets this row when its observations map `color` in its style target. The picked color also goes to every part that maps `color`, such as a funnel's connector or a lollipop's stem. Candlestick and waterfall map `color` only on their kind parts, so they get no row. Register `null` under the geom's name in `editMenus.geoms` to remove it.
 
 ### Line and area groups
 
