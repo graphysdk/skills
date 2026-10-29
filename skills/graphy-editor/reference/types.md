@@ -3892,17 +3892,19 @@ interface GeomParamsMap {
 
 type GeomReaderFor<Node, Backed extends StyleProperty> = GeomStyleReader<ResolvedDeclarations<NodeVocabulary<Node>>, Extract<Backed, keyof NodeVocabulary<Node>>>;
 
-/**
- * The read every geom reader offers, separate from the other methods so a `{ get }` stub typechecks.
- *
- * Without an observation the read answers for the layer as a whole: `where`-scoped entries and the
- * encoding are skipped, so an editing control opens on the layer's declared paint.
- */
-interface GeomReaderGet<Resolved extends object, Backed extends keyof Resolved> {
-    get: (<Property extends Backed>(property: Property, observation?: Observation, state?: StyleState) => NonNullable<Resolved[Property]>) & (<Property extends keyof Resolved>(property: Property, observation?: Observation, state?: StyleState) => Resolved[Property] | undefined);
-}
-
 type GeomRoot = Registry['geom'];
+
+/**
+ * The answer to "why does this element look like that".
+ */
+interface GeomStyleExplanation<Property extends StyleProperty = StyleProperty> {
+    value: ResolvedStyleDeclarations[Property] | undefined;
+    tier: GeomStyleResolutionTier;
+    /** Present when a stylesheet entry produced the value. */
+    origin?: StyleEntryOrigin;
+    /** Present when a state-scoped entry produced the value. */
+    state?: StyleState;
+}
 
 /** The node {@link createGeomStyleNode} builds, in the literal types the builders and readers derive from. */
 type GeomStyleNodeFor<Kind extends string, Target> = {
@@ -3927,9 +3929,9 @@ type GeomStyleNodeFor<Kind extends string, Target> = {
 } & StateSlots<ObservationOf<Target>>;
 
 /** A layer reader: the read, where it came from, every candidate, and the whole vocabulary at once. */
-interface GeomStyleReader<Resolved extends object = ResolvedStyleDeclarations, Backed extends keyof Resolved = never> extends GeomReaderGet<Resolved, Backed> {
-    getSource: (property: keyof Resolved, observation?: Observation, state?: StyleState) => StyleResolutionTier;
-    explain: <Property extends keyof Resolved & StyleProperty>(property: Property, observation?: Observation, state?: StyleState) => StyleExplanation<Property>;
+interface GeomStyleReader<Resolved extends object = ResolvedStyleDeclarations, Backed extends keyof Resolved = never> extends GeomStyleReaderGet<Resolved, Backed> {
+    getSource: (property: keyof Resolved, observation?: Observation, state?: StyleState) => GeomStyleResolutionTier;
+    explain: <Property extends keyof Resolved & StyleProperty>(property: Property, observation?: Observation, state?: StyleState) => GeomStyleExplanation<Property>;
     /** Every applicable declaration of `property`, defaults then overrides, in list order. */
     collectAll: <Property extends keyof Resolved & StyleProperty>(property: Property, observation?: Observation, state?: StyleState) => Array<NonNullable<Resolved[Property]>>;
     resolve: (observation?: Observation, state?: StyleState) => ResolvedRecord<Resolved, Backed>;
@@ -3947,12 +3949,25 @@ interface GeomStyleReader<Resolved extends object = ResolvedStyleDeclarations, B
 }
 
 /**
+ * The read every geom reader offers, separate from the other methods so a `{ get }` stub typechecks.
+ *
+ * Without an observation the read answers for the layer as a whole: `where`-scoped entries and the
+ * encoding are skipped, so an editing control opens on the layer's declared paint.
+ */
+interface GeomStyleReaderGet<Resolved extends object, Backed extends keyof Resolved> {
+    get: (<Property extends Backed>(property: Property, observation?: Observation, state?: StyleState) => NonNullable<Resolved[Property]>) & (<Property extends keyof Resolved>(property: Property, observation?: Observation, state?: StyleState) => Resolved[Property] | undefined);
+}
+
+/**
  * Style readers for a layer of unknown kind, such as a plugin geom. Any geom property may resolve, but
  * only the shared paint the geom root backs is guaranteed to.
  */
 type GeomStyleReaders = GeomStyleReader<ResolvedDeclarations<GeomVocabulary>, GeomRoot extends {
     acceptsUnknownKinds: true;
 } ? NodeBacked<GeomRoot, never> : never>;
+
+/** Which cascade tier answered a geom read. `'default'` covers both authored defaults and the built-in stylesheet. */
+type GeomStyleResolutionTier = 'override' | 'data' | 'default' | 'unresolved';
 
 /**
  * Per-layer aggregate summaries a geom opts into. Read by the summarize stage (which gates the
@@ -8213,6 +8228,31 @@ interface SceneLayerHighlight {
     composition: HighlightComposition;
 }
 
+/** Style property → the aesthetic whose visual variable answers its data tier. */
+type SceneLayerStyleAesthetics = NonNullable<AnyStyleTargetNode['aesthetics']>;
+
+/**
+ * One stylesheet entry ready for per-observation reads. `matches` is absent when the entry carried no
+ * `where`, so it paints unconditionally — a read with no observation in hand can tell the two apart.
+ * `where` is the predicate `matches` was compiled from, so a reader can tell which variables it reads.
+ * `state` is absent for a stateless entry.
+ */
+interface SceneLayerStyleEntry {
+    declarations: SceneStyleDeclarations;
+    matches?: CompiledPredicate;
+    where?: Predicate;
+    state?: StyleState;
+    part?: string;
+    origin: StyleEntryOrigin;
+}
+
+/** One geom address — the observations or a part beside them: what it paints and what answers its data tier. */
+interface SceneLayerStylePart {
+    vocabulary: StyleVocabulary;
+    /** Empty for a part that declares none, so it reads no data tier. */
+    aesthetics: SceneLayerStyleAesthetics;
+}
+
 /**
  * The styles stage's output for one layer: both lists, holding only the entries that apply to it. The
  * style resolver composes the cascade from them: state-scoped entries above, then
@@ -8223,15 +8263,15 @@ interface SceneLayerHighlight {
  * `CompileResult.warnings` stays complete across incremental recompiles.
  */
 interface SceneLayerStyles {
-    defaults: SceneStyleEntry[];
-    overrides: SceneStyleEntry[];
+    defaults: SceneLayerStyleEntry[];
+    overrides: SceneLayerStyleEntry[];
     warnings: UserInputIssue[];
     /** The layer's observations, shared geom paint included. */
-    observation: SceneStylePart;
+    observation: SceneLayerStylePart;
     /** The dash array each `lineType` preset draws as, for the aesthetic answering `dashArray`. */
     dashPresets: Readonly<Record<LineType, DashArray>>;
     /** Each part beside the observations, keyed by part name. */
-    parts: Record<string, SceneStylePart>;
+    parts: Record<string, SceneLayerStylePart>;
 }
 
 /** What a layer's tooltip shows, resolved at compile time. */
@@ -8381,36 +8421,11 @@ interface SceneStickerAnnotation {
     sticker: StickerId;
 }
 
-/** Style property → the aesthetic whose visual variable answers its data tier. */
-type SceneStyleAesthetics = NonNullable<AnyStyleTargetNode['aesthetics']>;
-
 /**
  * The declarations a compiled entry holds — the authored shape with token references inlined. Radii
  * hold whichever form the entry's vocabulary validated: a token on geom entries, pixels on chrome.
  */
 type SceneStyleDeclarations = StyleDeclarationsFor<CompiledStyleDomainValues>;
-
-/**
- * One stylesheet entry ready for per-observation reads. `matches` is absent when the entry carried no
- * `where`, so it paints unconditionally — a read with no observation in hand can tell the two apart.
- * `where` is the predicate `matches` was compiled from, so a reader can tell which variables it reads.
- * `state` is absent for a stateless entry.
- */
-interface SceneStyleEntry {
-    declarations: SceneStyleDeclarations;
-    matches?: CompiledPredicate;
-    where?: Predicate;
-    state?: StyleState;
-    part?: string;
-    origin: StyleEntryOrigin;
-}
-
-/** One geom address — the observations or a part beside them: what it paints and what answers its data tier. */
-interface SceneStylePart {
-    vocabulary: StyleVocabulary;
-    /** Empty for a part that declares none, so it reads no data tier. */
-    aesthetics: SceneStyleAesthetics;
-}
 
 /**
  * Compile-time projection of a text annotation.
@@ -9152,18 +9167,6 @@ type StyleEntryOrigin = {
     id?: string;
 };
 
-/**
- * The answer to "why does this element look like that".
- */
-interface StyleExplanation<Property extends StyleProperty = StyleProperty> {
-    value: ResolvedStyleDeclarations[Property] | undefined;
-    tier: StyleResolutionTier;
-    /** Present when a stylesheet entry produced the value. */
-    origin?: StyleEntryOrigin;
-    /** Present when a state-scoped entry produced the value. */
-    state?: StyleState;
-}
-
 /** The slant of a face. */
 type StyleFontStyle = (typeof STYLE_FONT_STYLES)[number];
 
@@ -9242,9 +9245,6 @@ type StyleProperty = (typeof STYLE_PROPERTY_NAMES)[number];
 
 /** The readers the `geom` root returns for a layer of kind `L`. */
 type StyleReadersForLayer<L extends SceneLayer> = L extends SceneLayerFor<infer Kind> ? Kind extends keyof GeomKindReaders ? GeomKindReaders[Kind] : GeomStyleReaders : GeomStyleReaders;
-
-/** Which cascade tier answered a geom read. `'default'` covers both authored defaults and the built-in stylesheet. */
-type StyleResolutionTier = 'override' | 'data' | 'default' | 'unresolved';
 
 /** A drop shadow. Offsets and blur are pixels; `color` takes the same forms as other color properties. */
 interface StyleShadow<ColorValue> {

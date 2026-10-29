@@ -260,7 +260,7 @@ const EXPAND_STOP = new Set([
   'GeomKindReaders',
   'GeomKindNodes',
   'GeomReaderFor',
-  'GeomReaderGet',
+  'GeomStyleReaderGet',
   'ResolvedLayerSpec',
   'ResolvedLayerSpecBase',
   'ResolvedLayerSpecFor',
@@ -272,7 +272,7 @@ const EXPAND_STOP = new Set([
   'ResolvedPoint',
   'ResolvedRegion',
   'ResolvedObservationPoint',
-  'StyleExplanation',
+  'GeomStyleExplanation',
   'TooltipContract',
   'LiveGeomApi',
   // Output side of the compile pipeline — consumed by renderers, not authored.
