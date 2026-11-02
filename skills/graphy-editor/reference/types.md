@@ -723,7 +723,8 @@ class SetBarWidthCommand implements Command<SetBarWidthParams> {
  * Command that rounds the bars themselves: `SetAppearanceCornerRadiusCommand` rounds the chart's
  * frame and `PanelConfig.cornerRadius` the plotting area.
  *
- * The rounding merges into the layer's own override entry, leaving whatever else that entry paints.
+ * The rounding writes to the layer's own override entry, leaving whatever else that entry paints. That entry answers
+ * `cornerRadius` whole, so a caller that wants the corners it leaves out to keep their look passes them too.
  */
 class SetBarCornerRadiusCommand implements Command<SetBarCornerRadiusParams> {
     readonly type: "setBarCornerRadius";
@@ -2080,7 +2081,7 @@ interface AxisSectionProps extends OverridableSectionProps {
 const PolarSection: ({ title, layout, preview }: OverridableSectionProps) => JSX.Element | null;
 
 /**
- * A bar's own shape: how thick it is and how round its corners are.
+ * A bar's own shape: how thick it is and how round each end's corners are.
  *
  * No gap row: painted width is `step × (1 - scalePadding) × width / seriesCount`, so band padding and
  * this fraction shrink the group the same way.
@@ -8629,12 +8630,19 @@ type SetAxisVisibilityParams = ({
 type SetBarCornerRadiusParams = {
     /** Layer whose bars this rounds. */
     layerId: string;
+} & ({
     /**
-     * One radius, a radius per end or some corners by name, each a token or a number of pixels. `'full'` is half the
-     * bar's thickness, giving a pill. `null` hands rounding back to the stylesheet beneath.
+     * The corners this rounds, each a token or a number of pixels. `'full'` is half the bar's thickness, giving a
+     * pill. A corner left out keeps what the layer declares, and is square if the layer declares no rounding.
+     */
+    corners: Partial<GeomCornerRadii>;
+} | {
+    /**
+     * The layer's whole rounding, as it is written: one radius, a radius per end, or some corners by name. `null` hands it all back to
+     * the stylesheet beneath. An undo writes this form, so it restores the declaration exactly as it was.
      */
     cornerRadius: GeomCornerRounding | null;
-};
+});
 
 type SetBarWidthParams = {
     /** Layer to target; when omitted, the first bar layer is used. */
