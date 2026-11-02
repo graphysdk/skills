@@ -2925,6 +2925,7 @@ interface AuthoredStyleDomainValues extends ScalarStyleDomainValues {
     shadow: StyleShadowValue<StyleColorValue>;
     padding: StylePaddingValue;
     margin: StylePaddingValue;
+    geomRadius: GeomCornerRounding;
 }
 
 /**
@@ -3076,7 +3077,7 @@ class BarGeom extends Geom<BarGeomParams> {
             readonly rest: {
                 readonly fill: StyleTokenRef;
                 readonly fillAlpha: 1;
-                readonly cornerRadius: number | "none" | "xs" | "sm" | "md" | "lg" | "xl";
+                readonly cornerRadius: Readonly<Record<"baseStart" | "baseEnd" | "tipStart" | "tipEnd", number | "none" | "xs" | "sm" | "md" | "lg" | "xl">>;
                 readonly strokeWidth: 1;
                 readonly stroke: StyleTokenRef;
             };
@@ -3307,6 +3308,8 @@ interface CompiledStyleDomainValues extends ScalarStyleDomainValues {
     shadow: StyleShadowValue<CompiledStyleColorValue>;
     padding: Partial<StylePadding>;
     margin: Partial<StylePadding>;
+    /** Every corner: those the declaration does not name are square. */
+    geomRadius: GeomCornerRadii;
 }
 
 /** An overpaint once compiled and once resolved: its paints, the first on top; none when empty. */
@@ -3792,6 +3795,9 @@ type Flatten_2<Shape> = {
 /** A BCP-47 tag for display formatting: any tag `Intl` accepts, while parsing stays on {@link Locale}. */
 type FormattingLocale = Locale | (string & {});
 
+/** Every {@link GeomCorner}. */
+const GEOM_CORNERS: readonly ["baseStart", "baseEnd", "tipStart", "tipEnd"];
+
 const GEOM_ENTRY_OPTIONS: readonly ["where", "state", "layer"];
 
 /**
@@ -3830,13 +3836,32 @@ interface GeomCompilerInput {
     coordType: CoordType;
 }
 
+/**
+ * A geom's corners, named by the geom so they mean the same corner flipped, negative or polar. The base is the end
+ * nearer zero and the tip the other; start is the side of the band toward the band axis's origin. A geom with no base,
+ * such as a tile, rounds every corner only when all four agree.
+ */
+type GeomCorner = (typeof GEOM_CORNERS)[number];
+
+/** A geom's rounding at each of its corners. */
+type GeomCornerRadii = Record<GeomCorner, GeomCornerRadius>;
+
 /** A geom's rounding: a token or a number of pixels. `'full'` rounds the shorter side into a semicircle. */
 type GeomCornerRadius = BorderRadiusToken | number;
+
+/** A geom's rounding as authored: one radius for every corner, a radius per end, or some corners by name. */
+type GeomCornerRounding = GeomCornerRadius | Partial<GeomEndRadii> | Partial<GeomCornerRadii>;
 
 /** What a geom draws with beyond its paint: a drop shadow and how it composites with what lies under it. */
 interface GeomEffects extends GeomFilters {
     shadow: StyleShadowValue<string>;
     blendMode: StyleBlendMode;
+}
+
+/** A geom's rounding at each end, both of its corners alike. */
+interface GeomEndRadii {
+    base: GeomCornerRadius;
+    tip: GeomCornerRadius;
 }
 
 /** The color filters a geom draws through; each a multiple with `1` unchanged, `blur` in pixels. */
@@ -5721,6 +5746,7 @@ interface ResolvedStyleDomainValues extends ScalarStyleDomainValues {
     shadow: StyleShadowValue<string>;
     padding: Partial<StylePadding>;
     margin: Partial<StylePadding>;
+    geomRadius: GeomCornerRadii;
 }
 
 /** Resolved stylesheet: the token table and the authored lists, all present. */
@@ -7848,7 +7874,6 @@ const STYLE_TEXT_TRANSFORMS: readonly ["none", "uppercase", "lowercase", "capita
 interface ScalarStyleDomainValues {
     unitInterval: number;
     pixels: number;
-    geomRadius: GeomCornerRadius;
     dashArray: DashArray;
     fontFamily: string;
     fontWeight: number;
@@ -8161,6 +8186,11 @@ interface SceneLayer {
     mapping: AestheticMapping;
     position: PositionAdjustment;
     yScaleType: YScaleType;
+    /**
+     * Where zero lands on the layer's y scale, in normalized position space and unclamped, so it can fall outside
+     * `[0, 1]`. `null` for a log or band scale, or no position scale. Set by the position mapper.
+     */
+    yZero: number | null;
     params: ResolvedLayerSpec['params'];
     /** When `false`, hover ignores this layer: it is never the primary nor related. */
     interactive: boolean;
@@ -8599,8 +8629,11 @@ type SetAxisVisibilityParams = ({
 type SetBarCornerRadiusParams = {
     /** Layer whose bars this rounds. */
     layerId: string;
-    /** A token or a number of pixels. `'full'` is half the bar's thickness, giving a pill. `null` hands rounding back to the stylesheet beneath. */
-    cornerRadius: GeomCornerRadius | null;
+    /**
+     * One radius, a radius per end or some corners by name, each a token or a number of pixels. `'full'` is half the
+     * bar's thickness, giving a pill. `null` hands rounding back to the stylesheet beneath.
+     */
+    cornerRadius: GeomCornerRounding | null;
 };
 
 type SetBarWidthParams = {
@@ -9110,7 +9143,7 @@ interface StyleCornerRadiusSides {
  * Every style property any target understands, in one shape regardless of target, at one tier. Which
  * subset a given entry may declare is the target's vocabulary; the compile stage drops declarations
  * outside the entry's vocabulary. A property's value is the union of the domains it takes anywhere in
- * the registry: `cornerRadius` is a token on bars and pixels elsewhere, so this shape
+ * the registry: `cornerRadius` names a geom's corners and a box's in pixels, so this shape
  * holds either, while a node's own reads are typed to that node's domain.
  *
  * - `color` — fill color.
@@ -9120,8 +9153,8 @@ interface StyleCornerRadiusSides {
  *   annotation, a callout label; or the hover guide's band.
  * - `stroke` — the border color of a box, a shape annotation, a callout marker, a bar, a point or a
  *   tile. A bar draws a border only when this resolves; a point marker always has one (built-in white).
- * - `cornerRadius` — corner rounding: a token on bars, resolved to pixels by the bar recipes; pixels
- *   on boxes and chrome.
+ * - `cornerRadius` — corner rounding: on a geom, one radius, one per end (`base`, `tip`) or one per
+ *   corner, each a token or pixels; pixels on boxes and chrome.
  * - `strokeWidth` — stroke width in pixels for line and area outlines, grid lines, panel-border
  *   edges and the borders of boxes, bars, points and tiles; `0` is an explicit no-border and hides a
  *   chrome stroke, reserving no space for it.
@@ -9157,8 +9190,8 @@ type StyleDeclarationsFor<Tier extends Record<StyleDomain, unknown>> = {
 };
 
 /**
- * The value domain a declaration takes. One property can differ by target: `cornerRadius` is a token
- * on a bar, whose rounding scales with its thickness, and a pixel count on chrome, which doesn't.
+ * The value domain a declaration takes. One property can differ by target: `cornerRadius` names a geom's
+ * corners by its base and tip, whose `'full'` scales with its thickness, and a box's in pixels on chrome.
  */
 type StyleDomain = keyof AuthoredStyleDomainValues;
 
@@ -9845,8 +9878,11 @@ interface GeomRectProps {
     stroke?: string;
     strokeOpacity?: number;
     strokeWidth?: number;
-    /** A token or pixels, as `cornerRadius` reads from the geom's style. `'full'` rounds the shorter side. */
-    cornerRadius?: GeomCornerRadius;
+    /**
+     * A token or pixels, or the corners `cornerRadius` reads from the geom's style. A rect has no base, so it rounds by
+     * the radius its corners share and draws square when they differ. `'full'` rounds the shorter side.
+     */
+    cornerRadius?: GeomCornerRadius | GeomCornerRadii;
     /** Shadow, blend mode and filters from `readGeomEffects`. The resting shadow is `'none'` when the layer casts it. */
     effects?: GeomEffects;
     /** Whether a change of origin or size springs to the new one. Snaps when false. */

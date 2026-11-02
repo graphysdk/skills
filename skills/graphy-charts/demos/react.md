@@ -429,7 +429,7 @@ const OptionRow = <Value extends string>({
             {option.icon && <Icon path={option.icon} />}
             {appearance === 'swatches' && (
               <span className="swatches" aria-hidden="true">
-                {(option.theme?.palettes?.categorical ?? ['#B84737', '#BA7420', '#0B8666'])
+                {(option.theme?.palettes?.categorical ?? ['#B84737', '#0B8666', '#DD9C04'])
                   .slice(0, 3)
                   .map((color, index) => (
                     <span key={index} style={{ background: color }} />
