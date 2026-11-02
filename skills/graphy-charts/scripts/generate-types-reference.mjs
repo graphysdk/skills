@@ -115,7 +115,7 @@ const GROUPS = [
       'StyleDeclarations',
       'StyleProperty',
       'StyleSelect',
-      'ChromeStyleSelect',
+      'SceneStyleSelect',
       'StyleEntryOptions',
       'StyleState',
       'StyleTokenRef',
@@ -240,6 +240,8 @@ const PREFIX_STOP = [
   /^Registry/,
   /^Node(Builder|Entry|Backed|RestKeys|Select|When|Vocabular)/,
 ];
+// This Scene type belongs to the authoring API.
+const PREFIX_STOP_EXCEPTIONS = new Set(['SceneStyleTargetName']);
 const EXPAND_STOP = new Set([
   // The style registry literal is 90 KB of type-level tables; styling.md carries the same
   // vocabulary as a readable table.
@@ -563,7 +565,8 @@ while (queue.length > 0) {
   if (!resolved) continue;
   for (const ref of resolved.entry.refs) {
     if (AMBIENT_NAMES.has(ref) || SKIPPED.has(ref)) continue;
-    if (EXPAND_STOP.has(ref) || PREFIX_STOP.some((pattern) => pattern.test(ref))) {
+    const prefixStopped = PREFIX_STOP.some((pattern) => pattern.test(ref)) && !PREFIX_STOP_EXCEPTIONS.has(ref);
+    if (EXPAND_STOP.has(ref) || prefixStopped) {
       stopped.add(ref);
       continue;
     }

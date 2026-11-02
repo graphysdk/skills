@@ -318,7 +318,7 @@ export const UndoButton = () => {
 - `useGraphSelection()`: what the graph holds selected, in editing modes.
 - `useGraphLocale()`: the resolved display locale.
 
-The scene has `spec`, `coordSystem`, `layers`, `scales`, `guides`, `config`, `annotations` and `chrome`. `scene.spec` is the resolved spec with every default filled in.
+The scene has `spec`, `coordSystem`, `layers`, `scales`, `guides`, `config`, `annotations` and `styles`. `scene.spec` is the resolved spec with every default filled in.
 
 `DevToolsPanel`, rendered inside the provider, shows which compile stages ran or hit the cache after each change. Its props type is `DevToolsPanelProps` with `width`, `style` and `className`. `HoverProvider` hosts the hover state; the renderer mounts it on its own. A custom renderer built from the parts needs it, a graph does not.
 

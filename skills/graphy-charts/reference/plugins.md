@@ -309,7 +309,7 @@ export const spec = kit.pipe(
 
 A geom that declares `styleTarget` with `defineGeomStyleTarget({ observation, parts })` gets its own builder: `kit.style.geom.<name>()` for the observations and `kit.style.geom.<name>.<part>()` for each part. The render half reads a part with `styleReaders.part('<part>')`. Built-in colors are `token(...)`, never hex. The geom packages work this way.
 
-Related hooks: `useStyleReaderTree()` returns the whole tree including chrome targets, `useGeomReaderTree()` the geom subtree, `useStyleResolver()` the provider's resolver, and `useResolvedStyle(read, ...args)` memoizes a module-level style read. Outside React, `createStyleResolver({ colorScheme }).readers(scene)` builds the same tree from a compiled scene.
+`useStyleReaderTree()` returns readers for both scene targets and geoms; `useGeomReaderTree()` returns only the geom subtree. `useStyleResolver()` returns the provider's resolver, and `useResolvedStyle(read, ...args)` memoizes a module-level style read. Outside React, use `createStyleResolver({ colorScheme }).readers(scene)`.
 
 `get(property, observation?, state?)` takes an optional observation and an optional state, `'hovered'` or `'dimmed'`. Without an observation it answers for the layer as a whole. Geom entries take `where`, `state`, and `layer` options. Inside a component that is not the render function, `useGeomStyleReader(layer)` returns the same readers.
 

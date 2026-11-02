@@ -430,8 +430,8 @@ interface StylesheetSpec extends Stylesheet {
  * edits. Within a list, order is specificity: the last matching entry that declares a property wins.
  */
 type StyleRule = {
-    [Root in ChromeTargetName]: RegistryEntries<(typeof STYLE_TARGETS)[Root]>;
-}[ChromeTargetName] | GeomStyleRule;
+    [Root in SceneStyleTargetName]: RegistryEntries<(typeof STYLE_TARGETS)[Root]>;
+}[SceneStyleTargetName] | GeomStyleRule;
 
 /** The declarations an entry can author, color-valued properties in any authored form. */
 type StyleDeclarations = StyleDeclarationsFor<AuthoredStyleDomainValues>;
@@ -442,11 +442,7 @@ type StyleProperty = (typeof STYLE_PROPERTY_NAMES)[number];
 /**
  * The structural address of a style entry — what it styles, decidable with no data.
  *
- * - `target` — the element class: `geom` or one of the chrome targets (`panelBorder`, `gridLine`,
- *   `axisLine`, `tickLine`, `axisLabel`, `tickLabel`, `dataLabel`, `graph`, `heading`,
- *   `caption`, `source`, `header`, `footer`, `hoverGuide`, `tooltip`, `headline`, `headlineItem`,
- *   `legend`, `legendItem`, `directLabel`, `annotation`). Chrome entries are chart-scoped and
- *   condition-free — they carry no `when`.
+ * - `target` — `geom` or a scene target from {@link SceneStyleTargetName}. Scene entries take no `when`.
  * - `kind` — restrict a geom or annotation entry to one kind, and open that kind's vocabulary. Stamped
  *   by the kind builders (`style.geom.bar`, `style.annotation.shape`). Absent, the entry applies to
  *   every layer, or every annotation, with the shared vocabulary.
@@ -465,9 +461,9 @@ type StyleProperty = (typeof STYLE_PROPERTY_NAMES)[number];
  */
 type StyleSelect = StyleRule['select'];
 
-/** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
-type ChromeStyleSelect = Extract<StyleSelect, {
-    target: ChromeStyleTargetName;
+/** A scene entry's address, preserved during compilation for read-time filtering. */
+type SceneStyleSelect = Extract<StyleSelect, {
+    target: SceneStyleTargetName;
 }>;
 
 type StyleEntryOptions = EntryOptionsFor<(typeof STYLE_TARGETS.geom)['options']>;
@@ -1803,16 +1799,6 @@ interface CategoricalScaleMethods<RangeValue extends number | string> {
 interface CategoricalValueFormat {
     type: 'text';
 }
-
-/**
- * The chart-scoped chrome output of the styles compile — one list pair per target, entries keeping
- * their partition (`edge`, `axis`, `kind`, `annotation`, …) for read-time filtering. The built-in
- * entries sit at the front of `defaults`. `warnings` are re-emitted into the compile diagnostics every
- * compile. Keys are registry roots other than `geom`.
- */
-type ChromeStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
-
-type ChromeTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
 
 /**
  * Options for a continuous `color` scale. Same as {@link ContinuousScaleOptions}, but the value maps to a
@@ -4143,6 +4129,9 @@ type ScaledPositionAestheticKey = 'x' | 'y' | 'ySecondary';
 /** Scale keys whose output is a visual channel rather than a position. */
 type ScaledVisualAestheticKey = 'color' | 'size' | 'alpha' | 'strokeWidth' | 'lineType';
 
+/** Targets whose styles compile onto `Scene.styles`. */
+type SceneStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
+
 /**
  * Overrides for the optional second y axis. Sparse where `x` and `y` are fully resolved: a field
  * left unset is inherited at compile time — `position` from the side opposite `y`, `visible`,
@@ -4948,8 +4937,8 @@ function area(options?: GeomOptions<'area'>): LayerSpecFor<'area'>;
 function bar(options?: GeomOptions<'bar'>): LayerSpecFor<'bar'>;
 
 /**
- * The chrome builders and the geom root, with no kind under it. A kit adds its kinds, the built-ins
- * included, so `style.geom.bar` comes from `createSpecBuilder` rather than from this module.
+ * Scene-target builders and the bare geom root. `createSpecBuilder` adds the kit's geom kinds,
+ * including built-ins such as `style.geom.bar`.
  */
 const baseStyle: BaseStyleBuilderTree;
 

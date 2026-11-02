@@ -69,7 +69,7 @@ Targets nest two ways.
 
 A bare entry addresses the whole target. `style.tooltip` is the popover box, not its text parts. `style.heading` is a wildcard over `h1` and `h2`. `style.source` is the label only, not the link. `style.legend` is the pill row, `style.legendItem` the pill.
 
-Geom entries take `where`, `state` and `layer`. Rule labels take `layer` only; annotation entries take `annotation`. Chrome entries (axes, labels, tooltip, legend, graph) take no conditions. Every entry takes `id` and `coord`; see [Conditions](#conditions-where-and-layer). TypeScript rejects unsupported options.
+Geom entries take `where`, `state` and `layer`; rule labels take only `layer`. Scene entries take none of these; annotation entries take `annotation` to select one annotation. Every entry accepts `id` and `coord`. See [Conditions](#conditions-where-and-layer). TypeScript rejects unsupported options.
 
 ## Property values
 
@@ -553,7 +553,7 @@ Dash presets the built-ins use, in stroke widths: solid `[]`, line dashed `[4, 2
 - There is no `color` property. Fill a shape with `fill`, stroke a line with `stroke`, paint text with `textColor`.
 - A `defaults` entry yields to a mapped aesthetic. To repaint bars whose `color` is mapped, use `overrides`.
 - Position scales are separate from styling. `scale.color.discrete()` decides group colors; the stylesheet cannot assign a color per group except through `overrides` with `where`.
-- `where`, `state` and `layer` are geom-only. On a chrome target they are a type error, and in serialized JSON the whole entry is dropped with a warning.
+- Scene entries reject `where`, `state` and `layer` options. Serialized entries with a `when` clause or `select.layer` are dropped with a warning.
 - `cornerRadius` on a bar is a token or pixels. On a tile, the graph, the panel border and the edit outline it is pixels only. On boxes it can be per corner.
 - A bare `style.tooltip` is the box, `style.source` the label, `style.legend` the row. Reach the parts by name.
 - A light-dark pair does nothing until `colorScheme` on `GraphProvider` says which side to read. The default is `light`.

@@ -3214,19 +3214,6 @@ interface CategoricalValueFormat {
     type: 'text';
 }
 
-/** The subset of {@link StyleSelect} chrome entries carry, kept compiled so reads filter by partition. */
-type ChromeStyleSelect = Extract<StyleSelect, {
-    target: ChromeStyleTargetName;
-}>;
-
-/**
- * The chart-scoped chrome output of the styles compile — one list pair per target, entries keeping
- * their partition (`edge`, `axis`, `kind`, `annotation`, …) for read-time filtering. The built-in
- * entries sit at the front of `defaults`. `warnings` are re-emitted into the compile diagnostics every
- * compile. Keys are registry roots other than `geom`.
- */
-type ChromeStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
-
 /**
  * One discrete color group: its domain value, mapped color, per-value swatch shape, and the
  * index of the first layer that contributed the value (its "owning" layer in legend/headline
@@ -7935,7 +7922,7 @@ interface Scene {
     guides: SceneGuides;
     config: SceneConfig;
     annotations: SceneAnnotations;
-    chrome: SceneChromeStyles;
+    styles: SceneStyles;
 }
 
 /**
@@ -8025,23 +8012,6 @@ interface SceneAxisGuide {
     /** Band width in [0, 1] space for discrete position scales. Undefined otherwise. */
     bandwidth?: number;
 }
-
-/** One chrome entry ready for reads — chart-scoped and condition-free: no predicate, no state. */
-interface SceneChromeEntry {
-    select: ChromeStyleSelect;
-    declarations: SceneStyleDeclarations;
-    origin: StyleEntryOrigin;
-}
-
-/** One chrome target's compiled lists. Within a list, the last matching entry declaring a property wins. */
-interface SceneChromeList {
-    defaults: SceneChromeEntry[];
-    overrides: SceneChromeEntry[];
-}
-
-type SceneChromeStyles = Record<ChromeStyleTargetName, SceneChromeList> & {
-    warnings: UserInputIssue[];
-};
 
 /**
  * Compile-time projection of a comment annotation.
@@ -8422,10 +8392,40 @@ interface SceneStickerAnnotation {
 }
 
 /**
- * The declarations a compiled entry holds — the authored shape with token references inlined. Radii
- * hold whichever form the entry's vocabulary validated: a token on geom entries, pixels on chrome.
+ * Authored declarations with style token references inlined. Radii retain the form validated by the
+ * target's vocabulary.
  */
 type SceneStyleDeclarations = StyleDeclarationsFor<CompiledStyleDomainValues>;
+
+/** A compiled scene entry. Its selector is retained for read-time filtering. */
+interface SceneStyleEntry {
+    select: SceneStyleSelect;
+    declarations: SceneStyleDeclarations;
+    origin: StyleEntryOrigin;
+}
+
+/** One scene target's compiled lists. Within a list, the last matching entry declaring a property wins. */
+interface SceneStyleLists {
+    defaults: SceneStyleEntry[];
+    overrides: SceneStyleEntry[];
+}
+
+/** A scene entry's address, preserved during compilation for read-time filtering. */
+type SceneStyleSelect = Extract<StyleSelect, {
+    target: SceneStyleTargetName;
+}>;
+
+/** Targets whose styles compile onto `Scene.styles`. */
+type SceneStyleTargetName = Exclude<keyof typeof STYLE_TARGETS, 'geom'>;
+
+/**
+ * Compiled lists by scene target, with built-in entries prepended to `defaults`. Selectors retain
+ * their partitions (`edge`, `axis`, `kind`, `annotation`, …) for read-time filtering. Warnings are
+ * re-emitted on every compile, including cache hits.
+ */
+type SceneStyles = Record<SceneStyleTargetName, SceneStyleLists> & {
+    warnings: UserInputIssue[];
+};
 
 /**
  * Compile-time projection of a text annotation.
