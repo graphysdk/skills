@@ -162,7 +162,7 @@ export function PortugueseGraph() {
 
 `config({ parsingLocale })` reads the values written inside the spec: a date in a highlight predicate or an annotation anchor. It does not change how a data cell is read. Set it to match the data when the two differ.
 
-Supported locales: `'en-GB'`, `'en-US'`, `'pt-PT'`, `'ar'`. Durations always format in English.
+Parsing locales: `'en-GB'`, `'en-US'`, `'pt-PT'`, `'ar'`. Durations always format in English, and quarters always read `Q3 2024`.
 
 ## Missing values
 

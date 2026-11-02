@@ -93,6 +93,7 @@ interface GraphHandle {
   commands: { dispatch; commit };
   subscribe(onChange: () => void): () => void; // with getScene, the useSyncExternalStore pair
   getScene(): Scene | null; // the compiled chart, null before the first compile
+  formattingLocale?: FormattingLocale; // unset, values format in the scene's parsingLocale
   undo(): boolean;
   redo(): boolean;
   getSelection(): readonly EditTarget[];

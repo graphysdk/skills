@@ -203,20 +203,22 @@ The renderer mounts its own `ThemeProvider`. `ThemeProvider`, `vars`, `lightThem
 
 ## Formatting locale
 
-`formattingLocale` sets how numbers and dates are displayed in ticks, tooltips, legends and headlines. It is one of `'en-GB'`, `'en-US'`, `'pt-PT'` or `'ar'`. When unset, display uses `config({ parsingLocale })` from the spec, which defaults to `'en-US'`.
+`formattingLocale` sets how numbers and dates are displayed in ticks, tooltips, legends and headlines. It takes any BCP-47 tag, such as `'it-IT'` or `'ja-JP'`; a tag `Intl` cannot read formats as `'en-GB'` and warns through `onWarnings`. Abbreviations stay `k`, `m` and `b` in every locale. Dates stay in the Gregorian calendar, whatever the locale's own. When unset, display uses `config({ parsingLocale })` from the spec, which defaults to `'en-US'`. Graphy's own texts are translated only for `'en-GB'`, `'en-US'`, `'pt-PT'` and `'ar'`: a tag reads the one for its language and region, else its language, else `'en-GB'`.
 
 ```tsx
 import { GraphProvider, GraphRenderer } from '@graphysdk/react';
 import type { Data, Spec } from '@graphysdk/react';
 
-export const PortugueseGraph = ({ data, spec }: { data: Data; spec: Spec }) => (
-  <GraphProvider data={data} spec={spec} formattingLocale="pt-PT">
+export const ItalianGraph = ({ data, spec }: { data: Data; spec: Spec }) => (
+  <GraphProvider data={data} spec={spec} formattingLocale="it-IT">
     <GraphRenderer />
   </GraphProvider>
 );
 ```
 
-Parsing and formatting are separate. Data rows are parsed day-first; `config({ parsingLocale })` reads values written in the spec; `formattingLocale` prints. See data.md § Parsing locale and formatting locale. `useGraphLocale()` returns the resolved display locale inside the tree.
+Parsing and formatting are separate. Data rows are parsed day-first; `config({ parsingLocale })` reads values written in the spec; `formattingLocale` prints. See data.md § Parsing locale and formatting locale. Inside the tree, `useFormattingLocale()` returns the tag values format in, and `useGraphLocale()` the translation locale the chart's texts use unless an `IntlProvider` above the chart sets `locale`.
+
+For a language with no translation, wrap the chart in `IntlProvider` from `@graphysdk/react` with your wording as `i18nOverrides`, keyed by phrase (`'graph.headlineMetrics.total'`), as a string or, for a phrase with values, a function of them. A phrase left out keeps the chart's translation. An editable chart uses `EditorIntlProvider` from `@graphysdk/react/editable` instead, which also takes editor phrases: see the graphy-editor skill.
 
 ## Errors and warnings
 
@@ -283,7 +285,7 @@ const LayerCount = ({ handle }: { handle: GraphHandle }) => {
 };
 ```
 
-The handle has `commands` (`dispatch` and `commit`), `undo`, `redo`, `subscribe`, `getScene`, `getSelection`, `setSelection`, `subscribeSelection`, `canPlaceDataLabels` and `canFormatDataLabelsAsPercentages`. `getScene` returns `null` until the first successful compile. `undo` and `redo` return whether the graph took the step. A refused step reports through `onError`.
+The handle has `commands` (`dispatch` and `commit`), `undo`, `redo`, `subscribe`, `getScene`, `formattingLocale`, `getSelection`, `setSelection`, `subscribeSelection`, `canPlaceDataLabels` and `canFormatDataLabelsAsPercentages`. `getScene` returns `null` until the first successful compile. `formattingLocale` is the canonical tag, unset when the provider got none. `undo` and `redo` return whether the graph took the step. A refused step reports through `onError`.
 
 `useGraphHistoryShortcuts(handleRef, options)` binds Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y to the handle while the caller is mounted. `options.target` is the element to listen on, a ref holding one, or `null` to bind nothing. Default `window`. `options.enabled` turns it off without unmounting. The options type is `GraphHistoryShortcutsOptions`. A chord typed into a text input, a textarea or a contenteditable element is left alone, and so is one with Alt held or one another handler already prevented. A range, checkbox, radio or button input passes the chord through to the graph.
 
@@ -316,7 +318,8 @@ export const UndoButton = () => {
 - `useGraphCommands()`: `{ dispatch, commit }` for applying commands. See below.
 - `useGraphHistory()`: `undo`, `redo`, `canUndo`, `canRedo`, `undoDescription`, `redoDescription`, `undoStack`, `redoStack`. Its return type is `GraphHistory`.
 - `useGraphSelection()`: what the graph holds selected, in editing modes.
-- `useGraphLocale()`: the resolved display locale.
+- `useFormattingLocale()`: the tag numbers and dates format in, `formattingLocale ?? parsingLocale`. Pass it to `createValueFormatter`.
+- `useGraphLocale()`: the translation locale the chart's texts use, one of `en-GB`, `en-US`, `pt-PT` or `ar`. An `IntlProvider` above the chart that sets `locale` overrides it for the texts, not for this hook.
 
 The scene has `spec`, `coordSystem`, `layers`, `scales`, `guides`, `config`, `annotations` and `styles`. `scene.spec` is the resolved spec with every default filled in.
 

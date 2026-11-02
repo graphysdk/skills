@@ -54,7 +54,7 @@ type DataType = 'numeric' | 'categorical' | 'temporal';
 /** A type alias for variable names. */
 type VariableName = string;
 
-/** One of the BCP-47 locale strings the engine supports for number and date formatting. */
+/** One of the BCP-47 locale strings the engine parses data in and Graphy's texts are translated for. */
 type Locale = (typeof LOCALES)[number];
 
 /**
@@ -600,7 +600,11 @@ interface GraphProviderProps {
      * The theme's `colorScheme`, when set, overrides the `colorScheme` prop.
      */
     theme?: Theme;
-    formattingLocale?: Locale;
+    /**
+     * Formats numbers and dates for display: any BCP-47 tag (`it-IT`). A tag `Intl` cannot read formats as `en-GB` and
+     * reports `INVALID_FORMATTING_LOCALE`. Graphy's own texts use the built-in dictionary for its language, else `en-GB`.
+     */
+    formattingLocale?: FormattingLocale;
     /**
      * Filled with this graph's {@link GraphHandle}, for callers mounted outside the provider where the
      * hooks can't reach. `useGraphHistoryShortcuts` binds the undo/redo chords to one.
@@ -609,7 +613,7 @@ interface GraphProviderProps {
     onSpecChange?: (next: Spec) => void;
     /** Fires with the compile failure(s) whenever a compile/recompile/dispatch produces errors. */
     onError?: (errors: VizDiagnostic[]) => void;
-    /** Fires with any warnings a successful compile produced. */
+    /** Fires with any warnings a successful compile produced, and with `INVALID_FORMATTING_LOCALE` on a tag `Intl` cannot read. */
     onWarnings?: (warnings: VizDiagnostic[]) => void;
     colorScheme?: ColorScheme;
     children: ReactNode;
@@ -2325,6 +2329,9 @@ interface FlipCoordSpec {
     coordType: 'flip';
     params?: Partial<BaseCoordParams>;
 }
+
+/** A BCP-47 tag for display formatting: any tag `Intl` accepts, while parsing stays on {@link Locale}. */
+type FormattingLocale = Locale | (string & {});
 
 const GEOM_ENTRY_OPTIONS: readonly ["where", "state", "layer"];
 
@@ -4779,7 +4786,7 @@ type TransformSpec = ReshapeTransformSpec | FilterTransformSpec | SortTransformS
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'LIVE_RENDER_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'LIVE_RENDER_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_FORMATTING_LOCALE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * Constant mapping - a literal value applied to every observation.
@@ -5273,7 +5280,7 @@ interface GeomRenderInput<G extends GeomName | string = string, C extends CoordK
     layer: SceneLayerOf<G>;
     coordSystem: CoordSystemFor<C>;
     animateTransitions: boolean;
-    formattingLocale: Locale;
+    formattingLocale: FormattingLocale;
     intro?: LayerIntroPlan | null;
     /**
      * The panel's pixel rect — the data rectangle geoms paint into, already inset from axes and chrome.

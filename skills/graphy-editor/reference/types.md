@@ -9,7 +9,7 @@ Generated from `@graphysdk/viz-engine@1.8.0` and `@graphysdk/react-renderer@1.8.
 > handles and hooks from `@graphysdk/react-renderer`, and editor components
 > from `@graphysdk/react-renderer/editable`. Referenced types appear under
 > "Supporting types" where available; external and built-in types are omitted.
-> See the other references for usage. Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): AestheticMapping, AnnotationSpecByKind, ConfigSpec, Data, Dataset, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, VizDiagnostic, WhenClause.
+> See the other references for usage. Types omitted from this reference (see the graphy-charts types.md for spec and authoring types): AestheticMapping, AnnotationSpecByKind, ConfigSpec, Data, Dataset, DotNotation, EDITOR_EN_GB, EN_GB, Geom, GraphSlots, I18nLocale, I18nRuntimeOverrides, Observation, OverridePhrase, Predicate, RenderOnlyPlugin, Spec, StyleRule, StyleSelect, TextDirection, VizDiagnostic, WhenClause.
 
 ## Handle & hooks — @graphysdk/react-renderer
 
@@ -29,6 +29,8 @@ interface GraphHandle {
     subscribe: (onGraphChange: () => void) => () => void;
     /** The graph's scene as of now, or `null` before its first successful compile. */
     getScene: () => Scene | null;
+    /** The tag the graph formats values in, safe to hand to `Intl`. Unset, it formats in the scene's `parsingLocale`. */
+    formattingLocale?: FormattingLocale;
     /**
      * Reverse the most recent command. Returns whether the chart took the step, so a caller driving
      * this from a keystroke can leave the key to the app when the chart has nothing to undo or the
@@ -215,7 +217,11 @@ interface GraphProviderProps {
      * The theme's `colorScheme`, when set, overrides the `colorScheme` prop.
      */
     theme?: Theme;
-    formattingLocale?: Locale;
+    /**
+     * Formats numbers and dates for display: any BCP-47 tag (`it-IT`). A tag `Intl` cannot read formats as `en-GB` and
+     * reports `INVALID_FORMATTING_LOCALE`. Graphy's own texts use the built-in dictionary for its language, else `en-GB`.
+     */
+    formattingLocale?: FormattingLocale;
     /**
      * Filled with this graph's {@link GraphHandle}, for callers mounted outside the provider where the
      * hooks can't reach. `useGraphHistoryShortcuts` binds the undo/redo chords to one.
@@ -224,7 +230,7 @@ interface GraphProviderProps {
     onSpecChange?: (next: Spec) => void;
     /** Fires with the compile failure(s) whenever a compile/recompile/dispatch produces errors. */
     onError?: (errors: VizDiagnostic[]) => void;
-    /** Fires with any warnings a successful compile produced. */
+    /** Fires with any warnings a successful compile produced, and with `INVALID_FORMATTING_LOCALE` on a tag `Intl` cannot read. */
     onWarnings?: (warnings: VizDiagnostic[]) => void;
     colorScheme?: ColorScheme;
     children: ReactNode;
@@ -1826,6 +1832,8 @@ interface RichTextContent {
  * painting inside the plot `<svg>`, which have to show a target being reached for or an endpoint being
  * moved. A chart rendered without this wrapper has no editor state at all, and reads it at rest.
  *
+ * Its texts follow `formattingLocale`, or the `locale` an `IntlProvider` above it sets, and take that provider's overrides and `dir`.
+ *
  * @example
  * ```tsx
  * <GraphProvider spec={input} data={data}>
@@ -1897,7 +1905,7 @@ const PANEL_ROOT_ATTRIBUTE = "data-graphy-editor-panel";
  *
  * Includes both editor and chart dictionaries so callers cannot omit required translations.
  */
-const IntlProvider: ({ children, ...rest }: Omit<IntlProviderProps, "dictionaries">) => JSX.Element;
+const EditorIntlProvider: ({ children, ...rest }: EditorIntlProviderProps) => JSX.Element;
 
 /** Both axes, each switched on and off from within its own section. */
 const AxesPanel: ({ children, ...rootProps }: PanelProps) => JSX.Element;
@@ -3781,6 +3789,9 @@ type Flatten_2<Shape> = {
     [Key in keyof Shape]: Shape[Key];
 };
 
+/** A BCP-47 tag for display formatting: any tag `Intl` accepts, while parsing stays on {@link Locale}. */
+type FormattingLocale = Locale | (string & {});
+
 const GEOM_ENTRY_OPTIONS: readonly ["where", "state", "layer"];
 
 /**
@@ -4535,7 +4546,7 @@ interface LineGeomParams {
  */
 type LineType = 'solid' | 'dashed' | 'dotted';
 
-/** One of the BCP-47 locale strings the engine supports for number and date formatting. */
+/** One of the BCP-47 locale strings the engine parses data in and Graphy's texts are translated for. */
 type Locale = (typeof LOCALES)[number];
 
 /**
@@ -9605,7 +9616,7 @@ type UpdateAnnotationParams<TKind extends AnnotationKind = AnnotationKind> = {
 /**
  * Stable code for a failure the caller can fix by editing their {@link ResolvedSpec} or {@link Data}.
  */
-type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'LIVE_RENDER_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
+type UserInputErrorCode = 'UNKNOWN_VARIABLE' | 'INCOMPATIBLE_TYPE' | 'INCOMPATIBLE_SCALE_DOMAIN' | 'EVEN_DIVERGING_RAMP' | 'MISSING_AESTHETIC' | 'UNDECLARED_AESTHETIC' | 'DUPLICATE_TOOLTIP_HEADING' | 'INVALID_RULE_MAPPING' | 'UNSUPPORTED_MAPPING' | 'INVALID_GEOM_PARAM' | 'UNSUPPORTED_COORD' | 'UNSUPPORTED_POSITION' | 'UNSUPPORTED_SCALE_TYPE' | 'UNSUPPORTED_CATEGORY_SPAN_AXIS' | 'MISSING_STAT_VARIABLE' | 'CONFLICTING_STAT_MAPPING' | 'MISSING_STAT_OUTPUT' | 'INVALID_STAT_PARAM' | 'CONFLICTING_SCALE_DEMANDS' | 'UNKNOWN_REGISTERED_TYPE' | 'DUPLICATE_REGISTERED_TYPE' | 'MISSING_GEOM_RENDERER' | 'RENDER_HIT_TEST_IDENTITY' | 'SPATIAL_KIND_COORD_UNSUPPORTED' | 'MISSING_RENDER_HIT_TEST' | 'CONFLICTING_RENDER_HIT_TEST' | 'LIVE_RENDER_REQUIRES_RENDER_HIT_TEST' | 'MISSING_ANCHOR_CAPABILITY' | 'MISSING_DATA_LABEL_PLACEMENT' | 'UNKNOWN_LAYER_ID' | 'INVALID_PREDICATE_OPERATOR' | 'INVALID_STYLE_RULE' | 'INVALID_FORMATTING_LOCALE' | 'INVALID_SEQUENCE' | 'ANNOTATION_REF_NOT_FOUND' | 'ANNOTATION_ANCHOR_UNRESOLVED' | 'ANNOTATION_DUPLICATE_ID' | 'INVALID_HIGHLIGHT_OPERATOR' | 'INCOMPARABLE_ARROW_ENDPOINTS' | 'UNRESOLVABLE_COLOR' | 'UNSUPPORTED_GRAPH_TYPE' | 'INVALID_DATA_SHAPE' | 'EMPTY_DATASET' | 'DATA_LABEL_PLACEMENT_COERCED' | 'DATA_LABELS_UNSUPPORTED' | 'DATA_LABEL_SETTING_IGNORED' | 'DATA_LABELS_DROPPED' | 'UNKNOWN_TOOLTIP_FIELD';
 
 /**
  * One user-input problem authored once and used three ways: pushed onto the collector as a warning
@@ -9949,6 +9960,17 @@ interface EditMenus {
     graph?: TargetEditMenu<'graph'> | null;
 }
 
+/** `IntlProvider`'s props, with `i18nOverrides` keyed by the editor's phrases as well as the chart's. */
+interface EditorIntlProviderProps extends Omit<IntlProviderProps, 'dictionaries' | 'i18nOverrides'> {
+    i18nOverrides?: RuntimeOverrides<EditorPhrases>;
+}
+
+/**
+ * The graph's phrases plus the editor's own. A paint site is typed against `GraphPhrases` alone, so
+ * naming an editor phrase there will not compile.
+ */
+type EditorPhrases = GraphPhrases & typeof EDITOR_EN_GB;
+
 /** The style menu and the annotate menu for one way observations are drawn. */
 interface GeomEditMenuActions {
     style?: ObservationsEditMenu | null;
@@ -9984,6 +10006,9 @@ interface GraphAnimationProps {
      */
     maxAnimatedGeoms?: number;
 }
+
+/** Every phrase a chart can say. The editing surface adds its own — see `editable/i18n/editor-i18n`. */
+type GraphPhrases = typeof EN_GB;
 
 /** Props for {@link GraphRenderer}: container sizing, interaction toggles and per-region slot overrides. */
 interface GraphRendererProps {
@@ -10039,7 +10064,8 @@ type GuideEditTarget = Extract<EditTarget, {
 }>;
 
 interface IntlProviderProps {
-    locale?: I18nLocale;
+    /** Any BCP-47 tag, which reads the dictionary {@link normalizeLocale} picks for it. */
+    locale?: FormattingLocale;
     children: ReactNode;
     i18nOverrides?: I18nRuntimeOverrides;
     /** The phrase sets this tree translates against, most specific first. Defaults to the chart's own. */
@@ -10104,6 +10130,12 @@ interface ResolvedObservations {
     /** The selected observations' edit target, which the edit menu's rows hand to their commands. */
     target: ObservationsTarget;
 }
+
+type RuntimeOverrides<Phrases> = {
+    dir?: TextDirection;
+} & {
+    [Key in DotNotation<Phrases>]?: OverridePhrase<Phrases, Key>;
+};
 
 interface SettingRowProps {
     label?: string;

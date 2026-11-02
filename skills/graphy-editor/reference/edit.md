@@ -177,6 +177,23 @@ Every popup carries `data-graphy-color-scheme="light"` or `"dark"`, so one rule 
 
 Swap the controls inside the rows with a `ControlRegistryProvider` from `@graphysdk/react/editable` around the chart. See [panel](panel.md) for the control contracts.
 
+## Translating the menu
+
+The menu's texts follow the chart's `formattingLocale` through Graphy's dictionaries (`en-GB`, `en-US`, `pt-PT`, `ar`). For any other language, wrap the chart in `EditorIntlProvider` from `@graphysdk/react/editable`: `EditableGraphRenderer` takes its `i18nOverrides` and `dir`, and its `locale` when set. `i18nOverrides` takes any editor or chart phrase key, and a phrase left out keeps Graphy's wording. `dir: 'rtl'` lays the menu's controls out right to left. Graphy sets no `dir` on the page, so set the page's yourself.
+
+```tsx
+import { EditableGraphRenderer, EditorIntlProvider } from '@graphysdk/react/editable';
+
+// Outside the component: a new object on every render rebuilds the chart's translator.
+const ITALIAN = { 'editor.overlayMenu.fillColor': 'Colore di riempimento' };
+
+<EditorIntlProvider i18nOverrides={ITALIAN}>
+  <GraphProvider data={data} spec={spec} formattingLocale="it-IT">
+    <EditableGraphRenderer mode="edit" />
+  </GraphProvider>
+</EditorIntlProvider>;
+```
+
 ## Placing your own menu
 
 `useTargetBoundary()` from `@graphysdk/react`, inside the provider, returns the box around the selection or `null`. `client` uses viewport coordinates; `frame` uses chart coordinates. `clientSpans` and `frameSpans` describe the selected range along each side, so menus can align with that part of the selection.

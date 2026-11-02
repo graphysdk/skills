@@ -60,7 +60,7 @@ Transient edits dispatched with `{ transient: true }` are pending. Call `commit(
 
 ## A section or control throws about `IntlProvider`
 
-It is rendered outside `EditorPanel.Root`. The root mounts the editor's translation context. Put the section inside a root, or wrap your own editing UI in `IntlProvider` from `@graphysdk/react/editable`. React-intl's provider uses a different context and cannot replace it.
+It is rendered outside `EditorPanel.Root`. The root mounts the editor's translation context. Put the section inside a root, or wrap your own editing UI in `EditorIntlProvider` from `@graphysdk/react/editable`. React-intl's provider uses a different context and cannot replace it.
 
 ## The panel is light on a dark page
 

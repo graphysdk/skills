@@ -48,9 +48,9 @@ import { AxisSection, EditableGraphRenderer, EditorPanel } from '@graphysdk/reac
 </GraphProvider>;
 ```
 
-Outside the provider tree, pass `handle` from `GraphProvider handleRef`. The ref is empty until the provider mounts. Without the provider context, the panel defaults to `en-GB` and a light color scheme. Wrap it in `IntlProvider` from `@graphysdk/react/editable` with the chart's locale, and `ThemeProvider` from `@graphysdk/react` with its color scheme.
+Outside the provider tree, pass `handle` from `GraphProvider handleRef`. The ref is empty until the provider mounts. The panel takes the chart's locale from the handle. Without the provider context, it defaults to a light color scheme, so wrap it in `ThemeProvider` from `@graphysdk/react` with the chart's color scheme.
 
-Use the same `IntlProvider` inside the tree to change the locale or override phrases. It must be Graphy's provider; react-intl uses a different context. Supported locales: `en-GB`, `en-US`, `pt-PT`, `ar`.
+Use `EditorIntlProvider` from `@graphysdk/react/editable` inside the tree to change the locale or override phrases. It must be Graphy's provider; react-intl uses a different context. Supported locales: `en-GB`, `en-US`, `pt-PT`, `ar`.
 
 Sections render nothing until the chart's first compile. `usePanelGraph()` and `usePanelExpansion()` throw outside a root, and `usePanelGraph()` throws in a root that has no chart, neither a `handle` nor a provider.
 
