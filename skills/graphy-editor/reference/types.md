@@ -2683,14 +2683,14 @@ type AnchorPurpose = 'pin' | 'value';
 
 /**
  * Bounds of the segment a stack total anchors to, in normalized `[0,1]` panel space (origin
- * bottom-left, y grows up). `direction` records which side of the stack the anchor came from.
+ * bottom-left, y grows up). `tipEdge` is the side of those bounds the stack's value runs out of.
  */
 interface AnchorSegment {
     xMin: number;
     xMax: number;
     yMin: number;
     yMax: number;
-    direction: 'positive' | 'negative';
+    tipEdge: Edge;
 }
 
 /**
@@ -2838,6 +2838,11 @@ class AreaGeom extends Geom<AreaGeomParams> {
     }, {
         readonly axis: "y";
         readonly role: "max";
+        readonly valueKind: "value";
+        readonly aesthetic: "y";
+    }, {
+        readonly axis: "y";
+        readonly role: "tip";
         readonly valueKind: "value";
         readonly aesthetic: "y";
     }];
@@ -3106,6 +3111,11 @@ class BarGeom extends Geom<BarGeomParams> {
     }, {
         readonly axis: "y";
         readonly role: "max";
+        readonly valueKind: "value";
+        readonly aesthetic: "y";
+    }, {
+        readonly axis: "y";
+        readonly role: "tip";
         readonly valueKind: "value";
         readonly aesthetic: "y";
     }];
@@ -3759,6 +3769,12 @@ interface DiscreteScaleSpec {
     padding?: number | null;
     reverse?: boolean;
 }
+
+/**
+ * A side of a rectangle in panel space: of the panel, where axes, labels and legends are placed, or of
+ * an observation, as its tip and base sides.
+ */
+type Edge = 'top' | 'right' | 'bottom' | 'left';
 
 /** Extra fields an entry on this node may carry. Every entry may also carry a `coord`. */
 type EntryOption = 'where' | 'state' | 'layer' | 'annotation';

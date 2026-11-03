@@ -1423,6 +1423,11 @@ class AreaGeom extends Geom<AreaGeomParams> {
         readonly role: "max";
         readonly valueKind: "value";
         readonly aesthetic: "y";
+    }, {
+        readonly axis: "y";
+        readonly role: "tip";
+        readonly valueKind: "value";
+        readonly aesthetic: "y";
     }];
     readonly aesthetics: readonly [{
         readonly kind: "visual";
@@ -1652,6 +1657,11 @@ class BarGeom extends Geom<BarGeomParams> {
     }, {
         readonly axis: "y";
         readonly role: "max";
+        readonly valueKind: "value";
+        readonly aesthetic: "y";
+    }, {
+        readonly axis: "y";
+        readonly role: "tip";
         readonly valueKind: "value";
         readonly aesthetic: "y";
     }];
@@ -2283,7 +2293,10 @@ interface DiscreteScaleSpec {
     reverse?: boolean;
 }
 
-/** Positions where axes/labels/legends can be placed around the panel. */
+/**
+ * A side of a rectangle in panel space: of the panel, where axes, labels and legends are placed, or of
+ * an observation, as its tip and base sides.
+ */
 type Edge = 'top' | 'right' | 'bottom' | 'left';
 
 /** Measured sizes (in pixels) for each edge of the layout. */
@@ -3507,7 +3520,7 @@ type PositionAdjustment = (typeof POSITION_ADJUSTMENTS)[number];
  * a custom positional aesthetic (`'open'`, `'low'`) the engine then trains and scales like a built-in
  * channel. A `point` role sources its axis aesthetic implicitly, so authors do not declare `aesthetic` on
  * it (the axis is the aesthetic); if one is present, {@link deriveDeclaredAesthetics} still credits it. A
- * `min`/`max` role without `aesthetic` is compile-written (e.g. a bar's `yMin = 0`); a `scalar` role scales
+ * `min`/`max`/`tip` role without `aesthetic` is compile-written (e.g. a bar's `yMin = 0`); a `scalar` role scales
  * its `aesthetic` column in place into the aesthetic-named column.
  */
 interface PositionRole {
@@ -3522,9 +3535,12 @@ interface PositionRole {
  * The role a position column plays on its axis (named column semantics):
  * - `point`: a single per-observation position; sources its axis aesthetic implicitly.
  * - `scalar`: a single value scaled in place on the axis (e.g. a reference line).
- * - `min` / `max`: the two ends of a per-observation interval (e.g. a bar's `[0, value]`).
+ * - `min` / `max`: the two ends of a per-observation interval (e.g. a bar's `[0, value]`), ordered in
+ *   panel space once scaled, so their order never says which way the value runs.
+ * - `tip`: the interval end the value grows toward (a bar's value edge, a lollipop's dot), equal to `min`
+ *   or `max` once scaled.
  */
-type PositionRoleKind = 'point' | 'scalar' | 'min' | 'max';
+type PositionRoleKind = 'point' | 'scalar' | 'min' | 'max' | 'tip';
 
 /** A geom's position roles. */
 type PositionRoles = readonly PositionRole[];
