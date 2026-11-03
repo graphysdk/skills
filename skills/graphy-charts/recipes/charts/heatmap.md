@@ -57,7 +57,7 @@ export function ShippedHeatmap() {
 }
 ```
 
-Tiles show their value as a data label by default. Turn it off with `geom.tile({ dataLabels: { showDataLabels: false } })`.
+Tiles colored by a number show their value as a data label by default. Turn it off with `geom.tile({ dataLabels: { showDataLabels: false } })`. Tiles colored by a category show none unless you set `showDataLabels: true`.
 
 ## Variants
 
@@ -139,7 +139,7 @@ const waffleData: Data = {
 
 const spec = pipe(
   createSpec({ x: 'col', y: 'row', color: 'channel' }),
-  geom.tile({ dataLabels: { showDataLabels: false } }),
+  geom.tile(),
   scale.x.discrete({ domain: indices }),
   scale.y.discrete({ domain: indices }),
   scale.color.discrete({ domain: channels.map((entry) => entry.channel), range: channels.map((entry) => entry.color) }),

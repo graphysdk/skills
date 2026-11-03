@@ -39,7 +39,7 @@ Controls in the rows come from the control registry, so a `ControlRegistryProvid
 
 Every row names the command it dispatches. Exact params are in [types](types.md).
 
-### Bar, point and custom geom groups
+### Bar, point, tile and custom geom groups
 
 | Row        | Control                                                                                                    | Command                                          |
 | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -47,7 +47,7 @@ Every row names the command it dispatches. Exact params are in [types](types.md)
 
 The row requires an editable color. A layer is not selectable if its color encodes a number or its geom has no fill or stroke of its own.
 
-The chips are the chart's palette. A chip click is one undo step. A picker drag streams and commits when the picker closes. The target is the selection, so a group, a band and one observation each write their own style rule. A band of stacked bars has no color row, since recoloring it would recolor every group.
+The chips are the chart's palette. A chip click is one undo step. A picker drag streams and commits when the picker closes. The target is the selection, so a group, a band and one observation each write their own style rule. A band of stacked bars has no color row, since recoloring it would recolor every group. Tiles take a color by group only, since one tile painted alone misstates its group.
 
 A custom geom with no edit menu of its own gets this row when its observations map `color` in its style target. The picked color also goes to every part that maps `color`, such as a funnel's connector or a lollipop's stem. Candlestick and waterfall map `color` only on their kind parts, so they get no row. Register `null` under the geom's name in `editMenus.geoms` to remove it.
 
@@ -99,16 +99,18 @@ Arrow keys move through positions clockwise. A held key is one undo step. The gr
 
 Each row appears when at least one layer supports it. A switch is on if the setting is enabled on any layer. Clicking turns it off for all layers, or on for all if none had it enabled.
 
-| Row              | Control                                                                                                                                     | Command                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Data labels      | Switch                                                                                                                                      | `ToggleDataLabelsCommand` per layer, as one `SequenceCommand` |
-| Show percentages | Switch, while data labels are on                                                                                                            | `SetDataLabelsFormatCommand`                                  |
-| Stack totals     | Switch, stacked bars                                                                                                                        | `ToggleStackTotalsCommand`                                    |
-| Category labels  | Switch, pie and donut with data labels on                                                                                                   | `ToggleCategoryLabelsCommand`                                 |
-| Show points      | Switch, lines and areas                                                                                                                     | `ToggleLinePointsCommand`                                     |
-| Smooth lines     | Switch, lines and areas                                                                                                                     | `SetLineCurveCommand({ layerId, curve })`                     |
-| Missing values   | Select: Leave gap in chart, Fill with zero, Connect across gaps. Areas omit Leave gap; stacks omit Connect. Shown with two or more options. | `SetLineMissingValuesCommand`                                 |
-| Palette          | Theme, then one option per preset                                                                                                           | `SetScaleRangeCommand({ scaledAesthetic: 'color', range })`   |
+| Row              | Control                                                                                                                                                          | Command                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Data labels      | Switch                                                                                                                                                           | `ToggleDataLabelsCommand` per layer, as one `SequenceCommand` |
+| Show percentages | Switch, while data labels are on                                                                                                                                 | `SetDataLabelsFormatCommand`                                  |
+| Stack totals     | Switch, stacked bars                                                                                                                                             | `ToggleStackTotalsCommand`                                    |
+| Category labels  | Switch, pie and donut with data labels on                                                                                                                        | `ToggleCategoryLabelsCommand`                                 |
+| Show points      | Switch, lines and areas                                                                                                                                          | `ToggleLinePointsCommand`                                     |
+| Smooth lines     | Switch, lines and areas                                                                                                                                          | `SetLineCurveCommand({ layerId, curve })`                     |
+| Missing values   | Select: Leave gap in chart, Fill with zero, Connect across gaps. Areas omit Leave gap; stacks omit Connect. Shown with two or more options.                      | `SetLineMissingValuesCommand`                                 |
+| Palette          | Theme, then one option per preset                                                                                                                                | `SetScaleRangeCommand({ scaledAesthetic: 'color', range })`   |
+| Fill color       | Palette chips and a custom color chip, on a sequential continuous color scale. The gradient takes the color's hue and saturation and keeps each stop's lightness | `SetScaleRangeCommand({ scaledAesthetic: 'color', range })`   |
+| Low, High color  | The same chips, on a diverging continuous color scale. Each colors the values on one side of `domainMid`; the neutral stop stays                                 | `SetScaleRangeCommand({ scaledAesthetic: 'color', range })`   |
 
 The Palette row needs `palettePresets` on `EditableGraphRenderer`:
 

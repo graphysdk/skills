@@ -1042,6 +1042,8 @@ abstract class Geom<TParams = Record<string, never>> {
     readonly legend: LegendPolicy;
     /** Per-coord data-label defaults merged over the base config (e.g. bar+polar → percentage). */
     readonly dataLabels?: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    /** Data-label defaults merged over {@link dataLabels} when the layer's color maps a category column. */
+    readonly categoryColorDataLabels?: Partial<ResolvedDataLabelsSpec>;
     /** Coord types the built-in placement pipeline can place this geom's data labels under. */
     readonly dataLabelCoordTypes: readonly CoordType[];
     /**
@@ -4742,6 +4744,8 @@ class TileGeom extends Geom<Record<string, never>> {
     readonly legend: LegendPolicy;
     /** A heatmap reads cell-by-cell, so the value labels every cell by default. */
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    /** A waffle's tile has no value of its own to label, only the category its legend already names. */
+    readonly categoryColorDataLabels: Partial<ResolvedDataLabelsSpec>;
     readonly dataLabelCoordTypes: readonly ["cartesian"];
     readonly highlightStrategy: "observationRerender";
     readonly spatialKind: SpatialKind;

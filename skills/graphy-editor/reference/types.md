@@ -1029,8 +1029,8 @@ class SetScaleDomainCommand implements Command<SetScaleDomainParams> {
 }
 
 /**
- * Command that sets the range of a discrete scale, such as the colors a color scale hands its groups.
- * Targets a scale by scaled aesthetic.
+ * Command that sets the range of a discrete scale, such as the colors a color scale hands its groups, or the
+ * colormap of a continuous color scale. Targets a scale by scaled aesthetic.
  * Produces a revert command that restores the previous range for undo support.
  */
 class SetScaleRangeCommand implements Command<SetScaleRangeParams> {
@@ -1471,6 +1471,30 @@ const readObservationsColorRoute: (spec: ResolvedSpec, target: ObservationsTarge
 
 /** The colors a color row offers: the ones the color scale hands its groups. */
 const readColorChoices: (scale: SceneScale | undefined) => readonly string[];
+
+/**
+ * The color a sequential colormap reads as: the one of `choices` it was drawn in, else its stop nearest the middle
+ * lightness, where a hue shows most. `null` for any other scale, a diverging one included.
+ */
+const readColormapColor: (scale: SceneScale | undefined, choices?: readonly string[]) => string | null;
+
+/**
+ * The `range` that draws a colormap in one color: every stop takes the color's hue and saturation and keeps its own
+ * lightness, since those steps are the contrast the theme fits to its background.
+ */
+const buildColormapRange: (scale: SceneScale | undefined, color: string) => string[] | null;
+
+/** The color at one end of a diverging colormap, or `null` for any other scale or one with no neutral stop. */
+const readDivergingColor: (scale: SceneScale | undefined, end: DivergingEnd) => string | null;
+
+/**
+ * The `range` that ends a diverging colormap on a color. The ramp keeps its length, since the neutral stop draws at
+ * the midpoint only from the center of the list, so the stops between the color and the neutral re-blend.
+ */
+const buildDivergingRange: (scale: SceneScale | undefined, end: DivergingEnd, color: string) => string[] | null;
+
+/** Which side of a diverging colormap's midpoint a color paints: the values below it, or those above it. */
+type DivergingEnd = 'low' | 'high';
 
 /**
  * Adds a predicate-driven highlight to the spec.
@@ -8582,6 +8606,8 @@ interface SceneVisualScale<Input = DataValue> extends SceneScaleBase<Input> {
     map: (value: Input) => DataValue;
     /** Color scales only: the colors the scale hands its groups, which a color picker offers. */
     palette?: readonly string[];
+    /** Continuous color scales only: the stops the colormap blends through, in `range` order, which a color row rewrites. */
+    colormapStops?: readonly string[];
     /** Color scales only: the colors it takes with no `range`, which a palette picker offers as the theme's. */
     defaultPalette?: readonly string[];
 }
@@ -8943,7 +8969,7 @@ type SetScaleDomainParams = {
 type SetScaleRangeParams = {
     /** Which scale to change, identified by the aesthetic it drives (e.g. color). */
     scaledAesthetic: ScaledAestheticKey;
-    /** The values the groups take in order, such as colors; `null` hands the scale back to the theme's list. */
+    /** The colors the groups take in order, or a colormap's stops; `null` hands the scale back to the theme's list. */
     range: ResolvedDiscreteScaleSpec['range'];
 };
 
@@ -9581,6 +9607,8 @@ class TileGeom extends Geom<Record<string, never>> {
     readonly legend: LegendPolicy;
     /** A heatmap reads cell-by-cell, so the value labels every cell by default. */
     readonly dataLabels: Partial<Record<CoordType, Partial<ResolvedDataLabelsSpec>>>;
+    /** A waffle's tile has no value of its own to label, only the category its legend already names. */
+    readonly categoryColorDataLabels: Partial<ResolvedDataLabelsSpec>;
     readonly dataLabelCoordTypes: readonly ["cartesian"];
     readonly highlightStrategy: "observationRerender";
     readonly spatialKind: SpatialKind;
