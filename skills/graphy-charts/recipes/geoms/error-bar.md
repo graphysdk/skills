@@ -147,7 +147,7 @@ The geom writes each interval's ends as `errorbarLower` and `errorbarUpper`, in 
 
 - The category axis is always a band. Declare `kit.scale.x.discrete()`; error bars over a line on a time axis are not drawn.
 - Pass the estimate and its interval. The geom does not compute a mean or a confidence interval from raw rows.
-- Error bars line up with bars of the default width. A bar with its own `width` param leaves its error bar where it was.
+- An error bar follows the `width` of the bars it attaches to. With a line between them, or over `interactive: false` bars, it misses grouped bars of a non-default `width`.
 - `position: 'stack'` and `coord.polar()` are rejected.
 - `dataLabels` prints nothing on an error bar.
 - `plugins` are read once at mount. Keep the kit at module scope.

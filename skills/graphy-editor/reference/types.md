@@ -3128,7 +3128,7 @@ class BarGeom extends Geom<BarGeomParams> {
     /** Stacked/filled segments read best with centered labels, matching the auto placement for stacks. */
     readonly resolveDataLabelDefaults: (position: PositionAdjustment) => Partial<ResolvedDataLabelsSpec>;
     /** A bar spans `width` of its band, leaving breathing room either side that nothing paints into. */
-    readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordSystem: CoordSystem) => number;
+    readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordType: CoordType) => number;
     /**
      * Anchors at the `align` box-point of the bar's extent when the anchor names one — under polar, of
      * the bounds the slice sweeps, so the same `align` names the same edge on a pie as on a bar.
@@ -3835,6 +3835,8 @@ interface GeomCompilerInput {
     params: ResolvedLayerSpec['params'];
     /** The active coord type, for geoms whose defaults depend on the band's shape. */
     coordType: CoordType;
+    /** The band fraction of the layer this one attaches to, when its geom declares one, for a geom standing on its bars. */
+    attachedToBandFraction?: number;
 }
 
 /**

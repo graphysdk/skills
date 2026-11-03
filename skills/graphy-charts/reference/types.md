@@ -1062,9 +1062,10 @@ abstract class Geom<TParams = Record<string, never>> {
     /**
      * Optional: the fraction of its band this geom occupies (a bar's `width`). An `axis` annotation
      * anchor aligns to that rather than the whole band, so `align: 'left'` lands where the geoms end.
-     * A geom that draws on the band center with no width doesn't implement it.
+     * A layer attached to a layer of this geom reads it too, as `attachedToBandFraction`. A geom that
+     * draws on the band center with no width doesn't implement it.
      */
-    resolveBandFraction?: (params: ResolvedLayerSpec['params'], coordSystem: CoordSystem) => number;
+    resolveBandFraction?: (params: ResolvedLayerSpec['params'], coordType: CoordType) => number;
     /**
      * Optional: the aesthetic carrying the value an observation stands for, where that is not its y (a
      * tile encodes its value as `color`), for the given {@link ValueSourcePurpose}. Returns `null` to
@@ -1673,7 +1674,7 @@ class BarGeom extends Geom<BarGeomParams> {
     /** Stacked/filled segments read best with centered labels, matching the auto placement for stacks. */
     readonly resolveDataLabelDefaults: (position: PositionAdjustment) => Partial<ResolvedDataLabelsSpec>;
     /** A bar spans `width` of its band, leaving breathing room either side that nothing paints into. */
-    readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordSystem: CoordSystem) => number;
+    readonly resolveBandFraction: (params: ResolvedLayerSpec["params"], coordType: CoordType) => number;
     /**
      * Anchors at the `align` box-point of the bar's extent when the anchor names one — under polar, of
      * the bounds the slice sweeps, so the same `align` names the same edge on a pie as on a bar.
