@@ -88,4 +88,4 @@ Details:
 - Annotate: the note is visible, draggable and editable in place. The title supports inline editing. Hovering a bar shows the (+) menu for comments, stickers and highlights; clicking bars does not open chart settings.
 - Read only: tooltips are available. Both editing modes hide them.
 - Switching between editing modes clears the selection and closes menus because the next mode may hide the selected item.
-- `GraphMode` is the exported union of the three mode strings. An unrecognized string falls back to `readonly`.
+- `GraphMode` is the exported union of the four mode strings. An unrecognized string falls back to `readonly`.

@@ -22,6 +22,7 @@ import { EditableGraphRenderer } from '@graphysdk/react/editable';
 - `'readonly'` (default): view only. Commands from code still work.
 - `'edit'`: click a part of the chart and change it from a menu. See [edit](edit.md).
 - `'annotate'`: annotations, drags, inline text, the (+) menu. See [annotations](annotations.md).
+- `'static'`: no interactivity and no animation, for exports and thumbnails. Annotations draw; links still open.
 
 A plain `GraphRenderer` with `mode="annotate"` renders no editing layer, though the mode still hides tooltips. Switch modes through the `mode` prop:
 
@@ -35,14 +36,14 @@ Hover, animation and the editor's own state survive a mode change. Swapping comp
 
 ## Props
 
-`EditableGraphRenderer` takes every `GraphRenderer` prop (`sizing`, `animation`, `showTooltips`, `slots`, `onResize`, `mode`) plus two of its own:
+`EditableGraphRenderer` takes every `GraphRenderer` prop (`sizing`, `animation`, `slots`, `onResize`, `mode`) plus two of its own:
 
 - `palettePresets`: named color lists, `{ Warm: ['#E03030', '#E08A30'] }`. The Chart menu in edit mode offers them after the theme's colors. Without it the Palette row is hidden.
 - `editMenus`: your own edit menus, searched before Graphy's. `null` removes a menu. See [edit](edit.md).
 
 `EditableGraphRenderer` supplies the `EditorSurface` slot. Override it through `slots` to replace the editing layer. Use `EditorSurfaceSlotProps` from `@graphysdk/react` for your component.
 
-Both editing modes hide tooltips regardless of `showTooltips`. Edit mode also hides annotations and the chart's normal hover styling. Inline text editing and the (+) menu are available only in annotate mode.
+Both editing modes hide tooltips, and so does `static`. Edit mode also hides annotations and the chart's normal hover styling. Inline text editing and the (+) menu are available only in annotate mode.
 
 ## CSS
 

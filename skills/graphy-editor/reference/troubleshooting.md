@@ -86,7 +86,7 @@ Two sections share a title. The accordion identifies sections by title. Make the
 
 ## Tooltips are gone
 
-Both editing modes hide tooltips regardless of `showTooltips`. They return in `readonly`.
+Both editing modes hide tooltips, and so does `static`. They return in `readonly`, where `config({ tooltip: { mode: 'none' } })` hides the data rows; a hovered comment still shows its text.
 
 ## Annotations are gone
 
@@ -100,7 +100,7 @@ The renderer component was swapped, or the provider got a new `key`. Toggle `mod
 
 - The target is missing: a wrong `layerId`, an axis the chart lacks, a scale that is not discrete for `SetScaleRangeCommand`.
 - The value is already set, so the command creates no history entry.
-- The command requires a `layerId`, but none was supplied: `SetLineStyleCommand`, `SetPointSizeCommand`, `SetBarCornerRadiusCommand`, `RemoveLayerCommand`.
+- The command requires a `layerId`, but none was supplied: `SetLineStyleCommand`, `SetPointSizeCommand`, `SetPointSymbolCommand`, `SetBarCornerRadiusCommand`, `RemoveLayerCommand`.
 - `RemoveLayerCommand` cannot remove the last layer; a chart requires at least one.
 - `SetLineStyleCommand` on a bar layer. Only line and area layers have a path to dash, thicken or fill.
 

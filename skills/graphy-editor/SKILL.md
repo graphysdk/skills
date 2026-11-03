@@ -38,13 +38,14 @@ export function ChartEditor({ data, initialSpec }: { data: Data; initialSpec: Sp
 
 Click a bar, line, axis label, legend pill, grid line, or empty background to open its edit menu. The shortcut hook enables undo and redo, and `spec` tracks the latest edit.
 
-## The three modes
+## The four modes
 
 | `mode`                 | The user can                                                                                                                                               | Use it for                      |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | `'readonly'` (default) | Hover and read tooltips                                                                                                                                    | Viewing. Commands still work.   |
 | `'edit'`               | Click a part of the chart and change it from a menu. Hide an axis, the legend or grid lines.                                                               | Quick edits to the chart itself |
 | `'annotate'`           | Add, drag, resize and type into annotations. Edit the title, subtitle and caption in place. Add highlights and stickers from the (+) menu on a data point. | Annotations and inline text     |
+| `'static'`             | Nothing: no hover, tooltip, legend popover or animation. Links still open.                                                                                 | Exports, thumbnails, print      |
 
 Switch modes with the `mode` prop. Replacing `EditableGraphRenderer` with `GraphRenderer` remounts the chart and resets hover, animation, and editor state. Undo history stays in the provider and survives either change. Both editing modes hide tooltips. Edit mode also hides annotations. Switching between editing modes clears the selection.
 

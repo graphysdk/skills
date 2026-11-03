@@ -139,6 +139,7 @@ const GROUPS = [
       'SetLineCurveCommand',
       'SetLineMissingValuesCommand',
       'SetPointSizeCommand',
+      'SetPointSymbolCommand',
       'SetRuleLabelCommand',
       'SetRuleValueCommand',
       'SetStatLineCommand',

@@ -33,7 +33,7 @@ Before writing code, replay the commands with `scripts/replay-commands.mjs`. See
 
 ## Bars, lines and points
 
-Assign layer IDs when authoring so commands can target the correct layer. `layerId` is required on `SetLineStyleCommand`, `SetPointSizeCommand`, `SetBarCornerRadiusCommand` and `RemoveLayerCommand`.
+Assign layer IDs when authoring so commands can target the correct layer. `layerId` is required on `SetLineStyleCommand`, `SetPointSizeCommand`, `SetPointSymbolCommand`, `SetBarCornerRadiusCommand` and `RemoveLayerCommand`.
 
 | Request                                     | Command                                                                                                                                                                                     | Also                                      |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -45,6 +45,7 @@ Assign layer IDs when authoring so commands can target the correct layer. `layer
 | Show points on the line, fill under it      | `ToggleLinePointsCommand({ layerId, showPoints: true })`, `SetLineStyleCommand({ layerId, showFill: true })`                                                                                | menu, panel `LineSection`                 |
 | Break the line at missing months            | `SetLineMissingValuesCommand({ layerId, missingValues: 'gap' })`                                                                                                                            | menu Chart, panel `LineSection`           |
 | Bigger dots                                 | `SetPointSizeCommand({ layerId, size })`                                                                                                                                                    | panel `PointSection`, menu line rows      |
+| Diamond markers                             | `SetPointSymbolCommand({ layerId, symbol: 'diamond' })`, `symbol: null` returns to the stylesheet                                                                                           |                                           |
 | Show the values on the bars, as percentages | `ToggleDataLabelsCommand({ layerId, showDataLabels: true })`, `SetDataLabelsFormatCommand({ layerId, format: 'percentage' })`                                                               | menu Chart, panel `GraphOptionsSection`   |
 | Show stack totals, label the pie slices     | `ToggleStackTotalsCommand`, `ToggleCategoryLabelsCommand`                                                                                                                                   | menu Chart, panel `GraphOptionsSection`   |
 | Add a trend line, an average line           | `SetStatLineCommand({ line: 'trend', method: 'linear' })`, `{ line: 'average' }`, `{ line: 'none' }` removes                                                                                | panel `TrendsAndAveragesSection`          |

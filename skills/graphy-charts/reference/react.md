@@ -74,9 +74,7 @@ Exported types: `GraphProviderProps`, `ColorScheme`, `Scene` and `ResolvedSpec`.
 ```tsx
 import { GraphRenderer } from '@graphysdk/react';
 
-export const Renderer = () => (
-  <GraphRenderer sizing={{ mode: 'fixed', width: 640, height: 400 }} animation={false} showTooltips={true} />
-);
+export const Renderer = () => <GraphRenderer sizing={{ mode: 'fixed', width: 640, height: 400 }} animation={false} />;
 ```
 
 Props:
@@ -84,11 +82,10 @@ Props:
 - `sizing`: how the graph claims space. Default `{ mode: 'responsive' }`. See "Sizing".
 - `onResize`: called with `{ width, height, unmeasured }` whenever the container changes size.
 - `animation`: `true`, `false`, or an object. See "Animation".
-- `showTooltips`: default `true`. `false` hides the tooltip whatever `config.tooltip.mode` says.
-- `mode`: `'readonly'` (default), `'annotate'` or `'edit'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`. The graphy-editor skill covers editing.
+- `mode`: `'readonly'` (default), `'annotate'`, `'edit'` or `'static'`. A string that names no mode resolves to `'readonly'`. Both editing modes hide the tooltip and need `EditableGraphRenderer` from `@graphysdk/react/editable`; the graphy-editor skill covers editing. `'static'` draws the chart once with no hover, tooltip, legend popover or animation, for exports and thumbnails.
 - `slots`: replace how a region paints. See slots.md.
 
-Exported types: `GraphRendererProps`, `GraphMode`, and the `GRAPH_MODES` constant with `readonly`, `annotate` and `edit` keys.
+Exported types: `GraphRendererProps`, `GraphMode`, and the `GRAPH_MODES` constant with `readonly`, `annotate`, `edit` and `static` keys.
 
 ## Sizing
 

@@ -152,7 +152,7 @@ All classes are exported from `@graphysdk/react/editable`. Params are in [types]
 
 ### Layers
 
-`AddLayerCommand`, `RemoveLayerCommand`, `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`, `SetStatLineCommand`, `ToggleGoalLineCommand`, `SetRuleValueCommand`, `SetRuleLabelCommand`, `SetBarWidthCommand`, `SetBarCornerRadiusCommand`, `SetLineStyleCommand` (a line's dash, width and fill as one undo step), `SetLineCurveCommand`, `SetLineMissingValuesCommand`, `ToggleLinePointsCommand` (a `where` shows or hides one group's points), `SetPointSizeCommand` (without `where` it also clears each group's size, leaving a group hidden at size 0 hidden; while the layer is at size 0 it sizes only the shown groups), `ToggleDataLabelsCommand`, `SetDataLabelsFormatCommand`, `ToggleStackTotalsCommand`, `ToggleCategoryLabelsCommand`. See "Per-layer control".
+`AddLayerCommand`, `RemoveLayerCommand`, `SetLayerPositionCommand`, `SetLayerStatCommand`, `SetLayerYScaleTypeCommand`, `SetStatLineCommand`, `ToggleGoalLineCommand`, `SetRuleValueCommand`, `SetRuleLabelCommand`, `SetBarWidthCommand`, `SetBarCornerRadiusCommand`, `SetLineStyleCommand` (a line's dash, width and fill as one undo step), `SetLineCurveCommand`, `SetLineMissingValuesCommand`, `ToggleLinePointsCommand` (a `where` shows or hides one group's points), `SetPointSizeCommand` (without `where` it also clears each group's size, leaving a group hidden at size 0 hidden; while the layer is at size 0 it sizes only the shown groups), `SetPointSymbolCommand` (with `where` it sets that one group; without `where` it sets the layer and removes `symbol` from every group rule, leaving the rest of that group's paint, including a size of 0; a line or bar layer is left unchanged; `symbol` is `circle`, `square`, `diamond`, `triangle`, `cross`, `star`, or `wye`, and `null` hands it back to the stylesheet), `ToggleDataLabelsCommand`, `SetDataLabelsFormatCommand`, `ToggleStackTotalsCommand`, `ToggleCategoryLabelsCommand`. See "Per-layer control".
 
 ### Scales and coords
 
@@ -200,7 +200,7 @@ There is no command for the frame's corner radius or the text scale. Write them 
 
 ## Per-layer control
 
-Layer commands take a `layerId`. Most use the first matching layer when it is omitted. `SetLineStyleCommand`, `SetPointSizeCommand`, `SetBarCornerRadiusCommand` and `RemoveLayerCommand` require it. Either way they change that layer alone, so a combo chart stacks its bars without touching its line. Give layers stable IDs when authoring, `geom.bar({ id: 'bars' })`. To restyle one layer use `style.geom(declarations, { layer: id })` through `SetStyleRuleCommand`.
+Layer commands take a `layerId`. Most use the first matching layer when it is omitted. `SetLineStyleCommand`, `SetPointSizeCommand`, `SetPointSymbolCommand`, `SetBarCornerRadiusCommand` and `RemoveLayerCommand` require it. Either way they change that layer alone, so a combo chart stacks its bars without touching its line. Give layers stable IDs when authoring, `geom.bar({ id: 'bars' })`. To restyle one layer use `style.geom(declarations, { layer: id })` through `SetStyleRuleCommand`.
 
 ```tsx
 import { useGraphCommands, useSceneSelector } from '@graphysdk/react';

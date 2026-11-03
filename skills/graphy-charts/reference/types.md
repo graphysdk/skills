@@ -604,6 +604,11 @@ interface GraphProviderProps {
      */
     theme?: Theme;
     /**
+     * Named glyphs for this graph. Fixed at mount, after the theme's glyphs, so a host name replaces the theme's.
+     * Change the set by remounting (React `key`).
+     */
+    glyphs?: readonly GlyphDefinition[];
+    /**
      * Formats numbers and dates for display: any BCP-47 tag (`it-IT`). A tag `Intl` cannot read formats as `en-GB` and
      * reports `INVALID_FORMATTING_LOCALE`. Graphy's own texts use the built-in dictionary for its language, else `en-GB`.
      */
@@ -637,8 +642,6 @@ interface GraphRendererProps {
      * and so does a chart denser than `maxAnimatedGeoms`.
      */
     animation?: GraphAnimation;
-    /** `false` hides the tooltip whatever `config.tooltip.mode` says. Left at `true`, the spec decides. */
-    showTooltips?: boolean;
     mode?: GraphMode;
     /** Per-region component overrides. Unspecified regions render their default. */
     slots?: GraphSlots;
@@ -1158,7 +1161,7 @@ interface GeomOverpaintProps {
  * `createSpecBuilder` and `<GraphProvider plugins theme>` directly. The `const` type parameter keeps
  * the `plugins` tuple, so `kit.geom.<customName>` is typed.
  */
-function createGraphyKit<const P extends readonly Plugin_2[] = []>({ theme, ...options }?: CreateGraphyKitOptions<P>): GraphyKit<P>;
+function createGraphyKit<const P extends readonly Plugin_2[] = []>({ theme, glyphs, ...options }?: CreateGraphyKitOptions<P>): GraphyKit<P>;
 
 /**
  * The typed spec builders and a `GraphProvider` bound to the same `plugins` and the supplied `theme`.
@@ -1167,7 +1170,7 @@ function createGraphyKit<const P extends readonly Plugin_2[] = []>({ theme, ...o
  * through to the React entry point.
  */
 interface GraphyKit<P extends readonly Plugin_2[] = readonly Plugin_2[]> extends SpecBuilder<P> {
-    GraphProvider: (props: Omit<GraphProviderProps, 'plugins' | 'theme'>) => ReactElement;
+    GraphProvider: (props: Omit<GraphProviderProps, 'plugins' | 'theme' | 'glyphs'>) => ReactElement;
 }
 ```
 
@@ -4034,7 +4037,7 @@ const STYLE_LINE_JOINS: readonly ["miter", "round", "bevel"];
 
 const STYLE_PATTERN_PRESETS: readonly ["diagonal", "dots", "crosshatch", "lines"];
 
-/** Every {@link StylePointSymbol}. */
+/** Every {@link StyleGeometricSymbol}. */
 const STYLE_POINT_SYMBOLS: readonly ["circle", "square", "diamond", "triangle", "cross", "star", "wye"];
 
 /**
@@ -4443,6 +4446,9 @@ type StyleDomain = keyof AuthoredStyleDomainValues;
 /** The slant of a face. */
 type StyleFontStyle = (typeof STYLE_FONT_STYLES)[number];
 
+/** One of the seven built-in point shapes. */
+type StyleGeometricSymbol = (typeof STYLE_POINT_SYMBOLS)[number];
+
 /** A gradient fill: linear along an angle in degrees (CSS convention, `180` top to bottom), or radial from the center. */
 type StyleGradient<Color> = {
     gradient: 'linear';
@@ -4480,6 +4486,11 @@ interface StyleImage<Color> {
 /** How an image fill sits in the shape it fills: `tile` repeats it, `stretch` fills the shape with one copy. */
 type StyleImageFit = (typeof STYLE_IMAGE_FITS)[number];
 
+/** An inline image used as a point symbol. `image` is a `data:image/` URI. */
+interface StyleImageSymbol {
+    image: string;
+}
+
 /** How a stroke ends, and how its segments meet. */
 type StyleLineCap = (typeof STYLE_LINE_CAPS)[number];
 
@@ -4510,8 +4521,11 @@ interface StylePattern<Color> {
 /** The pattern tiles a renderer can draw. */
 type StylePatternPreset = (typeof STYLE_PATTERN_PRESETS)[number];
 
-/** The glyph a point draws, every one covering the area of the circle its `size` names. */
-type StylePointSymbol = (typeof STYLE_POINT_SYMBOLS)[number];
+/**
+ * The glyph a point draws. A built-in shape, a name registered on the renderer, or an inline image.
+ * A named glyph is not checked against a registry here, so a spec compiles without the renderer mounted.
+ */
+type StylePointSymbol = StyleGeometricSymbol | (string & {}) | StyleImageSymbol;
 
 /** A drop shadow. Offsets and blur are pixels; `color` takes the same forms as other color properties. */
 interface StyleShadow<ColorValue> {
@@ -5076,6 +5090,8 @@ interface CreateGraphyKitOptions<P extends readonly Plugin_2[] = readonly Plugin
      *   const kit = createGraphyKit({ theme: watercolor, plugins: [dumbbell] });
      */
     theme?: Theme;
+    /** Named glyphs for every graph of the kit. A name here replaces the same name on `theme.glyphs`. */
+    glyphs?: readonly GlyphDefinition[];
 }
 
 /** Round marks of one size, which the outline grows from their edge. */
@@ -5123,15 +5139,17 @@ interface EditOutlineStroke extends MorphingEditOutlineShape {
 }
 
 /**
- * Chart display and interaction mode.
- * - 'readonly': Normal chart display with full interactivity but no editing (default)
- * - 'annotate': Chart with annotation and inline text editing capabilities
- * - 'edit': A press on the chart selects what it hit: an observation, its band, a guide, or the chart
+ * What the reader can do with the chart.
+ * - 'readonly': hover and read tooltips, no editing (default)
+ * - 'annotate': add and edit annotations, and the title, subtitle and caption in place
+ * - 'edit': press a part of the chart to select it: an observation, its band, a guide, or the chart
+ * - 'static': nothing; the chart draws once with no hover, tooltip or animation, for exports and print
  */
 const GRAPH_MODES: {
     readonly readonly: "readonly";
     readonly annotate: "annotate";
     readonly edit: "edit";
+    readonly static: "static";
 };
 
 interface GeomCircleProps {
@@ -5151,6 +5169,8 @@ interface GeomCircleProps {
     animateTransitions: boolean;
     /** A geom's own test hook, since the primitive owns the painted element. */
     'data-testid'?: string;
+    /** Replaces the circle with a built-in shape, a registered glyph, or an inline image. */
+    symbol?: StylePointSymbol;
 }
 
 interface GeomLineProps {
@@ -5368,7 +5388,41 @@ interface GeomShapes {
     Path?: ComponentType<GeomPathProps>;
 }
 
-/** The mode a chart runs in, which `GraphRenderer` takes as a prop and every row of `MODE_SURFACES` is keyed by. */
+interface GlyphDefinition {
+    name: string;
+    definition: GlyphShape;
+}
+
+/**
+ * An image URI, drawn in a `size` by `size` box.
+ * Stroke, stroke opacity and stroke width are not applied. A stroke on an image cannot outline the picture.
+ */
+interface GlyphImageShape {
+    image: string;
+}
+
+/** Paint a glyph render function receives. `fill` is also `currentColor` on the wrapping group. */
+interface GlyphPaint {
+    size: number;
+    fill: string;
+    fillOpacity?: number;
+    stroke?: string;
+    strokeOpacity?: number;
+    strokeWidth?: number;
+}
+
+/** A single path, in a view box `[minX, minY, width, height]`, scaled to fit `size`. */
+interface GlyphPathShape {
+    d: string;
+    viewBox: readonly [number, number, number, number];
+}
+
+/** A React figure centered on `(0, 0)` and drawn at `size` pixels. */
+type GlyphRender = (paint: GlyphPaint) => ReactNode;
+
+type GlyphShape = GlyphRender | GlyphPathShape | GlyphImageShape;
+
+/** The mode a chart runs in, which `GraphRenderer` takes as a prop and every row of `MODE_RULES` is keyed by. */
 type GraphMode = (typeof GRAPH_MODES)[keyof typeof GRAPH_MODES];
 
 /**
